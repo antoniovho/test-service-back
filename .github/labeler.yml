@@ -1,0 +1,15 @@
+area/backend:
+  - changed-files:
+      - any-glob-to-any-file: "src/**"
+
+area/testing:
+  - changed-files:
+      - any-glob-to-any-file: "tests/**"
+
+area/github:
+  - changed-files:
+      - any-glob-to-any-file: ".github/**"
+
+kind/documentation:
+  - changed-files:
+      - any-glob-to-any-file: "**/*.md"

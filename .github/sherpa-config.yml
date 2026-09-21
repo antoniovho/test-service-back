@@ -1,0 +1,9 @@
+---
+version: "1.0"
+checks:
+  development_flow: gitflow
+  conventional_commits: true
+  merge_from_command: true
+  sync_labels: true
+  auto_assign: true
+  branch_length: 63

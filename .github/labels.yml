@@ -1,0 +1,69 @@
+- name: kind/feature
+  color: "0E8A16"
+  description: "New functionality"
+- name: kind/bug
+  color: "D73A4A"
+  description: "Bug or defect"
+- name: kind/hotfix
+  color: "B60205"
+  description: "Production incident"
+- name: kind/improvement
+  color: "1D76DB"
+  description: "Technical improvement"
+- name: kind/documentation
+  color: "0075CA"
+  description: "Documentation"
+- name: kind/chore
+  color: "C5DEF5"
+  description: "Maintenance"
+- name: kind/security
+  color: "B60205"
+  description: "Security"
+- name: status/backlog
+  color: "BFDADC"
+  description: "Waiting"
+- name: status/ready
+  color: "0E8A16"
+  description: "Ready to start"
+- name: status/in-progress
+  color: "FBCA04"
+  description: "Being implemented"
+- name: status/in-review
+  color: "5319E7"
+  description: "Under review"
+- name: status/blocked
+  color: "B60205"
+  description: "Blocked"
+- name: status/done
+  color: "1D76DB"
+  description: "Completed"
+- name: priority/high
+  color: "B60205"
+  description: "High priority"
+- name: priority/medium
+  color: "FBCA04"
+  description: "Medium priority"
+- name: priority/low
+  color: "0E8A16"
+  description: "Low priority"
+- name: area/api
+  color: "006B75"
+  description: "OpenAPI implementation"
+- name: area/backend
+  color: "0052CC"
+  description: "Backend implementation"
+- name: area/configuration
+  color: "C2E0C6"
+  description: "Repository configuration"
+- name: area/github
+  color: "24292E"
+  description: "GitHub automation"
+- name: area/security
+  color: "B60205"
+  description: "Security"
+- name: area/testing
+  color: "FBCA04"
+  description: "Testing"
+- name: dependencies
+  color: "0366D6"
+  description: "Dependency update"
