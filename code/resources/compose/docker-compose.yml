@@ -1,0 +1,25 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: test-service-postgres
+
+    environment:
+      POSTGRES_DB: test_service
+      POSTGRES_USER: test_service
+      POSTGRES_PASSWORD: test-service-local
+
+    ports:
+      - "55433:5432"
+
+    volumes:
+      - ./sql:/docker-entrypoint-initdb.d:ro
+      - test_service_pgdata:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_service -d test_service"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  test_service_pgdata:
