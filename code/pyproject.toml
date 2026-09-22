@@ -16,7 +16,27 @@ dev = [
   "pytest>=8.3,<9.0",
   "pytest-asyncio>=0.25,<1.0",
   "ruff>=0.9,<1.0",
+  "openapi-contract-toolkit @ https://github.com/antoniovho/openapi-contract-toolkit/releases/download/v0.1.0/openapi_contract_toolkit-0.1.0-py3-none-any.whl",
 ]
+
+[tool.openapi-contracts]
+generator-command = "npx --yes @openapitools/openapi-generator-cli@2.41.0"
+generator-version = "7.10.0"
+
+[tool.openapi-contracts.contracts.test-service]
+version = "0.1.1"
+repository = "antoniovho/app-devtools"
+tag = "test-service-api-v{version}"
+artifact = "test-service-api-{version}.yml"
+sha256 = "ac7d05caca3ad57a88be8892561c83f980ec81dbcc3db33748af45aa818c286c"
+output = "contracts/open_api/test-service-api.yml"
+
+[tool.openapi-contracts.generators.rest.server.test-service-server]
+contract = "test-service"
+generator = "python-fastapi"
+output = "test_service/generated/test_service_server"
+package-name = "test_service.generated.test_service_server"
+sourceFolder = ""
 
 [build-system]
 requires = ["hatchling"]
@@ -24,6 +44,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["test_service"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

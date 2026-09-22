@@ -9,6 +9,8 @@ dist/
 *docs/
 **/.venv/
 **/venv/
+code/contracts/
+code/test_service/generated/
 *.bak
 .vscode/
 # Windows Mark of the Web metadata
