@@ -9,11 +9,10 @@ dist/
 *docs/
 **/.venv/
 **/venv/
-code/contracts/
-code/test_service/generated/
 *.bak
 .vscode/
 # Windows Mark of the Web metadata
 *:Zone.Identifier
+# Generated code directories
 code/contracts/
-code/test_service/generated/
+code/generated/

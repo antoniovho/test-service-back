@@ -458,8 +458,8 @@ requires-dist = [
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.28,<1.0" },
     { name = "openapi-contract-toolkit", marker = "extra == 'dev'", url = "https://github.com/antoniovho/openapi-contract-toolkit/releases/download/v0.1.0/openapi_contract_toolkit-0.1.0-py3-none-any.whl" },
     { name = "pydantic-settings", specifier = ">=2.7,<3.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3,<9.0" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.25,<1.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3,<10.0" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.25,<2.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.9,<1.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.34,<1.0" },
 ]
