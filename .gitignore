@@ -16,4 +16,6 @@ code/test_service/generated/
 # Windows Mark of the Web metadata
 *:Zone.Identifier
 code/contracts/
-code/test_service/generated/
+code/generated/
+.env
+code/.sonar/
