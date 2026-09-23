@@ -56,7 +56,11 @@ asyncio_mode = "auto"
 [tool.ruff]
 target-version = "py312"
 line-length = 100
-exclude = ["generated", "contracts"]
+# Exclude a variety of commonly ignored directories.
+exclude = [
+  "generated",
+  "contracts"
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
