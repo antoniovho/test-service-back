@@ -15,6 +15,5 @@ dist/
 *:Zone.Identifier
 # Generated code directories
 code/contracts/
-code/generated/
 .env
 code/.sonar/
