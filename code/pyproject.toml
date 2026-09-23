@@ -22,6 +22,7 @@ dev = [
 
 [tool.openapi-contracts]
 generator-command = "npx --yes @openapitools/openapi-generator-cli@2.41.0"
+generator-version = "7.25.0"
 
 [tool.openapi-contracts.contracts.test-service]
 version = "0.1.1"
