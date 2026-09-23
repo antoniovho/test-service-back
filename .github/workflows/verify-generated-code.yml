@@ -35,6 +35,7 @@ jobs:
         with:
           node-version: "22"
       - run: uv sync --extra dev --locked
+      - run: uv run contract-sync test-service
       - run: uv run generate-source --rest-server --api test-service-server
       - run: git ls-files --error-unmatch generated/test_service_server/openapi.yaml
       - run: git diff --exit-code -- generated/
