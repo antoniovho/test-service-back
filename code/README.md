@@ -46,8 +46,11 @@ El contrato OpenAPI consumido y el generador estan declarados en
 
 - la Release inmutable del contrato y su SHA-256;
 - la Release inmutable de `openapi-contract-toolkit`;
-- el wrapper y la version de OpenAPI Generator;
-- el directorio y paquete del servidor generado.
+- el wrapper de OpenAPI Generator, el directorio y el paquete del servidor
+	generado.
+
+La version del motor de OpenAPI Generator se fija exclusivamente en
+`openapitools.json`, que debe mantenerse en control de versiones.
 
 La guia para sincronizar contratos, actualizar versiones y generar servidores
 o clientes se mantiene en el README de

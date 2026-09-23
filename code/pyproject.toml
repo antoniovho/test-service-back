@@ -22,7 +22,7 @@ dev = [
 
 [tool.openapi-contracts]
 generator-command = "npx --yes @openapitools/openapi-generator-cli@2.41.0"
-generator-version = "7.10.0"
+generator-version = "7.25.0"
 
 [tool.openapi-contracts.contracts.test-service]
 version = "0.1.1"
@@ -35,8 +35,8 @@ output = "contracts/open_api/test-service-api.yml"
 [tool.openapi-contracts.generators.rest.server.test-service-server]
 contract = "test-service"
 generator = "python-fastapi"
-output = "test_service/generated/test_service_server"
-package-name = "test_service.generated.test_service_server"
+output = "generated/test_service_server"
+package-name = "test_service_server"
 sourceFolder = ""
 
 [build-system]
@@ -57,6 +57,11 @@ asyncio_mode = "auto"
 [tool.ruff]
 target-version = "py312"
 line-length = 100
+# Exclude a variety of commonly ignored directories.
+exclude = [
+  "generated",
+  "contracts"
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
