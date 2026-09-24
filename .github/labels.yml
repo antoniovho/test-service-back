@@ -67,3 +67,9 @@
 - name: dependencies
   color: "0366D6"
   description: "Dependency update"
+- name: area/generated-code
+  color: "6F42C1"
+  description: "Generated code"
+- name: kind/deployment
+  color: "5319E7"
+  description: "Deployment or release change"

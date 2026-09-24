@@ -7,7 +7,7 @@ info:
     \ executing validated plans, and publishing read-only projections to an external\
     \ testing viewer."
   title: Test Service
-  version: 0.1.1
+  version: 0.1.2
 servers:
 - description: Local development server
   url: http://localhost:8080
@@ -7953,9 +7953,16 @@ components:
           example: Request timed out
           title: errorMessage
           type: string
+        createdAt:
+          description: Creation timestamp in UTC.
+          example: 2026-01-15T10:30:25Z
+          format: date-time
+          title: createdAt
+          type: string
       required:
       - actionId
       - actionType
+      - createdAt
       - id
       - status
       - testResultId
@@ -8210,6 +8217,7 @@ components:
           field: status
           expected: Active
           actual: Draft
+        createdAt: 2026-01-15T10:30:25Z
       properties:
         id:
           description: Universally unique identifier.
@@ -8263,7 +8271,14 @@ components:
             actual: Draft
           title: details
           type: object
+        createdAt:
+          description: Creation timestamp in UTC.
+          example: 2026-01-15T10:30:25Z
+          format: date-time
+          title: createdAt
+          type: string
       required:
+      - createdAt
       - detectedAt
       - driftType
       - id
