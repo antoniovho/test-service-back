@@ -1,5 +1,6 @@
 .flake8
 .gitignore
+.openapi-generator-ignore
 Dockerfile
 README.md
 docker-compose.yaml
@@ -65,3 +66,8 @@ test_service_server/models/viewer_sync_record.py
 test_service_server/models/viewer_sync_record_list_response.py
 test_service_server/security_api.py
 tests/conftest.py
+tests/test_authoring_api.py
+tests/test_composition_api.py
+tests/test_execution_api.py
+tests/test_projects_api.py
+tests/test_viewer_integration_api.py
