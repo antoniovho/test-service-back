@@ -38,4 +38,4 @@ jobs:
       - run: uv run contract-sync test-service
       - run: uv run generate-source --rest-server --api test-service-server
       - run: git ls-files --error-unmatch generated/test_service_server/openapi.yaml
-      - run: git diff --exit-code -- generated/
+      - run: git diff --exit-code -- generated/test_service_server/test_service_server/

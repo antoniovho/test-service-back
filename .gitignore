@@ -17,3 +17,5 @@ dist/
 code/contracts/
 .env
 code/.sonar/
+
+openapitools.json
