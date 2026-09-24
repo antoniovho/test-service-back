@@ -11,16 +11,16 @@ docker compose up --build -d
 docker compose ps
 ```
 
-PostgreSQL is available at `localhost:55433` with the following local-only
+PostgreSQL is available at `localhost:55434` with the following local-only
 credentials:
 
 ```text
 Database: test_service
-User:     test_service
-Password: test-service-local
+User:     postgresqldba
+Password: admin
 ```
 
-The official PostgreSQL image executes the files in `sql/` in lexical order on
+The official PostgreSQL image executes the files in `postgres/init/` in lexical order on
 the first initialization of the named volume. To recreate the database from the
 current scripts, remove the volume first:
 
