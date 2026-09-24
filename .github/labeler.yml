@@ -13,3 +13,31 @@ area/github:
 kind/documentation:
   - changed-files:
       - any-glob-to-any-file: "**/*.md"
+
+area/api:
+  - changed-files:
+      - any-glob-to-any-file: "apis/**"
+
+area/configuration:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "redocly.yaml"
+          - ".vscode/**"
+
+area/security:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/dependabot.yml"
+          - ".github/workflows/security-*.yml"
+
+area/sql:
+  - changed-files:
+      - any-glob-to-any-file: "**/*.sql"
+
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file: ".github/dependabot.yml"
+
+area/generated-code:
+  - changed-files:
+      - any-glob-to-any-file: "generated/**"
