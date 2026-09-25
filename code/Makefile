@@ -29,21 +29,19 @@ test-coverage:
 
 ## Formatea el código.
 format:
-	uv run format
+	uv run ruff format .
 
 ## Ejecuta el lint y aplica correcciones.
 lint-fix:
-	uv run lint-fix
+	uv run ruff check --fix .
 
-## Ejecuta las verificaciones del proyecto.
+## Verifica formato y lint sin modificar archivos.
 verify:
-	uv run verify
+	uv run ruff format --check .
+	uv run ruff check .
 
-## Ejecuta todas las verificaciones de calidad.
-super-verify:
-	uv run format
-	uv run lint-fix
-	uv run verify
+## Formatea, corrige lint y posteriormente verifica.
+super-verify: format lint-fix verify
 
 # -----------------------------------------------------------------------------
 # Tests de integración
