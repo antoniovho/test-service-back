@@ -7,7 +7,7 @@ from test_service.domain.commons.immutable import freeze_mapping
 from test_service.domain.model.exceptions.domain_exception import ValidationException
 
 DEFINITION_SCHEMA_VERSION = "1.0"
-SUPPORTED_DEFINITION_SCHEMA_VERSIONS = ("1.0")
+SUPPORTED_DEFINITION_SCHEMA_VERSIONS = "1.0"
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,7 +75,8 @@ class Definition:
         """
         if self.schema_version not in SUPPORTED_DEFINITION_SCHEMA_VERSIONS:
             raise ValidationException(
-                f"definition schema version must be one of {SUPPORTED_DEFINITION_SCHEMA_VERSIONS}, other versions are not supported",
+                f"definition schema version must be one of {SUPPORTED_DEFINITION_SCHEMA_VERSIONS}, "
+                "other versions are not supported",
                 "INVALID_DEFINITION",
             )
         if not self.actions:
