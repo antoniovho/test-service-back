@@ -85,6 +85,7 @@ class ViewerSyncRecord:
 
     Args:
         identifier: UUID of the synchronization record.
+        project_key: Owning project key.
         entity_type: Type of projected immutable snapshot.
         entity_key: Stable logical key of the entity.
         projected_version_id: UUID of the projected snapshot.
@@ -98,6 +99,7 @@ class ViewerSyncRecord:
     """
 
     identifier: UUID
+    project_key: str
     entity_type: ViewerEntityType
     entity_key: str
     projected_version_id: UUID
@@ -116,6 +118,7 @@ class DriftEvent:
 
     Args:
         identifier: UUID of the event.
+        project_key: Owning project key.
         sync_record_id: UUID of the affected synchronization record.
         projected_version_id: UUID of the expected snapshot.
         detected_at: Timestamp of detection.
@@ -125,6 +128,7 @@ class DriftEvent:
     """
 
     identifier: UUID
+    project_key: str
     sync_record_id: UUID
     projected_version_id: UUID
     detected_at: datetime
