@@ -22,22 +22,22 @@ import json
 
 
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Any, ClassVar, Dict, List, Optional
+from typing import Any, ClassVar, Dict, List
 from typing_extensions import Annotated
+from test_service_server.models.pagination import Pagination
+from test_service_server.models.test_plan import TestPlan
 try:
     from typing import Self
 except ImportError:
     from typing_extensions import Self
 
-class Action(BaseModel):
+class TestPlanVersionListResponse(BaseModel):
     """
-    Executable action within a test definition.
+    TestPlanVersionListResponse
     """ # noqa: E501
-    id: Annotated[str, Field(min_length=1, strict=True, max_length=100)] = Field(description="Stable identifier of the action within the definition.", json_schema_extra={"examples": ["login"]})
-    type: Annotated[str, Field(min_length=1, strict=True, max_length=100)] = Field(description="Action type resolved by the Action Registry.", json_schema_extra={"examples": ["HTTP_REQUEST"]})
-    source: Optional[Annotated[str, Field(min_length=1, strict=True, max_length=100)]] = Field(default=None, description="Optional action source or provider.", json_schema_extra={"examples": ["http"]})
-    config: Dict[str, Any] = Field(description="Configuration validated according to the registered action type.", json_schema_extra={"examples": [{"method": "GET"}]})
-    __properties: ClassVar[List[str]] = ["id", "type", "source", "config"]
+    data: Annotated[List[TestPlan], Field(max_length=100)] = Field(description="Test plan versions in the current page.")
+    pagination: Pagination
+    __properties: ClassVar[List[str]] = ["data", "pagination"]
 
     model_config = {
         "populate_by_name": True,
@@ -57,7 +57,7 @@ class Action(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Self:
-        """Create an instance of Action from a JSON string"""
+        """Create an instance of TestPlanVersionListResponse from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -76,11 +76,21 @@ class Action(BaseModel):
             },
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of each item in data (list)
+        _items = []
+        if self.data:
+            for _item in self.data:
+                if _item:
+                    _items.append(_item.to_dict())
+            _dict['data'] = _items
+        # override the default output from pydantic by calling `to_dict()` of pagination
+        if self.pagination:
+            _dict['pagination'] = self.pagination.to_dict()
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Dict) -> Self:
-        """Create an instance of Action from a dict"""
+        """Create an instance of TestPlanVersionListResponse from a dict"""
         if obj is None:
             return None
 
@@ -88,10 +98,8 @@ class Action(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "id": obj.get("id"),
-            "type": obj.get("type"),
-            "source": obj.get("source"),
-            "config": obj.get("config")
+            "data": [TestPlan.from_dict(_item) for _item in obj.get("data")] if obj.get("data") is not None else None,
+            "pagination": Pagination.from_dict(obj.get("pagination")) if obj.get("pagination") is not None else None
         })
         return _obj
 
