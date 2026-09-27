@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS test_service_v1.test_set (
     created_at  timestamptz(6)  DEFAULT CURRENT_TIMESTAMP NOT NULL,
     created_by  TEXT            NOT NULL,
     CONSTRAINT test_set_pkey PRIMARY KEY (id),
-    CONSTRAINT test_set_key_version_uq UNIQUE (set_key, version)
+    CONSTRAINT test_set_project_key_version_uq UNIQUE (project_key, set_key, version)
 );
 
 COMMENT ON COLUMN test_service_v1.test_set.id          IS 'Unique immutable test set version identifier';

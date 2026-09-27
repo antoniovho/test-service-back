@@ -2,6 +2,7 @@
 
 CREATE TABLE IF NOT EXISTS test_service_v1.viewer_sync_record (
     id                    uuid            DEFAULT gen_random_uuid() NOT NULL,
+    project_key           TEXT            NOT NULL,
     entity_type           TEXT            NOT NULL,
     entity_key            TEXT            NOT NULL,
     projected_version_id  uuid            NOT NULL,
@@ -13,10 +14,11 @@ CREATE TABLE IF NOT EXISTS test_service_v1.viewer_sync_record (
     last_checked_at       timestamptz(6)  NULL,
     created_at            timestamptz(6)  DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT viewer_sync_record_pkey PRIMARY KEY (id),
-    CONSTRAINT viewer_sync_record_entity_viewer_uq UNIQUE (entity_type, entity_key, viewer_type)
+    CONSTRAINT viewer_sync_record_entity_viewer_uq UNIQUE (project_key, entity_type, entity_key, viewer_type)
 );
 
 COMMENT ON COLUMN test_service_v1.viewer_sync_record.id                   IS 'Unique synchronization record identifier';
+COMMENT ON COLUMN test_service_v1.viewer_sync_record.project_key         IS 'Project that owns the projected entity; entity_key is only unique per project';
 COMMENT ON COLUMN test_service_v1.viewer_sync_record.entity_type          IS 'Type of domain entity represented in the external viewer: TEST_CASE, PRECONDITION, TEST_SET, or TEST_PLAN';
 COMMENT ON COLUMN test_service_v1.viewer_sync_record.entity_key           IS 'Stable business key of the logical domain entity, unchanged across versions';
 COMMENT ON COLUMN test_service_v1.viewer_sync_record.projected_version_id IS 'UUID of the immutable domain version currently projected to the external viewer';
@@ -30,3 +32,4 @@ COMMENT ON COLUMN test_service_v1.viewer_sync_record.created_at           IS 'Ti
 
 CREATE INDEX IF NOT EXISTS idx_viewer_sync_record_entity_key  ON test_service_v1.viewer_sync_record (entity_key);
 CREATE INDEX IF NOT EXISTS idx_viewer_sync_record_sync_status ON test_service_v1.viewer_sync_record (sync_status);
+CREATE INDEX IF NOT EXISTS idx_viewer_sync_record_project_key ON test_service_v1.viewer_sync_record (project_key);

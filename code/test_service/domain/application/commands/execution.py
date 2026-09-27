@@ -34,11 +34,9 @@ class ActivateEnvironmentCommand:
 
     Args:
         identifier: UUID of the environment.
-        reason: Optional audit reason.
     """
 
     identifier: UUID
-    reason: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,11 +45,9 @@ class DeactivateEnvironmentCommand:
 
     Args:
         identifier: UUID
-        reason: Optional audit reason.
     """
 
     identifier: UUID
-    reason: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,8 +75,6 @@ class CancelExecutionCommand:
 
     Args:
         identifier: UUID of the execution.
-        reason: Optional audit reason.
     """
 
     identifier: UUID
-    reason: str | None = None

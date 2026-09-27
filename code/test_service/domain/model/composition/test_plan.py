@@ -59,7 +59,7 @@ class TestPlan:
     test_case_ids: tuple[UUID, ...] = ()
     exclusions: tuple[UUID, ...] = ()
     description: str | None = None
-    max_parallelism: int | None = 2
+    max_parallelism: int | None = None
     status: VersionStatus = VersionStatus.DRAFT
 
     def __post_init__(self) -> None:
@@ -74,6 +74,7 @@ class TestPlan:
                 "INVALID_TEST_PLAN",
             )
         self._validate_unique_references()
+        self._validate_execution_mode()
 
     def activate(self) -> "TestPlan":
         """Return this snapshot in the active state.
@@ -107,5 +108,18 @@ class TestPlan:
         if set(self.test_case_ids).intersection(self.exclusions):
             raise BusinessRuleViolationException(
                 "test plan cannot exclude a directly included test case",
+                "INVALID_TEST_PLAN",
+            )
+
+    def _validate_execution_mode(self) -> None:
+        if self.execution_mode is ExecutionMode.PARALLEL:
+            if self.max_parallelism is None or self.max_parallelism < 1:
+                raise BusinessRuleViolationException(
+                    "parallel test plans require a positive max_parallelism",
+                    "INVALID_TEST_PLAN",
+                )
+        elif self.max_parallelism is not None:
+            raise BusinessRuleViolationException(
+                "sequential test plans must not set max_parallelism",
                 "INVALID_TEST_PLAN",
             )

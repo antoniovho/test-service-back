@@ -327,6 +327,34 @@ BEGIN
             ON DELETE CASCADE;
     END IF;
 
+    -- viewer_sync_record -> project FK
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'fk_viewer_sync_record_project'
+          AND table_name      = 'viewer_sync_record'
+          AND constraint_type = v_fk_type
+    ) THEN
+        ALTER TABLE test_service_v1.viewer_sync_record
+            ADD CONSTRAINT fk_viewer_sync_record_project
+            FOREIGN KEY (project_key)
+            REFERENCES test_service_v1.project(key)
+            ON DELETE RESTRICT;
+    END IF;
+
+    -- drift_event -> project FK
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'fk_drift_event_project'
+          AND table_name      = 'drift_event'
+          AND constraint_type = v_fk_type
+    ) THEN
+        ALTER TABLE test_service_v1.drift_event
+            ADD CONSTRAINT fk_drift_event_project
+            FOREIGN KEY (project_key)
+            REFERENCES test_service_v1.project(key)
+            ON DELETE RESTRICT;
+    END IF;
+
     -- project status check
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.table_constraints

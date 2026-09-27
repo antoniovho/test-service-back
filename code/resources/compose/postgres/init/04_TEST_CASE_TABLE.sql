@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS test_service_v1.test_case (
     created_at      timestamptz(6)  DEFAULT CURRENT_TIMESTAMP NOT NULL,
     created_by      TEXT            NOT NULL,
     CONSTRAINT test_case_pkey PRIMARY KEY (id),
-    CONSTRAINT test_case_key_version_uq UNIQUE (test_key, version)
+    CONSTRAINT test_case_project_key_version_uq UNIQUE (project_key, test_key, version)
 );
 
 COMMENT ON COLUMN test_service_v1.test_case.id              IS 'Unique immutable test case version identifier';

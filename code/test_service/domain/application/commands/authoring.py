@@ -6,7 +6,6 @@ from uuid import UUID
 
 from test_service.domain.model.authoring.definition import Definition
 from test_service.domain.model.authoring.test_case import (
-    PreconditionReference,
     Priority,
     TestLevel,
     TestType,
@@ -30,7 +29,7 @@ class CreateTestCaseCommand:
         timeout_seconds: Maximum execution time.
         requested_by: Identity creating the snapshot.
         requested_at: Creation timestamp.
-        preconditions: Ordered precondition snapshot references.
+        preconditions: Ordered UUIDs of precondition snapshots.
         metadata: Optional safe metadata.
     """
 
@@ -46,7 +45,7 @@ class CreateTestCaseCommand:
     timeout_seconds: int
     requested_by: str
     requested_at: datetime
-    preconditions: tuple[PreconditionReference, ...] = ()
+    preconditions: tuple[UUID, ...] = ()
     metadata: dict[str, object] | None = None
 
 
@@ -68,7 +67,7 @@ class CreateTestCaseVersionCommand:
         timeout_seconds: Maximum execution time.
         requested_by: Identity creating the snapshot.
         requested_at: Creation timestamp.
-        preconditions: Ordered precondition snapshot references.
+        preconditions: Ordered UUIDs of precondition snapshots.
         metadata: Optional safe metadata.
     """
 
@@ -85,7 +84,7 @@ class CreateTestCaseVersionCommand:
     timeout_seconds: int
     requested_by: str
     requested_at: datetime
-    preconditions: tuple[PreconditionReference, ...] = ()
+    preconditions: tuple[UUID, ...] = ()
     metadata: dict[str, object] | None = None
 
 

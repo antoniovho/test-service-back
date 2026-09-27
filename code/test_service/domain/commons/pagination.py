@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import TypeVar
 
-DEFAULT_PAGE_LIMIT = 25
+DEFAULT_PAGE_LIMIT = 20
 MAX_PAGE_LIMIT = 100
 
 

@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS test_service_v1.test_plan (
     created_at      timestamptz(6)  DEFAULT CURRENT_TIMESTAMP NOT NULL,
     created_by      TEXT            NOT NULL,
     CONSTRAINT test_plan_pkey PRIMARY KEY (id),
-    CONSTRAINT test_plan_key_version_uq UNIQUE (plan_key, version)
+    CONSTRAINT test_plan_project_key_version_uq UNIQUE (project_key, plan_key, version)
 );
 
 COMMENT ON COLUMN test_service_v1.test_plan.id              IS 'Unique immutable test plan version identifier';
