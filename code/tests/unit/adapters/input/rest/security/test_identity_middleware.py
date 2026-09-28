@@ -6,7 +6,10 @@ from starlette.testclient import TestClient
 
 from test_service.adapters.input.rest.security.identity_context import get_current_identity
 from test_service.adapters.input.rest.security.identity_middleware import IdentityMiddleware
-from test_service.adapters.input.rest.security.token_validator import get_token_validator
+from test_service.adapters.input.rest.security.token_validator import (
+    InvalidTokenError,
+    get_token_validator,
+)
 
 
 async def _whoami(request):
@@ -52,3 +55,15 @@ class TestIdentityMiddleware:
         response = client.get("/docs")
 
         assert response.status_code == 200
+
+    def test_when_token_fails_validation_expect_401(self, monkeypatch: pytest.MonkeyPatch):
+        def _raise(_token: str) -> dict[str, object]:
+            raise InvalidTokenError("signature verification failed")
+
+        monkeypatch.setattr(get_token_validator(), "get_claims", _raise)
+        client = TestClient(_build_app())
+
+        response = client.get("/whoami", headers={"Authorization": "Bearer bad-token"})
+
+        assert response.status_code == 401
+        assert response.json()["detail"] == "signature verification failed"

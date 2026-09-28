@@ -38,6 +38,13 @@ class TestMockTokenValidator:
 
         assert claims == {"sub": "alice@example.com"}
 
+    def test_when_payload_segment_is_not_valid_base64_json_expect_fixed_demo_subject(self):
+        validator = MockTokenValidator()
+
+        claims = validator.get_claims("header.not-valid-base64-json.signature")
+
+        assert claims == {"sub": "mock-user@example.com"}
+
 
 class TestGetTokenValidator:
     def test_when_mock_enabled_expect_mock_token_validator(self, monkeypatch: pytest.MonkeyPatch):
