@@ -6,9 +6,11 @@ from test_service.domain.application.commands.projects import (
 )
 from test_service.domain.application.queries.projects import GetProjectQuery, ListProjectsQuery
 from test_service.domain.commons.pagination import Page
-from test_service.domain.model.exceptions.domain_exception import (
-    ConflictException,
+from test_service.domain.model.exceptions.entity_not_found_exception import (
     EntityNotFoundException,
+)
+from test_service.domain.model.exceptions.project_already_exists_exception import (
+    ProjectAlreadyExistsException,
 )
 from test_service.domain.model.projects.project import Project
 from test_service.domain.ports.output.repositories import ProjectRepositoryPort
@@ -35,14 +37,11 @@ class CreateProjectUseCaseImpl:
         """Register a project, rejecting keys already present in the catalog.
 
         Raises:
-            ConflictException: If a project with the same key already exists.
+            ProjectAlreadyExistsException: If a project with the same key already exists.
         """
         existing = await self._project_repository.find_by_key(request.key)
         if existing is not None:
-            raise ConflictException(
-                f"project with key '{request.key}' already exists",
-                "PROJECT_ALREADY_EXISTS",
-            )
+            raise ProjectAlreadyExistsException(f"project with key '{request.key}' already exists")
         project = Project(
             key=request.key,
             name=request.name,
@@ -81,7 +80,7 @@ class DeleteProjectUseCaseImpl:
 
         Raises:
             EntityNotFoundException: If no project has the requested key.
-            BusinessRuleViolationException: If the project is already deleted.
+            ProjectAlreadyDeletedException: If the project is already deleted.
         """
         project = await self._project_repository.find_by_key(request.key)
         if project is None:

@@ -7,9 +7,13 @@ from enum import StrEnum
 from uuid import UUID
 
 from test_service.domain.commons.immutable import freeze_mapping
-from test_service.domain.model.exceptions.domain_exception import (
-    BusinessRuleViolationException,
+from test_service.domain.model.exceptions.invalid_artifact_storage_exception import (
     InvalidArtifactStorageException,
+)
+from test_service.domain.model.exceptions.invalid_execution_transition_exception import (
+    InvalidExecutionTransitionException,
+)
+from test_service.domain.model.exceptions.invalid_temporal_data_exception import (
     InvalidTemporalDataException,
 )
 
@@ -131,7 +135,7 @@ class Execution:
         duration_ms: Optional measured duration.
 
     Raises:
-        BusinessRuleViolationException: If timestamps or duration are inconsistent.
+        InvalidTemporalDataException: If timestamps or duration are inconsistent.
     """
 
     identifier: UUID
@@ -151,7 +155,7 @@ class Execution:
         """Validate temporal execution data.
 
         Raises:
-            BusinessRuleViolationException: If timestamps or duration are inconsistent.
+            InvalidTemporalDataException: If timestamps or duration are inconsistent.
         """
         _validate_temporal_data(self.started_at, self.finished_at, self.duration_ms)
 
@@ -165,13 +169,10 @@ class Execution:
             A new running execution with ``started_at`` set.
 
         Raises:
-            BusinessRuleViolationException: If the execution is not in the CREATED state.
+            InvalidExecutionTransitionException: If the execution is not in the CREATED state.
         """
         if self.status is not ExecutionStatus.CREATED:
-            raise BusinessRuleViolationException(
-                "only created executions can start running",
-                "INVALID_EXECUTION_TRANSITION",
-            )
+            raise InvalidExecutionTransitionException("only created executions can start running")
         return replace(self, status=ExecutionStatus.RUNNING, started_at=started_at)
 
     def complete(self, status: ExecutionStatus, finished_at: datetime) -> "Execution":
@@ -185,18 +186,14 @@ class Execution:
             A new terminal execution with ``finished_at`` and ``duration_ms`` set.
 
         Raises:
-            BusinessRuleViolationException:
+            InvalidExecutionTransitionException:
                 If the execution is not RUNNING or the target status is not a runner outcome.
         """
         if self.status is not ExecutionStatus.RUNNING:
-            raise BusinessRuleViolationException(
-                "only running executions can complete",
-                "INVALID_EXECUTION_TRANSITION",
-            )
+            raise InvalidExecutionTransitionException("only running executions can complete")
         if status not in _RUNNER_TERMINAL_STATUSES:
-            raise BusinessRuleViolationException(
-                "completion status must be a runner-reported terminal outcome",
-                "INVALID_EXECUTION_TRANSITION",
+            raise InvalidExecutionTransitionException(
+                "completion status must be a runner-reported terminal outcome"
             )
         return replace(
             self,
@@ -216,13 +213,10 @@ class Execution:
             A new cancelled execution.
 
         Raises:
-            BusinessRuleViolationException: If the execution is already terminal.
+            InvalidExecutionTransitionException: If the execution is already terminal.
         """
         if self.status in TERMINAL_EXECUTION_STATUSES:
-            raise BusinessRuleViolationException(
-                "terminal executions cannot be cancelled",
-                "INVALID_EXECUTION_TRANSITION",
-            )
+            raise InvalidExecutionTransitionException("terminal executions cannot be cancelled")
         duration_ms = _elapsed_ms(self.started_at, finished_at) if finished_at else None
         return replace(
             self,

@@ -7,9 +7,14 @@ from enum import StrEnum
 from uuid import UUID
 
 from test_service.domain.commons.immutable import freeze_mapping
-from test_service.domain.model.exceptions.domain_exception import (
-    BusinessRuleViolationException,
-    ValidationException,
+from test_service.domain.model.exceptions.invalid_environment_transition_exception import (
+    InvalidEnvironmentTransitionException,
+)
+from test_service.domain.model.exceptions.invalid_secret_reference_exception import (
+    InvalidSecretReferenceException,
+)
+from test_service.domain.model.exceptions.resolved_secret_not_allowed_exception import (
+    ResolvedSecretNotAllowedException,
 )
 
 _SECRET_KEY_MARKERS = ("password", "secret", "token", "apikey", "api_key", "credential")
@@ -41,7 +46,7 @@ class SecretReference:
         reference_key: Stable lookup key for the secret within the provider.
 
     Raises:
-        ValidationException: If the provider or reference key is empty.
+        InvalidSecretReferenceException: If the provider or reference key is empty.
     """
 
     provider: str
@@ -51,12 +56,11 @@ class SecretReference:
         """Validate SecretReference fields.
 
         Raises:
-            ValidationException: If the provider or reference key is empty.
+            InvalidSecretReferenceException: If the provider or reference key is empty.
         """
         if not self.provider or not self.reference_key:
-            raise ValidationException(
-                "secret reference requires a provider and a reference key",
-                "INVALID_SECRET_REFERENCE",
+            raise InvalidSecretReferenceException(
+                "secret reference requires a provider and a reference key"
             )
 
 
@@ -80,7 +84,7 @@ class Environment:
         status: Environment availability state.
 
     Raises:
-        ValidationException: If a secret-like configuration key holds a raw value.
+        ResolvedSecretNotAllowedException: If a secret-like configuration key holds a raw value.
     """
 
     identifier: UUID
@@ -96,16 +100,15 @@ class Environment:
         """Validate the secrets policy and freeze the mutable configuration mapping.
 
         Raises:
-            ValidationException: If a secret-like configuration key holds a raw value.
+            ResolvedSecretNotAllowedException: If a secret-like configuration key holds a raw value.
         """
         if self.configuration is not None:
             for key, value in self.configuration.items():
                 is_secret_like_key = any(marker in key.lower() for marker in _SECRET_KEY_MARKERS)
                 if is_secret_like_key and not isinstance(value, SecretReference):
-                    raise ValidationException(
+                    raise ResolvedSecretNotAllowedException(
                         f"configuration key '{key}' looks like a secret and must use a "
-                        "SecretReference instead of a raw value",
-                        "RESOLVED_SECRET_NOT_ALLOWED",
+                        "SecretReference instead of a raw value"
                     )
         object.__setattr__(self, "configuration", freeze_mapping(self.configuration))
 
@@ -116,12 +119,11 @@ class Environment:
             A new active environment.
 
         Raises:
-            BusinessRuleViolationException: If the environment is deprecated.
+            InvalidEnvironmentTransitionException: If the environment is deprecated.
         """
         if self.status is EnvironmentStatus.DEPRECATED:
-            raise BusinessRuleViolationException(
-                "deprecated environments cannot be activated",
-                "INVALID_ENVIRONMENT_TRANSITION",
+            raise InvalidEnvironmentTransitionException(
+                "deprecated environments cannot be activated"
             )
         return replace(self, status=EnvironmentStatus.ACTIVE)
 
@@ -132,11 +134,10 @@ class Environment:
             A new inactive environment.
 
         Raises:
-            BusinessRuleViolationException: If the environment is deprecated.
+            InvalidEnvironmentTransitionException: If the environment is deprecated.
         """
         if self.status is EnvironmentStatus.DEPRECATED:
-            raise BusinessRuleViolationException(
-                "deprecated environments cannot be deactivated",
-                "INVALID_ENVIRONMENT_TRANSITION",
+            raise InvalidEnvironmentTransitionException(
+                "deprecated environments cannot be deactivated"
             )
         return replace(self, status=EnvironmentStatus.INACTIVE)

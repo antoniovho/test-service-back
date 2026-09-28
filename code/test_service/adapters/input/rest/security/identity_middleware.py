@@ -11,7 +11,9 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import Response
 
-from test_service.adapters.input.rest.error_mapping import build_problem_response
+from test_service.adapters.input.rest.mappers.exceptions.exception_mapper import (
+    build_problem_response,
+)
 from test_service.adapters.input.rest.security.identity_context import set_current_identity
 from test_service.adapters.input.rest.security.token_validator import (
     InvalidTokenError,

@@ -7,7 +7,9 @@ from uuid import UUID
 
 from test_service.domain.commons.immutable import freeze_mapping
 from test_service.domain.model.authoring.definition import Definition
-from test_service.domain.model.exceptions.domain_exception import BusinessRuleViolationException
+from test_service.domain.model.exceptions.invalid_precondition_exception import (
+    InvalidPreconditionException,
+)
 from test_service.domain.model.lifecycle import VersionStatus, activate_status, deprecate_status
 
 
@@ -29,7 +31,7 @@ class Precondition:
         metadata: Additional safe domain metadata.
 
     Raises:
-        BusinessRuleViolationException: If the version is not positive.
+        InvalidPreconditionException: If the version is not positive.
     """
 
     identifier: UUID
@@ -48,10 +50,10 @@ class Precondition:
         """Validate immutable Precondition invariants and freeze mutable metadata.
 
         Raises:
-            BusinessRuleViolationException: If the version is not positive.
+            InvalidPreconditionException: If the version is not positive.
         """
         if self.version < 1:
-            raise BusinessRuleViolationException("version must be positive", "INVALID_PRECONDITION")
+            raise InvalidPreconditionException("version must be positive")
         object.__setattr__(self, "metadata", freeze_mapping(self.metadata))
 
     def activate(self) -> "Precondition":
@@ -61,7 +63,7 @@ class Precondition:
             A new active precondition snapshot.
 
         Raises:
-            BusinessRuleViolationException: If this snapshot is not a draft.
+            InvalidLifecycleTransitionException: If this snapshot is not a draft.
         """
         return replace(self, status=activate_status(self.status))
 
@@ -72,6 +74,6 @@ class Precondition:
             A new deprecated precondition snapshot.
 
         Raises:
-            BusinessRuleViolationException: If this snapshot is not active.
+            InvalidLifecycleTransitionException: If this snapshot is not active.
         """
         return replace(self, status=deprecate_status(self.status))

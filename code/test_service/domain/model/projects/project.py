@@ -4,7 +4,12 @@ from dataclasses import dataclass, replace
 from datetime import datetime
 from enum import StrEnum
 
-from test_service.domain.model.exceptions.domain_exception import BusinessRuleViolationException
+from test_service.domain.model.exceptions.invalid_project_deletion_exception import (
+    InvalidProjectDeletionException,
+)
+from test_service.domain.model.exceptions.project_already_deleted_exception import (
+    ProjectAlreadyDeletedException,
+)
 
 
 class ProjectStatus(StrEnum):
@@ -33,7 +38,7 @@ class Project:
         deleted_by: Identity that logically deleted the project, when applicable.
 
     Raises:
-        BusinessRuleViolationException:
+        InvalidProjectDeletionException:
         If fields are invalid or deletion metadata is inconsistent.
     """
 
@@ -49,7 +54,8 @@ class Project:
         """Validate Project Catalog invariants.
 
         Raises:
-            BusinessRuleViolationException: If deletion metadata is inconsistent with the lifecycle.
+            InvalidProjectDeletionException: If deletion metadata is inconsistent with the
+            lifecycle.
         """
         self._validate_deletion_metadata()
 
@@ -64,14 +70,11 @@ class Project:
             A new project instance in the ``DELETED`` state.
 
         Raises:
-            BusinessRuleViolationException:
+            ProjectAlreadyDeletedException:
                 If the project is already deleted or deletion data is invalid.
         """
         if self.status is ProjectStatus.DELETED:
-            raise BusinessRuleViolationException(
-                "project is already deleted",
-                "PROJECT_ALREADY_DELETED",
-            )
+            raise ProjectAlreadyDeletedException("project is already deleted")
         return replace(
             self,
             status=ProjectStatus.DELETED,
@@ -85,14 +88,8 @@ class Project:
         if self.status is ProjectStatus.DELETED and not (
             has_deletion_timestamp and has_deletion_identity
         ):
-            raise BusinessRuleViolationException(
-                "deleted projects require deletion metadata",
-                "INVALID_PROJECT_DELETION",
-            )
+            raise InvalidProjectDeletionException("deleted projects require deletion metadata")
         if self.status is ProjectStatus.ACTIVE and (
             has_deletion_timestamp or has_deletion_identity
         ):
-            raise BusinessRuleViolationException(
-                "active projects cannot have deletion metadata",
-                "INVALID_PROJECT_DELETION",
-            )
+            raise InvalidProjectDeletionException("active projects cannot have deletion metadata")
