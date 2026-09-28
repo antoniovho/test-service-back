@@ -31,7 +31,7 @@ jobs:
           version: "0.10.6"
           enable-cache: true
           cache-dependency-glob: "code/uv.lock"
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
       - run: uv sync --extra dev --locked
