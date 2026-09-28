@@ -6,7 +6,10 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
   "fastapi>=0.115,<1.0",
+  "opyoid>=4.0.0",
   "pydantic-settings>=2.7,<3.0",
+  "pyjwt[crypto]>=2.15.0",
+  "test-service-server",
   "uvicorn[standard]>=0.34,<1.0",
 ]
 
@@ -70,3 +73,6 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+
+[tool.uv.sources]
+test-service-server = { path = "generated/test_service_server", editable = true }
