@@ -383,7 +383,7 @@ class ActionDefinitionValidatorPort(Protocol):
             ``None``.
 
         Raises:
-            ValidationException: If the Action Registry rejects the type or configuration.
+            InvalidActionException: If the Action Registry rejects the type or configuration.
         """
         ...
 

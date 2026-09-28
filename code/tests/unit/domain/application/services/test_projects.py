@@ -15,10 +15,14 @@ from test_service.domain.application.services.projects import (
     ListProjectsUseCaseImpl,
 )
 from test_service.domain.commons.pagination import Page, PaginationParams
-from test_service.domain.model.exceptions.domain_exception import (
-    BusinessRuleViolationException,
-    ConflictException,
+from test_service.domain.model.exceptions.entity_not_found_exception import (
     EntityNotFoundException,
+)
+from test_service.domain.model.exceptions.project_already_deleted_exception import (
+    ProjectAlreadyDeletedException,
+)
+from test_service.domain.model.exceptions.project_already_exists_exception import (
+    ProjectAlreadyExistsException,
 )
 from test_service.domain.model.projects.project import Project, ProjectStatus
 
@@ -82,19 +86,18 @@ class TestCreateProjectUseCaseImpl:
         assert project.created_at == requested_at
         assert project.status is ProjectStatus.ACTIVE
 
-    async def test_when_key_already_exists_expect_conflict_exception(self):
+    async def test_when_key_already_exists_expect_already_exists_exception(self):
         existing = _project()
         use_case = CreateProjectUseCaseImpl(InMemoryProjectRepository((existing,)))
+        request = CreateProjectCommand(
+            key=existing.key,
+            name="Another name",
+            requested_by="admin@example.com",
+            requested_at=datetime(2026, 1, 1, tzinfo=UTC),
+        )
 
-        with pytest.raises(ConflictException) as exception:
-            await use_case.execute(
-                CreateProjectCommand(
-                    key=existing.key,
-                    name="Another name",
-                    requested_by="admin@example.com",
-                    requested_at=datetime(2026, 1, 1, tzinfo=UTC),
-                )
-            )
+        with pytest.raises(ProjectAlreadyExistsException) as exception:
+            await use_case.execute(request)
 
         assert exception.value.code == "PROJECT_ALREADY_EXISTS"
 
@@ -110,9 +113,10 @@ class TestGetProjectUseCaseImpl:
 
     async def test_when_project_does_not_exist_expect_not_found_exception(self):
         use_case = GetProjectUseCaseImpl(InMemoryProjectRepository())
+        request = GetProjectQuery(key="UNKNOWN")
 
         with pytest.raises(EntityNotFoundException) as exception:
-            await use_case.execute(GetProjectQuery(key="UNKNOWN"))
+            await use_case.execute(request)
 
         assert exception.value.code == "ENTITY_NOT_FOUND"
 
@@ -137,31 +141,29 @@ class TestDeleteProjectUseCaseImpl:
 
     async def test_when_project_does_not_exist_expect_not_found_exception(self):
         use_case = DeleteProjectUseCaseImpl(InMemoryProjectRepository())
+        request = DeleteProjectCommand(
+            key=str(uuid4()),
+            requested_by="admin@example.com",
+            requested_at=datetime(2026, 1, 1, tzinfo=UTC),
+        )
 
         with pytest.raises(EntityNotFoundException) as exception:
-            await use_case.execute(
-                DeleteProjectCommand(
-                    key=str(uuid4()),
-                    requested_by="admin@example.com",
-                    requested_at=datetime(2026, 1, 1, tzinfo=UTC),
-                )
-            )
+            await use_case.execute(request)
 
         assert exception.value.code == "ENTITY_NOT_FOUND"
 
-    async def test_when_project_already_deleted_expect_business_rule_violation(self):
+    async def test_when_project_already_deleted_expect_already_deleted_exception(self):
         project = _project().delete(
             deleted_at=datetime(2026, 1, 1, tzinfo=UTC), deleted_by="admin@example.com"
         )
         use_case = DeleteProjectUseCaseImpl(InMemoryProjectRepository((project,)))
+        request = DeleteProjectCommand(
+            key=project.key,
+            requested_by="admin@example.com",
+            requested_at=datetime(2026, 2, 1, tzinfo=UTC),
+        )
 
-        with pytest.raises(BusinessRuleViolationException) as exception:
-            await use_case.execute(
-                DeleteProjectCommand(
-                    key=project.key,
-                    requested_by="admin@example.com",
-                    requested_at=datetime(2026, 2, 1, tzinfo=UTC),
-                )
-            )
+        with pytest.raises(ProjectAlreadyDeletedException) as exception:
+            await use_case.execute(request)
 
         assert exception.value.code == "PROJECT_ALREADY_DELETED"

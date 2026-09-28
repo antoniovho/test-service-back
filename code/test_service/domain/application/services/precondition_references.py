@@ -4,9 +4,11 @@ from collections.abc import Iterable
 from uuid import UUID
 
 from test_service.domain.model.authoring.test_case import PreconditionReference
-from test_service.domain.model.exceptions.domain_exception import (
+from test_service.domain.model.exceptions.entity_not_found_exception import (
     EntityNotFoundException,
-    ValidationException,
+)
+from test_service.domain.model.exceptions.precondition_project_mismatch_exception import (
+    PreconditionProjectMismatchException,
 )
 from test_service.domain.ports.output.repositories import PreconditionRepositoryPort
 
@@ -24,7 +26,7 @@ class PreconditionReferenceResolver:
 
         Raises:
             EntityNotFoundException: If a referenced snapshot does not exist.
-            ValidationException: If a snapshot belongs to another project.
+            PreconditionProjectMismatchException: If a snapshot belongs to another project.
         """
         references: list[PreconditionReference] = []
         for identifier in identifiers:
@@ -32,9 +34,8 @@ class PreconditionReferenceResolver:
             if precondition is None:
                 raise EntityNotFoundException("precondition", str(identifier))
             if precondition.project_key != project_key:
-                raise ValidationException(
-                    "precondition snapshot does not belong to the test case project",
-                    "PRECONDITION_PROJECT_MISMATCH",
+                raise PreconditionProjectMismatchException(
+                    "precondition snapshot does not belong to the test case project"
                 )
             references.append(
                 PreconditionReference(

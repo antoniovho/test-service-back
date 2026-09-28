@@ -5,7 +5,9 @@ from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
 
-from test_service.domain.model.exceptions.domain_exception import BusinessRuleViolationException
+from test_service.domain.model.exceptions.invalid_test_plan_exception import (
+    InvalidTestPlanException,
+)
 from test_service.domain.model.lifecycle import VersionStatus, activate_status, deprecate_status
 
 
@@ -43,7 +45,7 @@ class TestPlan:
         status: Snapshot lifecycle state.
 
     Raises:
-        BusinessRuleViolationException: If snapshot content violates plan invariants.
+        InvalidTestPlanException: If snapshot content violates plan invariants.
     """
 
     identifier: UUID
@@ -66,13 +68,10 @@ class TestPlan:
         """Validate TestPlan snapshot invariants.
 
         Raises:
-            BusinessRuleViolationException: If the version, timeout, references, or mode is invalid.
+            InvalidTestPlanException: If the version, timeout, references, or mode is invalid.
         """
         if self.version < 1 or self.timeout_seconds < 1:
-            raise BusinessRuleViolationException(
-                "version and timeout must be positive",
-                "INVALID_TEST_PLAN",
-            )
+            raise InvalidTestPlanException("version and timeout must be positive")
         self._validate_unique_references()
         self._validate_execution_mode()
 
@@ -83,7 +82,7 @@ class TestPlan:
             A new active test plan snapshot.
 
         Raises:
-            BusinessRuleViolationException: If this snapshot is not a draft.
+            InvalidLifecycleTransitionException: If this snapshot is not a draft.
         """
         return replace(self, status=activate_status(self.status))
 
@@ -94,32 +93,24 @@ class TestPlan:
             A new deprecated test plan snapshot.
 
         Raises:
-            BusinessRuleViolationException: If this snapshot is not active.
+            InvalidLifecycleTransitionException: If this snapshot is not active.
         """
         return replace(self, status=deprecate_status(self.status))
 
     def _validate_unique_references(self) -> None:
         collections = (self.test_set_ids, self.test_case_ids, self.exclusions)
         if any(len(set(item_ids)) != len(item_ids) for item_ids in collections):
-            raise BusinessRuleViolationException(
-                "test plan references must be unique within each collection",
-                "INVALID_TEST_PLAN",
+            raise InvalidTestPlanException(
+                "test plan references must be unique within each collection"
             )
         if set(self.test_case_ids).intersection(self.exclusions):
-            raise BusinessRuleViolationException(
-                "test plan cannot exclude a directly included test case",
-                "INVALID_TEST_PLAN",
-            )
+            raise InvalidTestPlanException("test plan cannot exclude a directly included test case")
 
     def _validate_execution_mode(self) -> None:
         if self.execution_mode is ExecutionMode.PARALLEL:
             if self.max_parallelism is None or self.max_parallelism < 1:
-                raise BusinessRuleViolationException(
-                    "parallel test plans require a positive max_parallelism",
-                    "INVALID_TEST_PLAN",
+                raise InvalidTestPlanException(
+                    "parallel test plans require a positive max_parallelism"
                 )
         elif self.max_parallelism is not None:
-            raise BusinessRuleViolationException(
-                "sequential test plans must not set max_parallelism",
-                "INVALID_TEST_PLAN",
-            )
+            raise InvalidTestPlanException("sequential test plans must not set max_parallelism")

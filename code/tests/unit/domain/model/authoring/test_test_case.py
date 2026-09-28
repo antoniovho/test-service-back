@@ -11,7 +11,12 @@ from test_service.domain.model.authoring.test_case import (
     TestLevel,
     TestType,
 )
-from test_service.domain.model.exceptions.domain_exception import BusinessRuleViolationException
+from test_service.domain.model.exceptions.invalid_lifecycle_transition_exception import (
+    InvalidLifecycleTransitionException,
+)
+from test_service.domain.model.exceptions.invalid_test_case_exception import (
+    InvalidTestCaseException,
+)
 from test_service.domain.model.lifecycle import VersionStatus
 
 
@@ -46,13 +51,13 @@ def _test_case(**overrides: object) -> TestCase:
 class TestTestCaseInvariants:
     @pytest.mark.parametrize("version", [0, -1], ids=["zero", "negative"])
     def test_when_version_not_positive_expect_exception(self, version):
-        with pytest.raises(BusinessRuleViolationException) as exc:
+        with pytest.raises(InvalidTestCaseException) as exc:
             _test_case(version=version)
 
         assert exc.value.code == "INVALID_TEST_CASE"
 
     def test_when_timeout_not_positive_expect_exception(self):
-        with pytest.raises(BusinessRuleViolationException) as exc:
+        with pytest.raises(InvalidTestCaseException) as exc:
             _test_case(timeout_seconds=0)
 
         assert exc.value.code == "INVALID_TEST_CASE"
@@ -60,7 +65,7 @@ class TestTestCaseInvariants:
     def test_when_duplicate_precondition_references_expect_exception(self):
         reference = PreconditionReference(identifier=uuid4(), precondition_key="auth", version=1)
 
-        with pytest.raises(BusinessRuleViolationException) as exc:
+        with pytest.raises(InvalidTestCaseException) as exc:
             _test_case(preconditions=(reference, reference))
 
         assert exc.value.code == "INVALID_TEST_CASE"
@@ -92,5 +97,5 @@ class TestTestCaseLifecycle:
     def test_when_active_expect_activate_raises_exception(self):
         test_case = _test_case(status=VersionStatus.ACTIVE)
 
-        with pytest.raises(BusinessRuleViolationException):
+        with pytest.raises(InvalidLifecycleTransitionException):
             test_case.activate()

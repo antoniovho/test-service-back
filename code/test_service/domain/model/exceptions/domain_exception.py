@@ -22,9 +22,9 @@ class DomainException(Exception):
         provider_name: str | None = None,
     ) -> None:
 
-        description = error_description or error.message
-        super().__init__(description)
+        self.error_description = error_description or error.message
+        super().__init__(self.error_description)
 
-        self.error_code = error.code
+        self.code = error.code
         self.origin = origin
         self.provider_name = provider_name

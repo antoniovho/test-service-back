@@ -8,9 +8,11 @@ from test_service.domain.application.services.precondition_references import (
 )
 from test_service.domain.model.authoring.definition import Action, Definition
 from test_service.domain.model.authoring.precondition import Precondition
-from test_service.domain.model.exceptions.domain_exception import (
+from test_service.domain.model.exceptions.entity_not_found_exception import (
     EntityNotFoundException,
-    ValidationException,
+)
+from test_service.domain.model.exceptions.precondition_project_mismatch_exception import (
+    PreconditionProjectMismatchException,
 )
 
 
@@ -64,11 +66,11 @@ class TestPreconditionReferenceResolver:
 
         assert exception.value.code == "ENTITY_NOT_FOUND"
 
-    async def test_when_snapshot_belongs_to_another_project_expect_validation_exception(self):
+    async def test_when_snapshot_belongs_to_another_project_expect_mismatch_exception(self):
         precondition = _precondition(project_key="OTHER")
         resolver = PreconditionReferenceResolver(InMemoryPreconditionRepository((precondition,)))
 
-        with pytest.raises(ValidationException) as exception:
+        with pytest.raises(PreconditionProjectMismatchException) as exception:
             await resolver.resolve("IAG", (precondition.identifier,))
 
         assert exception.value.code == "PRECONDITION_PROJECT_MISMATCH"
