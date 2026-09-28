@@ -8,10 +8,16 @@ from test_service.domain.application.commands.projects import (
     DeleteProjectCommand,
 )
 from test_service.domain.application.queries.projects import GetProjectQuery, ListProjectsQuery
-from test_service.domain.application.services.projects import (
+from test_service.domain.application.use_cases.projects.create_project_use_case import (
     CreateProjectUseCaseImpl,
+)
+from test_service.domain.application.use_cases.projects.delete_project_use_case import (
     DeleteProjectUseCaseImpl,
+)
+from test_service.domain.application.use_cases.projects.get_project_use_case import (
     GetProjectUseCaseImpl,
+)
+from test_service.domain.application.use_cases.projects.list_projects_use_case import (
     ListProjectsUseCaseImpl,
 )
 from test_service.domain.commons.pagination import Page, PaginationParams

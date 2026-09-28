@@ -6,7 +6,7 @@ from test_service_server.apis.projects_api_base import BaseProjectsApi
 from test_service_server.models.create_project_request import CreateProjectRequest
 from test_service_server.models.project import Project as ApiProject
 from test_service_server.models.project_list_response import ProjectListResponse
-from test_service_server.models.sort_order import SortOrder
+from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 
 from test_service.adapters.input.rest.controllers.projects.mappers.project_mapper import (
     ProjectMapper,
@@ -42,11 +42,12 @@ class ProjectsController(BaseProjectsApi):
         offset: int | None,
         limit: int | None,
         sort_by: str | None,
-        order: SortOrder | None,
+        order: ApiSortOrder | None,
     ) -> ProjectListResponse:
         """Return a paginated list of active projects."""
         pagination = ProjectMapper.to_pagination_params(offset, limit, sort_by, order)
-        page = await self._list_projects_use_case.execute(ProjectMapper.to_list_query(pagination))
+        query = ProjectMapper.to_list_query(pagination)
+        page = await self._list_projects_use_case.execute(request=query)
         return ProjectMapper.domain_page_to_list_response(page, pagination)
 
     async def create_project(self, create_project_request: CreateProjectRequest) -> ApiProject:
@@ -57,12 +58,12 @@ class ProjectsController(BaseProjectsApi):
         project = await self._create_project_use_case.execute(command)
         return ProjectMapper.domain_to_api(project)
 
-    async def get_project(self, projectKey: str) -> ApiProject:  # noqa: N803
+    async def get_project(self, projectKey: str) -> ApiProject:  # NOSONAR
         """Return a project by its stable key."""
         project = await self._get_project_use_case.execute(ProjectMapper.to_get_query(projectKey))
         return ProjectMapper.domain_to_api(project)
 
-    async def delete_project(self, projectKey: str) -> None:  # noqa: N803
+    async def delete_project(self, projectKey: str) -> None:  # NOSONAR
         """Mark a project as logically deleted."""
         command = ProjectMapper.to_delete_command(
             projectKey, get_current_identity(), datetime.now(UTC)

@@ -1,6 +1,7 @@
 """Mapping between the generated Projects REST models and domain Project Catalog types."""
 
 from datetime import datetime
+from types import MappingProxyType
 
 from test_service_server.models.create_project_request import CreateProjectRequest
 from test_service_server.models.pagination import Pagination as ApiPagination
@@ -17,6 +18,13 @@ from test_service.domain.commons.pagination import Page, PaginationParams
 from test_service.domain.commons.pagination import SortOrder as DomainSortOrder
 from test_service.domain.model.projects.project import Project
 
+_BASE_SORT_FIELDS: MappingProxyType = MappingProxyType(
+    {
+        "createdAt": "created_at",
+        "created_at": "created_at",
+    }
+)
+
 
 class ProjectMapper:
     """Translates between the Projects REST contract and the domain layer."""
@@ -29,16 +37,9 @@ class ProjectMapper:
         order: ApiSortOrder | None,
     ) -> PaginationParams:
         """Build validated domain pagination parameters from REST query parameters."""
-        kwargs: dict[str, object] = {}
-        if offset is not None:
-            kwargs["offset"] = offset
-        if limit is not None:
-            kwargs["limit"] = limit
-        if sort_by is not None:
-            kwargs["sort_by"] = sort_by
-        if order is not None:
-            kwargs["order"] = DomainSortOrder(order.value)
-        return PaginationParams(**kwargs)
+        return ProjectMapper._build_pagination(
+            offset=offset, limit=limit, sort_by=sort_by, order=order, sort_fields=_BASE_SORT_FIELDS
+        )
 
     @staticmethod
     def to_list_query(pagination: PaginationParams) -> ListProjectsQuery:
@@ -98,4 +99,19 @@ class ProjectMapper:
                 limit=pagination.limit,
                 total=page.total,
             ),
+        )
+
+    @staticmethod
+    def _build_pagination(
+        offset: int | None,
+        limit: int | None,
+        sort_by: str | None,
+        order: ApiSortOrder | None,
+        sort_fields: MappingProxyType,
+    ) -> PaginationParams:
+        return PaginationParams(
+            offset=offset if offset is not None else 0,
+            limit=limit if limit is not None else 20,
+            sort_by=sort_fields.get(sort_by, "created_at") if sort_by is not None else "created_at",
+            order=DomainSortOrder(order.value) if order is not None else DomainSortOrder("ASC"),
         )
