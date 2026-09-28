@@ -8,9 +8,7 @@ from test_service.domain.model.exceptions.error_origin_enum import ErrorOrigin
 class InvalidTemporalDataException(DomainException):
     """Raised when an execution record has impossible timestamps or duration."""
 
-    def __init__(
-        self, error_description: str = DomainError.INVALID_TEMPORAL_DATA.message
-    ) -> None:
+    def __init__(self, error_description: str = DomainError.INVALID_TEMPORAL_DATA.message) -> None:
         """Initialize an invalid temporal-data failure.
 
         Args:

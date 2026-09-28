@@ -8,9 +8,7 @@ from test_service.domain.model.exceptions.error_origin_enum import ErrorOrigin
 class InvalidDefinitionException(DomainException):
     """Raised when an executable definition violates its schema or structural invariants."""
 
-    def __init__(
-        self, error_description: str = DomainError.INVALID_DEFINITION.message
-    ) -> None:
+    def __init__(self, error_description: str = DomainError.INVALID_DEFINITION.message) -> None:
         """Initialize an invalid-definition failure.
 
         Args:

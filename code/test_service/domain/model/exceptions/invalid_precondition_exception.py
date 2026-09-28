@@ -8,9 +8,7 @@ from test_service.domain.model.exceptions.error_origin_enum import ErrorOrigin
 class InvalidPreconditionException(DomainException):
     """Raised when a precondition snapshot has an invalid version."""
 
-    def __init__(
-        self, error_description: str = DomainError.INVALID_PRECONDITION.message
-    ) -> None:
+    def __init__(self, error_description: str = DomainError.INVALID_PRECONDITION.message) -> None:
         """Initialize an invalid-precondition failure.
 
         Args:
