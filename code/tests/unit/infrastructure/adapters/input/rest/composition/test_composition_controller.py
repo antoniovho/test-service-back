@@ -28,6 +28,25 @@ def _feature_controller() -> MagicMock:
 
 
 class TestCompositionController:
+    def test_when_constructed_expect_feature_controllers(self, monkeypatch):
+        test_sets = MagicMock()
+        test_plans = MagicMock()
+        monkeypatch.setattr(
+            "test_service.infrastructure.adapters.input.rest.composition."
+            "composition_controller.TestSetsRestController",
+            lambda: test_sets,
+        )
+        monkeypatch.setattr(
+            "test_service.infrastructure.adapters.input.rest.composition."
+            "composition_controller.TestPlansRestController",
+            lambda: test_plans,
+        )
+
+        controller = CompositionController()
+
+        assert controller._test_sets is test_sets
+        assert controller._test_plans is test_plans
+
     async def test_when_test_set_endpoints_are_called_expect_feature_delegation(self):
         test_sets = _feature_controller()
         controller = CompositionController.__new__(CompositionController)
