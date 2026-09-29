@@ -128,10 +128,12 @@ class ActivateTestSetCommand:
     """Request to activate a draft TestSet snapshot.
 
     Args:
+        project_key: Owning project key.
         identifier: UUID of the snapshot.
         reason: Optional audit reason.
     """
 
+    project_key: str
     identifier: UUID
     reason: str | None = None
 
@@ -141,10 +143,12 @@ class DeprecateTestSetCommand:
     """Request to deprecate an active TestSet snapshot.
 
     Args:
+        project_key: Owning project key.
         identifier: UUID of the snapshot.
         reason: Optional audit reason.
     """
 
+    project_key: str
     identifier: UUID
     reason: str | None = None
 
