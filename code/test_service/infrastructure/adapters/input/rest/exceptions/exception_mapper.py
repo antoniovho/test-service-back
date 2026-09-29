@@ -67,6 +67,9 @@ from test_service.domain.model.exceptions.test_case_already_exists_exception imp
 from test_service.domain.model.exceptions.test_case_version_already_exists_exception import (
     TestCaseVersionAlreadyExistsException,
 )
+from test_service.domain.model.exceptions.test_plan_already_exists_exception import (
+    TestPlanAlreadyExistsException,
+)
 from test_service.domain.model.exceptions.test_set_already_exists_exception import (
     TestSetAlreadyExistsException,
 )
@@ -81,6 +84,7 @@ _EXCEPTION_STATUS_MAP: dict[type[DomainException], HTTPStatus] = {
     TestCaseAlreadyExistsException: HTTPStatus.CONFLICT,
     TestCaseVersionAlreadyExistsException: HTTPStatus.CONFLICT,
     TestSetAlreadyExistsException: HTTPStatus.CONFLICT,
+    TestPlanAlreadyExistsException: HTTPStatus.CONFLICT,
     PreconditionAlreadyExistsException: HTTPStatus.CONFLICT,
     PreconditionProjectMismatchException: HTTPStatus.UNPROCESSABLE_ENTITY,
     InvalidActionException: HTTPStatus.UNPROCESSABLE_ENTITY,
