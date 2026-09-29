@@ -55,14 +55,14 @@ class TestPlansRestController:
     async def create(self, project_key: str, request: CreateTestPlanRequest):
         project = await self._get_project.execute(GetProjectQuery(project_key))
         command = TestPlanMapper.to_create_command(
-                        project_key, request, get_current_identity(), datetime.now(UTC)
-                    )
+            project_key, request, get_current_identity(), datetime.now(UTC)
+        )
         result = await self._create.execute(command)
         return TestPlanMapper.to_api(result, project.name)
 
     async def get(self, project_key: str, test_plan_id: UUID):
         project = await self._get_project.execute(GetProjectQuery(project_key))
-        test_plan =await self._get.execute(TestPlanMapper.to_get_query(project_key, test_plan_id))
+        test_plan = await self._get.execute(TestPlanMapper.to_get_query(project_key, test_plan_id))
         return TestPlanMapper.to_api(
             test_plan,
             project.name,
@@ -73,24 +73,24 @@ class TestPlansRestController:
     ):
         project = await self._get_project.execute(GetProjectQuery(project_key))
         command = TestPlanMapper.to_create_version_command(
-                        project_key, test_plan_id, request, get_current_identity(), datetime.now(UTC)
-                    )
+            project_key, test_plan_id, request, get_current_identity(), datetime.now(UTC)
+        )
         result = await self._create_version.execute(command)
         return TestPlanMapper.to_api(result, project.name)
 
     async def activate(self, project_key: str, test_plan_id: UUID, request: ActionRequest | None):
         project = await self._get_project.execute(GetProjectQuery(project_key))
         command = TestPlanMapper.to_activate_command(
-                        project_key, test_plan_id, request.reason if request else None
-                    )
+            project_key, test_plan_id, request.reason if request else None
+        )
         result = await self._activate.execute(command)
         return TestPlanMapper.to_api(result, project.name)
 
     async def deprecate(self, project_key: str, test_plan_id: UUID, request: ActionRequest | None):
         project = await self._get_project.execute(GetProjectQuery(project_key))
         command = TestPlanMapper.to_deprecate_command(
-                        project_key, test_plan_id, request.reason if request else None
-                    )
+            project_key, test_plan_id, request.reason if request else None
+        )
         result = await self._deprecate.execute(command)
         return TestPlanMapper.to_api(result, project.name)
 
