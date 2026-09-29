@@ -5,6 +5,14 @@ from datetime import datetime
 from test_service_server.models.action import Action as ApiAction
 from test_service_server.models.create_test_case_request import CreateTestCaseRequest
 from test_service_server.models.definition import Definition as ApiDefinition
+from test_service_server.models.pagination import Pagination as ApiPagination
+from test_service_server.models.precondition_reference import (
+    PreconditionReference as ApiPreconditionReference,
+)
+from test_service_server.models.project_reference import ProjectReference
+from test_service_server.models.test_case import TestCase as ApiTestCase
+from test_service_server.models.test_case_list_response import TestCaseListResponse
+from test_service_server.models.test_case_version_list_response import TestCaseVersionListResponse
 
 from test_service.domain.application.commands.authoring import (
     ActivateTestCaseCommand,
@@ -17,9 +25,14 @@ from test_service.domain.application.queries.authoring import (
     TestCaseQuery,
     TestCaseVersionsQuery,
 )
-from test_service.domain.commons.pagination import PaginationParams, SortOrder
+from test_service.domain.commons.pagination import Page, PaginationParams, SortOrder
 from test_service.domain.model.authoring.definition import Action, Definition
-from test_service.domain.model.authoring.test_case import Priority, TestLevel, TestType
+from test_service.domain.model.authoring.test_case import (
+    Priority,
+    TestCase,
+    TestLevel,
+    TestType,
+)
 from test_service.domain.model.lifecycle import VersionStatus
 
 
@@ -68,16 +81,24 @@ class TestCaseMapper:
         return VersionStatus(value) if value is not None else None
 
     @staticmethod
-    def to_get_query(identifier) -> TestCaseQuery:
-        return TestCaseQuery(identifier)
+    def to_get_query(project_key: str, identifier) -> TestCaseQuery:
+        return TestCaseQuery(project_key, identifier)
 
     @staticmethod
-    def to_activate_command(identifier, reason: str | None) -> ActivateTestCaseCommand:
-        return ActivateTestCaseCommand(identifier=identifier, reason=reason)
+    def to_activate_command(
+        project_key: str, identifier, reason: str | None
+    ) -> ActivateTestCaseCommand:
+        return ActivateTestCaseCommand(
+            project_key=project_key, identifier=identifier, reason=reason
+        )
 
     @staticmethod
-    def to_deprecate_command(identifier, reason: str | None) -> DeprecateTestCaseCommand:
-        return DeprecateTestCaseCommand(identifier=identifier, reason=reason)
+    def to_deprecate_command(
+        project_key: str, identifier, reason: str | None
+    ) -> DeprecateTestCaseCommand:
+        return DeprecateTestCaseCommand(
+            project_key=project_key, identifier=identifier, reason=reason
+        )
 
     @staticmethod
     def to_list_query(
@@ -91,6 +112,65 @@ class TestCaseMapper:
     ) -> TestCaseVersionsQuery:
         return TestCaseVersionsQuery(
             project_key=project_key, test_key=test_key, pagination=pagination, status=status
+        )
+
+    @staticmethod
+    def to_api(test_case: TestCase, project_name: str) -> ApiTestCase:
+        return ApiTestCase(
+            id=test_case.identifier,
+            project=ProjectReference(key=test_case.project_key, name=project_name),
+            testKey=test_case.test_key,
+            version=test_case.version,
+            name=test_case.name,
+            summary=test_case.summary,
+            objective=test_case.objective,
+            testType=test_case.test_type.value,
+            testLevel=test_case.test_level.value,
+            priority=test_case.priority.value,
+            status=test_case.status.value,
+            definition=ApiDefinition(
+                schemaVersion=test_case.definition.schema_version,
+                variables=dict(test_case.definition.variables),
+                actions=[
+                    ApiAction(
+                        id=action.identifier,
+                        type=action.action_type,
+                        source=action.source,
+                        config=dict(action.configuration),
+                    )
+                    for action in test_case.definition.actions
+                ],
+            ),
+            preconditions=[
+                ApiPreconditionReference(
+                    id=reference.identifier,
+                    preconditionKey=reference.precondition_key,
+                    version=reference.version,
+                )
+                for reference in test_case.preconditions
+            ],
+            timeoutSeconds=test_case.timeout_seconds,
+            createdAt=test_case.created_at,
+            createdBy=test_case.created_by,
+            metadata=dict(test_case.metadata or {}),
+        )
+
+    @staticmethod
+    def to_list_response(
+        page: Page[TestCase], project_name: str, pagination: PaginationParams
+    ) -> TestCaseListResponse:
+        return TestCaseListResponse(
+            data=[TestCaseMapper.to_api(test_case, project_name) for test_case in page.items],
+            pagination=TestCaseMapper._to_api_pagination(pagination, page.total),
+        )
+
+    @staticmethod
+    def to_version_list_response(
+        page: Page[TestCase], project_name: str, pagination: PaginationParams
+    ) -> TestCaseVersionListResponse:
+        return TestCaseVersionListResponse(
+            data=[TestCaseMapper.to_api(test_case, project_name) for test_case in page.items],
+            pagination=TestCaseMapper._to_api_pagination(pagination, page.total),
         )
 
     @staticmethod
@@ -130,3 +210,7 @@ class TestCaseMapper:
             source=action.source,
             configuration=action.config,
         )
+
+    @staticmethod
+    def _to_api_pagination(pagination: PaginationParams, total: int) -> ApiPagination:
+        return ApiPagination(offset=pagination.offset, limit=pagination.limit, total=total)

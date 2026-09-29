@@ -5,6 +5,27 @@ from opyoid import Module  # type: ignore
 from test_service.domain.application.services.precondition_references import (
     PreconditionReferenceResolver,
 )
+from test_service.domain.application.use_cases.authoring.preconditions.activate_precondition_use_case import (  # noqa: E501
+    ActivatePreconditionUseCaseImpl,
+)
+from test_service.domain.application.use_cases.authoring.preconditions.create_precondition_use_case import (  # noqa: E501
+    CreatePreconditionUseCaseImpl,
+)
+from test_service.domain.application.use_cases.authoring.preconditions.create_precondition_version_use_case import (  # noqa: E501
+    CreatePreconditionVersionUseCaseImpl,
+)
+from test_service.domain.application.use_cases.authoring.preconditions.deprecate_precondition_use_case import (  # noqa: E501
+    DeprecatePreconditionUseCaseImpl,
+)
+from test_service.domain.application.use_cases.authoring.preconditions.get_precondition_use_case import (  # noqa: E501
+    GetPreconditionUseCaseImpl,
+)
+from test_service.domain.application.use_cases.authoring.preconditions.list_precondition_versions_use_case import (  # noqa: E501
+    ListPreconditionVersionsUseCaseImpl,
+)
+from test_service.domain.application.use_cases.authoring.preconditions.list_preconditions_use_case import (  # noqa: E501
+    ListPreconditionsUseCaseImpl,
+)
 from test_service.domain.application.use_cases.authoring.test_cases.activate_test_case_use_case import (  # noqa: E501
     ActivateTestCaseUseCaseImpl,
 )
@@ -37,6 +58,27 @@ from test_service.domain.application.use_cases.projects.get_project_use_case imp
 )
 from test_service.domain.application.use_cases.projects.list_projects_use_case import (
     ListProjectsUseCaseImpl,
+)
+from test_service.domain.ports.input.use_cases.authoring.preconditions.activate_precondition_use_case import (  # noqa: E501
+    ActivatePreconditionUseCase,
+)
+from test_service.domain.ports.input.use_cases.authoring.preconditions.create_precondition_use_case import (  # noqa: E501
+    CreatePreconditionUseCase,
+)
+from test_service.domain.ports.input.use_cases.authoring.preconditions.create_precondition_version_use_case import (  # noqa: E501
+    CreatePreconditionVersionUseCase,
+)
+from test_service.domain.ports.input.use_cases.authoring.preconditions.deprecate_precondition_use_case import (  # noqa: E501
+    DeprecatePreconditionUseCase,
+)
+from test_service.domain.ports.input.use_cases.authoring.preconditions.get_precondition_use_case import (  # noqa: E501
+    GetPreconditionUseCase,
+)
+from test_service.domain.ports.input.use_cases.authoring.preconditions.list_precondition_versions_use_case import (  # noqa: E501
+    ListPreconditionVersionsUseCase,
+)
+from test_service.domain.ports.input.use_cases.authoring.preconditions.list_preconditions_use_case import (  # noqa: E501
+    ListPreconditionsUseCase,
 )
 from test_service.domain.ports.input.use_cases.authoring.test_cases.activate_test_case_use_case import (  # noqa: E501
     ActivateTestCaseUseCase,
@@ -97,9 +139,23 @@ class TestCasesModule(Module):
         self.bind(ListTestCaseVersionsUseCase, to_class=ListTestCaseVersionsUseCaseImpl)
 
 
+class PreconditionsModule(Module):
+    """Binds Precondition use case ports to their implementations."""
+
+    def configure(self) -> None:
+        self.bind(CreatePreconditionUseCase, to_class=CreatePreconditionUseCaseImpl)
+        self.bind(CreatePreconditionVersionUseCase, to_class=CreatePreconditionVersionUseCaseImpl)
+        self.bind(ActivatePreconditionUseCase, to_class=ActivatePreconditionUseCaseImpl)
+        self.bind(DeprecatePreconditionUseCase, to_class=DeprecatePreconditionUseCaseImpl)
+        self.bind(GetPreconditionUseCase, to_class=GetPreconditionUseCaseImpl)
+        self.bind(ListPreconditionsUseCase, to_class=ListPreconditionsUseCaseImpl)
+        self.bind(ListPreconditionVersionsUseCase, to_class=ListPreconditionVersionsUseCaseImpl)
+
+
 class DomainModule(Module):
     """Domain modules available in the runnable application composition."""
 
     def configure(self) -> None:
         self.install(ProjectsModule)
         self.install(TestCasesModule)
+        self.install(PreconditionsModule)

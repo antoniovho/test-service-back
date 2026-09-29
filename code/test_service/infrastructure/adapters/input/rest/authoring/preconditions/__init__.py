@@ -1,0 +1,1 @@
+"""Precondition Authoring REST adapters."""

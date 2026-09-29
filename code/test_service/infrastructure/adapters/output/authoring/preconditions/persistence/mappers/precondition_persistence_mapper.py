@@ -12,6 +12,35 @@ class PreconditionPersistenceMapper:
     """Translate Precondition data at the domain and persistence boundary."""
 
     @staticmethod
+    def to_dto(precondition: Precondition) -> PreconditionDTO:
+        """Create a persistence DTO from one Precondition aggregate."""
+        return PreconditionDTO(
+            id=precondition.identifier,
+            project_key=precondition.project_key,
+            precondition_key=precondition.precondition_key,
+            version=precondition.version,
+            name=precondition.name,
+            description=precondition.description,
+            validation_definition={
+                "schema_version": precondition.validation_definition.schema_version,
+                "variables": dict(precondition.validation_definition.variables),
+                "actions": [
+                    {
+                        "identifier": action.identifier,
+                        "action_type": action.action_type,
+                        "configuration": dict(action.configuration),
+                        "source": action.source,
+                    }
+                    for action in precondition.validation_definition.actions
+                ],
+            },
+            status=precondition.status.value,
+            metadata_=dict(precondition.metadata or {}),
+            created_at=precondition.created_at,
+            created_by=precondition.created_by,
+        )
+
+    @staticmethod
     def to_domain(precondition: PreconditionDTO) -> Precondition:
         """Create a Precondition aggregate from a persistence DTO."""
         definition = precondition.validation_definition

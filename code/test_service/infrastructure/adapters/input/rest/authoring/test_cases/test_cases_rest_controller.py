@@ -3,22 +3,14 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
-from test_service_server.models.action import Action as ApiAction
 from test_service_server.models.action_request import ActionRequest
 from test_service_server.models.create_test_case_request import CreateTestCaseRequest
-from test_service_server.models.definition import Definition as ApiDefinition
-from test_service_server.models.pagination import Pagination as ApiPagination
-from test_service_server.models.precondition_reference import (
-    PreconditionReference as ApiPreconditionReference,
-)
-from test_service_server.models.project_reference import ProjectReference
 from test_service_server.models.test_case import TestCase as ApiTestCase
 from test_service_server.models.test_case_list_response import TestCaseListResponse
 from test_service_server.models.test_case_version_list_response import TestCaseVersionListResponse
 
 from test_service.bootstrap.container import get_injector
 from test_service.domain.application.queries.projects import GetProjectQuery
-from test_service.domain.model.authoring.test_case import TestCase
 from test_service.domain.ports.input.use_cases.authoring.test_cases.activate_test_case_use_case import (  # noqa: E501
     ActivateTestCaseUseCase,
 )
@@ -71,12 +63,12 @@ class TestCasesRestController:
             project_key, request, get_current_identity(), datetime.now(UTC)
         )
         test_case = await self._create.execute(command)
-        return self._to_api(test_case, project.name)
+        return TestCaseMapper.to_api(test_case, project.name)
 
     async def get(self, project_key: str, test_case_id: UUID) -> ApiTestCase:
         project = await self._get_project.execute(GetProjectQuery(project_key))
-        test_case = await self._get.execute(TestCaseMapper.to_get_query(test_case_id))
-        return self._to_api(test_case, project.name)
+        test_case = await self._get.execute(TestCaseMapper.to_get_query(project_key, test_case_id))
+        return TestCaseMapper.to_api(test_case, project.name)
 
     async def create_version(
         self, project_key: str, test_case_id: UUID, request: CreateTestCaseRequest
@@ -86,27 +78,27 @@ class TestCasesRestController:
             project_key, test_case_id, request, get_current_identity(), datetime.now(UTC)
         )
         test_case = await self._create_version.execute(command)
-        return self._to_api(test_case, project.name)
+        return TestCaseMapper.to_api(test_case, project.name)
 
     async def activate(
         self, project_key: str, test_case_id: UUID, request: ActionRequest | None
     ) -> ApiTestCase:
         project = await self._get_project.execute(GetProjectQuery(project_key))
         command = TestCaseMapper.to_activate_command(
-            test_case_id, request.reason if request else None
+            project_key, test_case_id, request.reason if request else None
         )
         test_case = await self._activate.execute(command)
-        return self._to_api(test_case, project.name)
+        return TestCaseMapper.to_api(test_case, project.name)
 
     async def deprecate(
         self, project_key: str, test_case_id: UUID, request: ActionRequest | None
     ) -> ApiTestCase:
         project = await self._get_project.execute(GetProjectQuery(project_key))
         command = TestCaseMapper.to_deprecate_command(
-            test_case_id, request.reason if request else None
+            project_key, test_case_id, request.reason if request else None
         )
         test_case = await self._deprecate.execute(command)
-        return self._to_api(test_case, project.name)
+        return TestCaseMapper.to_api(test_case, project.name)
 
     async def list(
         self,
@@ -122,12 +114,7 @@ class TestCasesRestController:
         page = await self._list.execute(
             TestCaseMapper.to_list_query(project_key, pagination, TestCaseMapper.to_status(status))
         )
-        return TestCaseListResponse(
-            data=[self._to_api(test_case, project.name) for test_case in page.items],
-            pagination=ApiPagination(
-                offset=pagination.offset, limit=pagination.limit, total=page.total
-            ),
-        )
+        return TestCaseMapper.to_list_response(page, project.name, pagination)
 
     async def list_versions(
         self,
@@ -146,50 +133,4 @@ class TestCasesRestController:
                 project_key, test_key, pagination, TestCaseMapper.to_status(status)
             )
         )
-        return TestCaseVersionListResponse(
-            data=[self._to_api(test_case, project.name) for test_case in page.items],
-            pagination=ApiPagination(
-                offset=pagination.offset, limit=pagination.limit, total=page.total
-            ),
-        )
-
-    @staticmethod
-    def _to_api(test_case: TestCase, project_name: str) -> ApiTestCase:
-        return ApiTestCase(
-            id=test_case.identifier,
-            project=ProjectReference(key=test_case.project_key, name=project_name),
-            testKey=test_case.test_key,
-            version=test_case.version,
-            name=test_case.name,
-            summary=test_case.summary,
-            objective=test_case.objective,
-            testType=test_case.test_type.value,
-            testLevel=test_case.test_level.value,
-            priority=test_case.priority.value,
-            status=test_case.status.value,
-            definition=ApiDefinition(
-                schemaVersion=test_case.definition.schema_version,
-                variables=dict(test_case.definition.variables),
-                actions=[
-                    ApiAction(
-                        id=action.identifier,
-                        type=action.action_type,
-                        source=action.source,
-                        config=dict(action.configuration),
-                    )
-                    for action in test_case.definition.actions
-                ],
-            ),
-            preconditions=[
-                ApiPreconditionReference(
-                    id=reference.identifier,
-                    preconditionKey=reference.precondition_key,
-                    version=reference.version,
-                )
-                for reference in test_case.preconditions
-            ],
-            timeoutSeconds=test_case.timeout_seconds,
-            createdAt=test_case.created_at,
-            createdBy=test_case.created_by,
-            metadata=dict(test_case.metadata or {}),
-        )
+        return TestCaseMapper.to_version_list_response(page, project.name, pagination)

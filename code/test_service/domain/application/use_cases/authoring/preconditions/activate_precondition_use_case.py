@@ -19,6 +19,8 @@ class ActivatePreconditionUseCaseImpl(ActivatePreconditionUseCase):
 
     async def execute(self, request: ActivatePreconditionCommand) -> Precondition:
         precondition = await self._precondition_repository.find_by_id(request.identifier)
-        if precondition is None:
-            raise EntityNotFoundException("precondition", str(request.identifier))
+        if precondition is None or precondition.project_key != request.project_key:
+            raise EntityNotFoundException(
+                "Precondition", str(request.identifier), f"project '{request.project_key}'"
+            )
         return await self._precondition_repository.save(precondition.activate())
