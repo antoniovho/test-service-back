@@ -25,17 +25,24 @@ class TestAuthoringController:
         monkeypatch: pytest.MonkeyPatch,
         postgres_settings_env: None,
     ):
-        feature_controller = MagicMock()
+        test_case_controller = MagicMock()
+        precondition_controller = MagicMock()
 
         monkeypatch.setattr(
             "test_service.infrastructure.adapters.input.rest.authoring."
             "authoring_controller.TestCasesRestController",
-            lambda: feature_controller,
+            lambda: test_case_controller,
+        )
+        monkeypatch.setattr(
+            "test_service.infrastructure.adapters.input.rest.authoring."
+            "authoring_controller.PreconditionsRestController",
+            lambda: precondition_controller,
         )
 
         controller = AuthoringController()
 
-        assert controller._test_cases is feature_controller
+        assert controller._test_cases is test_case_controller
+        assert controller._preconditions is precondition_controller
 
     async def test_when_endpoints_are_called_expect_delegation_to_feature_controller(self):
         feature_controller = MagicMock()
