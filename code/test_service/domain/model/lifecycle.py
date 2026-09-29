@@ -2,7 +2,9 @@
 
 from enum import StrEnum
 
-from test_service.domain.model.exceptions.domain_exception import BusinessRuleViolationException
+from test_service.domain.model.exceptions.invalid_lifecycle_transition_exception import (
+    InvalidLifecycleTransitionException,
+)
 
 
 class VersionStatus(StrEnum):
@@ -30,13 +32,10 @@ def activate_status(status: VersionStatus) -> VersionStatus:
         The ``ACTIVE`` lifecycle state.
 
     Raises:
-        BusinessRuleViolationException: If the snapshot is not a draft.
+        InvalidLifecycleTransitionException: If the snapshot is not a draft.
     """
     if status is not VersionStatus.DRAFT:
-        raise BusinessRuleViolationException(
-            "only draft snapshots can be activated",
-            "INVALID_LIFECYCLE_TRANSITION",
-        )
+        raise InvalidLifecycleTransitionException("only draft snapshots can be activated")
     return VersionStatus.ACTIVE
 
 
@@ -50,11 +49,8 @@ def deprecate_status(status: VersionStatus) -> VersionStatus:
         The ``DEPRECATED`` lifecycle state.
 
     Raises:
-        BusinessRuleViolationException: If the snapshot is not active.
+        InvalidLifecycleTransitionException: If the snapshot is not active.
     """
     if status is not VersionStatus.ACTIVE:
-        raise BusinessRuleViolationException(
-            "only active snapshots can be deprecated",
-            "INVALID_LIFECYCLE_TRANSITION",
-        )
+        raise InvalidLifecycleTransitionException("only active snapshots can be deprecated")
     return VersionStatus.DEPRECATED

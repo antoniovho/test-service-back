@@ -4,7 +4,7 @@ from dataclasses import dataclass, replace
 from datetime import datetime
 from uuid import UUID
 
-from test_service.domain.model.exceptions.domain_exception import BusinessRuleViolationException
+from test_service.domain.model.exceptions.invalid_test_set_exception import InvalidTestSetException
 from test_service.domain.model.lifecycle import VersionStatus, activate_status, deprecate_status
 
 
@@ -25,7 +25,7 @@ class TestSet:
         status: Snapshot lifecycle state.
 
     Raises:
-        BusinessRuleViolationException: If the version or item collection is invalid.
+        InvalidTestSetException: If the version or item collection is invalid.
     """
 
     identifier: UUID
@@ -43,16 +43,13 @@ class TestSet:
         """Validate TestSet snapshot invariants.
 
         Raises:
-            BusinessRuleViolationException:
+            InvalidTestSetException:
                 If the version is invalid or items are empty or duplicated.
         """
         if self.version < 1:
-            raise BusinessRuleViolationException("version must be positive", "INVALID_TEST_SET")
+            raise InvalidTestSetException("version must be positive")
         if not self.items or len(set(self.items)) != len(self.items):
-            raise BusinessRuleViolationException(
-                "test set items must be non-empty and unique",
-                "INVALID_TEST_SET",
-            )
+            raise InvalidTestSetException("test set items must be non-empty and unique")
 
     def activate(self) -> "TestSet":
         """Return this snapshot in the active state.
@@ -61,7 +58,7 @@ class TestSet:
             A new active test set snapshot.
 
         Raises:
-            BusinessRuleViolationException: If this snapshot is not a draft.
+            InvalidLifecycleTransitionException: If this snapshot is not a draft.
         """
         return replace(self, status=activate_status(self.status))
 
@@ -72,6 +69,6 @@ class TestSet:
             A new deprecated test set snapshot.
 
         Raises:
-            BusinessRuleViolationException: If this snapshot is not active.
+            InvalidLifecycleTransitionException: If this snapshot is not active.
         """
         return replace(self, status=deprecate_status(self.status))

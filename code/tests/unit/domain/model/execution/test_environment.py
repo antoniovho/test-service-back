@@ -3,9 +3,14 @@ from uuid import uuid4
 
 import pytest
 
-from test_service.domain.model.exceptions.domain_exception import (
-    BusinessRuleViolationException,
-    ValidationException,
+from test_service.domain.model.exceptions.invalid_environment_transition_exception import (
+    InvalidEnvironmentTransitionException,
+)
+from test_service.domain.model.exceptions.invalid_secret_reference_exception import (
+    InvalidSecretReferenceException,
+)
+from test_service.domain.model.exceptions.resolved_secret_not_allowed_exception import (
+    ResolvedSecretNotAllowedException,
 )
 from test_service.domain.model.execution.environment import (
     Environment,
@@ -31,7 +36,7 @@ class TestSecretReference:
         "provider, reference_key", [("", "db-password"), ("vault", "")], ids=["provider", "key"]
     )
     def test_when_field_empty_expect_exception(self, provider, reference_key):
-        with pytest.raises(ValidationException) as exc:
+        with pytest.raises(InvalidSecretReferenceException) as exc:
             SecretReference(provider=provider, reference_key=reference_key)
 
         assert exc.value.code == "INVALID_SECRET_REFERENCE"
@@ -42,7 +47,7 @@ class TestEnvironmentSecretsPolicy:
         "key", ["password", "dbPassword", "apiKey", "token", "credential"], ids=lambda key: key
     )
     def test_when_secret_like_key_holds_raw_value_expect_exception(self, key):
-        with pytest.raises(ValidationException) as exc:
+        with pytest.raises(ResolvedSecretNotAllowedException) as exc:
             _environment(configuration={key: "raw-value"})
 
         assert exc.value.code == "RESOLVED_SECRET_NOT_ALLOWED"
@@ -81,8 +86,9 @@ class TestEnvironmentLifecycle:
     @pytest.mark.parametrize("method", ["activate", "deactivate"])
     def test_when_deprecated_expect_transition_raises_exception(self, method):
         environment = _environment(status=EnvironmentStatus.DEPRECATED)
+        transition = getattr(environment, method)
 
-        with pytest.raises(BusinessRuleViolationException) as exc:
-            getattr(environment, method)()
+        with pytest.raises(InvalidEnvironmentTransitionException) as exc:
+            transition()
 
         assert exc.value.code == "INVALID_ENVIRONMENT_TRANSITION"

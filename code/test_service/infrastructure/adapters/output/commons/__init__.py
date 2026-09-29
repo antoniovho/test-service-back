@@ -1,0 +1,1 @@
+"""Shared outbound infrastructure components."""

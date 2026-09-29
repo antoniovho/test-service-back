@@ -14,8 +14,10 @@ from test_service_server.models.error_details import ErrorDetails  # noqa: F401
 from test_service_server.models.sort_order import SortOrder  # noqa: F401
 from test_service_server.models.test_plan import TestPlan  # noqa: F401
 from test_service_server.models.test_plan_list_response import TestPlanListResponse  # noqa: F401
+from test_service_server.models.test_plan_version_list_response import TestPlanVersionListResponse  # noqa: F401
 from test_service_server.models.test_set import TestSet  # noqa: F401
 from test_service_server.models.test_set_list_response import TestSetListResponse  # noqa: F401
+from test_service_server.models.test_set_version_list_response import TestSetVersionListResponse  # noqa: F401
 
 
 def test_list_test_sets(client: TestClient):
@@ -23,14 +25,14 @@ def test_list_test_sets(client: TestClient):
 
     List test set snapshots
     """
-    params = [("project_key", 'project_key_example'),     ("status", 'status_example'),     ("offset", 0),     ("limit", 20),     ("sort_by", 'version'),     ("order", 'ASC')]
+    params = [("status", 'status_example'),     ("offset", 0),     ("limit", 20),     ("sort_by", 'version'),     ("order", 'ASC')]
     headers = {
         "Authorization": "Bearer special-key",
     }
     # uncomment below to make a request
     #response = client.request(
     #    "GET",
-    #    "/v1/test-sets",
+    #    "/v1/projects/{projectKey}/test-sets".format(projectKey='project_key_example'),
     #    headers=headers,
     #    params=params,
     #)
@@ -52,7 +54,7 @@ def test_create_test_set(client: TestClient):
     # uncomment below to make a request
     #response = client.request(
     #    "POST",
-    #    "/v1/test-sets",
+    #    "/v1/projects/{projectKey}/test-sets".format(projectKey='project_key_example'),
     #    headers=headers,
     #    json=create_test_set_request,
     #)
@@ -73,7 +75,7 @@ def test_get_test_set(client: TestClient):
     # uncomment below to make a request
     #response = client.request(
     #    "GET",
-    #    "/v1/test-sets/{testSetId}".format(testSetId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d')),
+    #    "/v1/projects/{projectKey}/test-sets/{testSetId}".format(projectKey='project_key_example', testSetId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d')),
     #    headers=headers,
     #)
 
@@ -94,7 +96,7 @@ def test_create_test_set_version(client: TestClient):
     # uncomment below to make a request
     #response = client.request(
     #    "POST",
-    #    "/v1/test-sets/{testSetId}/versions".format(testSetId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d')),
+    #    "/v1/projects/{projectKey}/test-sets/{testSetId}/versions".format(projectKey='project_key_example', testSetId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d')),
     #    headers=headers,
     #    json=create_test_set_request,
     #)
@@ -116,7 +118,7 @@ def test_activate_test_set(client: TestClient):
     # uncomment below to make a request
     #response = client.request(
     #    "POST",
-    #    "/v1/test-sets/{testSetId}/activations".format(testSetId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d')),
+    #    "/v1/projects/{projectKey}/test-sets/{testSetId}/activations".format(projectKey='project_key_example', testSetId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d')),
     #    headers=headers,
     #    json=action_request,
     #)
@@ -138,9 +140,30 @@ def test_deprecate_test_set(client: TestClient):
     # uncomment below to make a request
     #response = client.request(
     #    "POST",
-    #    "/v1/test-sets/{testSetId}/deprecations".format(testSetId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d')),
+    #    "/v1/projects/{projectKey}/test-sets/{testSetId}/deprecations".format(projectKey='project_key_example', testSetId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d')),
     #    headers=headers,
     #    json=action_request,
+    #)
+
+    # uncomment below to assert the status code of the HTTP response
+    #assert response.status_code == 200
+
+
+def test_list_test_set_versions(client: TestClient):
+    """Test case for list_test_set_versions
+
+    List versions of a test set key
+    """
+    params = [("status", 'status_example'),     ("offset", 0),     ("limit", 20),     ("sort_by", 'version'),     ("order", 'ASC')]
+    headers = {
+        "Authorization": "Bearer special-key",
+    }
+    # uncomment below to make a request
+    #response = client.request(
+    #    "GET",
+    #    "/v1/projects/{projectKey}/test-set-keys/{setKey}/versions".format(projectKey='project_key_example', setKey='checkout-regression'),
+    #    headers=headers,
+    #    params=params,
     #)
 
     # uncomment below to assert the status code of the HTTP response
@@ -152,14 +175,14 @@ def test_list_test_plans(client: TestClient):
 
     List test plan snapshots
     """
-    params = [("project_key", 'project_key_example'),     ("status", 'status_example'),     ("offset", 0),     ("limit", 20),     ("sort_by", 'version'),     ("order", 'ASC')]
+    params = [("status", 'status_example'),     ("offset", 0),     ("limit", 20),     ("sort_by", 'version'),     ("order", 'ASC')]
     headers = {
         "Authorization": "Bearer special-key",
     }
     # uncomment below to make a request
     #response = client.request(
     #    "GET",
-    #    "/v1/test-plans",
+    #    "/v1/projects/{projectKey}/test-plans".format(projectKey='project_key_example'),
     #    headers=headers,
     #    params=params,
     #)
@@ -181,7 +204,7 @@ def test_create_test_plan(client: TestClient):
     # uncomment below to make a request
     #response = client.request(
     #    "POST",
-    #    "/v1/test-plans",
+    #    "/v1/projects/{projectKey}/test-plans".format(projectKey='project_key_example'),
     #    headers=headers,
     #    json=create_test_plan_request,
     #)
@@ -202,7 +225,7 @@ def test_get_test_plan(client: TestClient):
     # uncomment below to make a request
     #response = client.request(
     #    "GET",
-    #    "/v1/test-plans/{testPlanId}".format(testPlanId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d')),
+    #    "/v1/projects/{projectKey}/test-plans/{testPlanId}".format(projectKey='project_key_example', testPlanId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d')),
     #    headers=headers,
     #)
 
@@ -223,7 +246,7 @@ def test_create_test_plan_version(client: TestClient):
     # uncomment below to make a request
     #response = client.request(
     #    "POST",
-    #    "/v1/test-plans/{testPlanId}/versions".format(testPlanId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d')),
+    #    "/v1/projects/{projectKey}/test-plans/{testPlanId}/versions".format(projectKey='project_key_example', testPlanId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d')),
     #    headers=headers,
     #    json=create_test_plan_request,
     #)
@@ -245,7 +268,7 @@ def test_activate_test_plan(client: TestClient):
     # uncomment below to make a request
     #response = client.request(
     #    "POST",
-    #    "/v1/test-plans/{testPlanId}/activations".format(testPlanId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d')),
+    #    "/v1/projects/{projectKey}/test-plans/{testPlanId}/activations".format(projectKey='project_key_example', testPlanId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d')),
     #    headers=headers,
     #    json=action_request,
     #)
@@ -267,9 +290,30 @@ def test_deprecate_test_plan(client: TestClient):
     # uncomment below to make a request
     #response = client.request(
     #    "POST",
-    #    "/v1/test-plans/{testPlanId}/deprecations".format(testPlanId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d')),
+    #    "/v1/projects/{projectKey}/test-plans/{testPlanId}/deprecations".format(projectKey='project_key_example', testPlanId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d')),
     #    headers=headers,
     #    json=action_request,
+    #)
+
+    # uncomment below to assert the status code of the HTTP response
+    #assert response.status_code == 200
+
+
+def test_list_test_plan_versions(client: TestClient):
+    """Test case for list_test_plan_versions
+
+    List versions of a test plan key
+    """
+    params = [("status", 'status_example'),     ("offset", 0),     ("limit", 20),     ("sort_by", 'version'),     ("order", 'ASC')]
+    headers = {
+        "Authorization": "Bearer special-key",
+    }
+    # uncomment below to make a request
+    #response = client.request(
+    #    "GET",
+    #    "/v1/projects/{projectKey}/test-plan-keys/{planKey}/versions".format(projectKey='project_key_example', planKey='checkout-nightly'),
+    #    headers=headers,
+    #    params=params,
     #)
 
     # uncomment below to assert the status code of the HTTP response

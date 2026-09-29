@@ -8,7 +8,9 @@ from uuid import UUID
 
 from test_service.domain.commons.immutable import freeze_mapping
 from test_service.domain.model.authoring.definition import Definition
-from test_service.domain.model.exceptions.domain_exception import BusinessRuleViolationException
+from test_service.domain.model.exceptions.invalid_test_case_exception import (
+    InvalidTestCaseException,
+)
 from test_service.domain.model.lifecycle import VersionStatus, activate_status, deprecate_status
 
 
@@ -99,7 +101,7 @@ class TestCase:
         metadata: Additional safe domain metadata.
 
     Raises:
-        BusinessRuleViolationException:
+        InvalidTestCaseException:
             If version, timeout, or referenced preconditions are invalid.
     """
 
@@ -125,18 +127,14 @@ class TestCase:
         """Validate immutable TestCase invariants and freeze mutable metadata.
 
         Raises:
-            BusinessRuleViolationException: If version, timeout, or references are invalid.
+            InvalidTestCaseException: If version, timeout, or references are invalid.
         """
         if self.version < 1 or self.timeout_seconds < 1:
-            raise BusinessRuleViolationException(
-                "version and timeout must be positive",
-                "INVALID_TEST_CASE",
-            )
+            raise InvalidTestCaseException("version and timeout must be positive")
         references = {reference.identifier for reference in self.preconditions}
         if len(references) != len(self.preconditions):
-            raise BusinessRuleViolationException(
-                "test case preconditions must reference distinct snapshots",
-                "INVALID_TEST_CASE",
+            raise InvalidTestCaseException(
+                "test case preconditions must reference distinct snapshots"
             )
         object.__setattr__(self, "metadata", freeze_mapping(self.metadata))
 
@@ -147,7 +145,7 @@ class TestCase:
             A new active test case snapshot.
 
         Raises:
-            BusinessRuleViolationException: If this snapshot is not a draft.
+            InvalidLifecycleTransitionException: If this snapshot is not a draft.
         """
         return replace(self, status=activate_status(self.status))
 
@@ -158,6 +156,6 @@ class TestCase:
             A new deprecated test case snapshot.
 
         Raises:
-            BusinessRuleViolationException: If this snapshot is not active.
+            InvalidLifecycleTransitionException: If this snapshot is not active.
         """
         return replace(self, status=deprecate_status(self.status))

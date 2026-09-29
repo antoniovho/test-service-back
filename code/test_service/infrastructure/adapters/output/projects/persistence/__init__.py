@@ -1,0 +1,1 @@
+"""Projects SQLAlchemy persistence adapter."""

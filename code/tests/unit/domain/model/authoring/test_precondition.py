@@ -5,7 +5,12 @@ import pytest
 
 from test_service.domain.model.authoring.definition import Action, Definition
 from test_service.domain.model.authoring.precondition import Precondition
-from test_service.domain.model.exceptions.domain_exception import BusinessRuleViolationException
+from test_service.domain.model.exceptions.invalid_lifecycle_transition_exception import (
+    InvalidLifecycleTransitionException,
+)
+from test_service.domain.model.exceptions.invalid_precondition_exception import (
+    InvalidPreconditionException,
+)
 from test_service.domain.model.lifecycle import VersionStatus
 
 
@@ -35,7 +40,7 @@ def _precondition(**overrides: object) -> Precondition:
 class TestPreconditionInvariants:
     @pytest.mark.parametrize("version", [0, -1], ids=["zero", "negative"])
     def test_when_version_not_positive_expect_exception(self, version):
-        with pytest.raises(BusinessRuleViolationException) as exc:
+        with pytest.raises(InvalidPreconditionException) as exc:
             _precondition(version=version)
 
         assert exc.value.code == "INVALID_PRECONDITION"
@@ -67,5 +72,5 @@ class TestPreconditionLifecycle:
     def test_when_draft_expect_deprecate_raises_exception(self):
         precondition = _precondition()
 
-        with pytest.raises(BusinessRuleViolationException):
+        with pytest.raises(InvalidLifecycleTransitionException):
             precondition.deprecate()

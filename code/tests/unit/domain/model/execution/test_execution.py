@@ -3,9 +3,13 @@ from uuid import uuid4
 
 import pytest
 
-from test_service.domain.model.exceptions.domain_exception import (
-    BusinessRuleViolationException,
+from test_service.domain.model.exceptions.invalid_artifact_storage_exception import (
     InvalidArtifactStorageException,
+)
+from test_service.domain.model.exceptions.invalid_execution_transition_exception import (
+    InvalidExecutionTransitionException,
+)
+from test_service.domain.model.exceptions.invalid_temporal_data_exception import (
     InvalidTemporalDataException,
 )
 from test_service.domain.model.execution.execution import (
@@ -51,7 +55,7 @@ class TestExecutionStart:
     def test_when_not_created_expect_exception(self, status):
         execution = _execution(status=status)
 
-        with pytest.raises(BusinessRuleViolationException) as exc:
+        with pytest.raises(InvalidExecutionTransitionException) as exc:
             execution.start(CREATED_AT)
 
         assert exc.value.code == "INVALID_EXECUTION_TRANSITION"
@@ -72,7 +76,7 @@ class TestExecutionComplete:
     def test_when_not_running_expect_exception(self):
         execution = _execution(status=ExecutionStatus.CREATED)
 
-        with pytest.raises(BusinessRuleViolationException) as exc:
+        with pytest.raises(InvalidExecutionTransitionException) as exc:
             execution.complete(ExecutionStatus.PASSED, CREATED_AT)
 
         assert exc.value.code == "INVALID_EXECUTION_TRANSITION"
@@ -80,7 +84,7 @@ class TestExecutionComplete:
     def test_when_target_status_not_runner_outcome_expect_exception(self):
         execution = _execution(status=ExecutionStatus.RUNNING, started_at=CREATED_AT)
 
-        with pytest.raises(BusinessRuleViolationException) as exc:
+        with pytest.raises(InvalidExecutionTransitionException) as exc:
             execution.complete(ExecutionStatus.CANCELLED, CREATED_AT)
 
         assert exc.value.code == "INVALID_EXECUTION_TRANSITION"
@@ -109,7 +113,7 @@ class TestExecutionCancel:
     def test_when_already_terminal_expect_exception(self):
         execution = _execution(status=ExecutionStatus.PASSED)
 
-        with pytest.raises(BusinessRuleViolationException) as exc:
+        with pytest.raises(InvalidExecutionTransitionException) as exc:
             execution.cancel()
 
         assert exc.value.code == "INVALID_EXECUTION_TRANSITION"
@@ -117,10 +121,12 @@ class TestExecutionCancel:
 
 class TestExecutionTemporalValidation:
     def test_when_finish_precedes_start_expect_exception(self):
+        finished_at = CREATED_AT - timedelta(seconds=1)
+
         with pytest.raises(InvalidTemporalDataException):
             _execution(
                 started_at=CREATED_AT,
-                finished_at=CREATED_AT - timedelta(seconds=1),
+                finished_at=finished_at,
             )
 
     def test_when_duration_negative_expect_exception(self):

@@ -4,7 +4,7 @@ from uuid import uuid4
 import pytest
 
 from test_service.domain.model.composition.test_set import TestSet
-from test_service.domain.model.exceptions.domain_exception import BusinessRuleViolationException
+from test_service.domain.model.exceptions.invalid_test_set_exception import InvalidTestSetException
 from test_service.domain.model.lifecycle import VersionStatus
 
 
@@ -25,13 +25,13 @@ def _test_set(**overrides: object) -> TestSet:
 
 class TestTestSetInvariants:
     def test_when_version_not_positive_expect_exception(self):
-        with pytest.raises(BusinessRuleViolationException) as exc:
+        with pytest.raises(InvalidTestSetException) as exc:
             _test_set(version=0)
 
         assert exc.value.code == "INVALID_TEST_SET"
 
     def test_when_items_empty_expect_exception(self):
-        with pytest.raises(BusinessRuleViolationException) as exc:
+        with pytest.raises(InvalidTestSetException) as exc:
             _test_set(items=())
 
         assert exc.value.code == "INVALID_TEST_SET"
@@ -39,7 +39,7 @@ class TestTestSetInvariants:
     def test_when_items_duplicated_expect_exception(self):
         item = uuid4()
 
-        with pytest.raises(BusinessRuleViolationException) as exc:
+        with pytest.raises(InvalidTestSetException) as exc:
             _test_set(items=(item, item))
 
         assert exc.value.code == "INVALID_TEST_SET"

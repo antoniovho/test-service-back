@@ -3,7 +3,10 @@ from types import MappingProxyType
 import pytest
 
 from test_service.domain.model.authoring.definition import Action, Definition
-from test_service.domain.model.exceptions.domain_exception import ValidationException
+from test_service.domain.model.exceptions.invalid_action_exception import InvalidActionException
+from test_service.domain.model.exceptions.invalid_definition_exception import (
+    InvalidDefinitionException,
+)
 
 
 def _action(**overrides: object) -> Action:
@@ -23,7 +26,7 @@ class TestAction:
     def test_when_text_field_empty_expect_exception(self, field):
         overrides = {field: ""}
 
-        with pytest.raises(ValidationException) as exc:
+        with pytest.raises(InvalidActionException) as exc:
             _action(**overrides)
 
         assert exc.value.code == "INVALID_ACTION"
@@ -46,26 +49,32 @@ class TestAction:
 
 class TestDefinition:
     def test_when_schema_version_unsupported_expect_exception(self):
-        with pytest.raises(ValidationException) as exc:
-            Definition(variables={}, actions=(_action(),), schema_version="2.0")
+        action = _action()
+
+        with pytest.raises(InvalidDefinitionException) as exc:
+            Definition(variables={}, actions=(action,), schema_version="2.0")
 
         assert exc.value.code == "INVALID_DEFINITION"
 
     def test_when_no_actions_expect_exception(self):
-        with pytest.raises(ValidationException) as exc:
+        with pytest.raises(InvalidDefinitionException) as exc:
             Definition(variables={}, actions=())
 
         assert exc.value.code == "INVALID_DEFINITION"
 
     def test_when_duplicate_action_identifiers_expect_exception(self):
-        with pytest.raises(ValidationException) as exc:
-            Definition(variables={}, actions=(_action(), _action()))
+        action = _action()
+
+        with pytest.raises(InvalidDefinitionException) as exc:
+            Definition(variables={}, actions=(action, action))
 
         assert exc.value.code == "INVALID_DEFINITION"
 
     def test_when_empty_variable_name_expect_exception(self):
-        with pytest.raises(ValidationException) as exc:
-            Definition(variables={"": "value"}, actions=(_action(),))
+        action = _action()
+
+        with pytest.raises(InvalidDefinitionException) as exc:
+            Definition(variables={"": "value"}, actions=(action,))
 
         assert exc.value.code == "INVALID_DEFINITION"
 
