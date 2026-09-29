@@ -5,7 +5,6 @@ from datetime import datetime
 from test_service_server.models.action import Action as ApiAction
 from test_service_server.models.create_test_case_request import CreateTestCaseRequest
 from test_service_server.models.definition import Definition as ApiDefinition
-from test_service_server.models.pagination import Pagination as ApiPagination
 from test_service_server.models.precondition_reference import (
     PreconditionReference as ApiPreconditionReference,
 )
@@ -25,7 +24,7 @@ from test_service.domain.application.queries.authoring import (
     TestCaseQuery,
     TestCaseVersionsQuery,
 )
-from test_service.domain.commons.pagination import Page, PaginationParams, SortOrder
+from test_service.domain.commons.pagination import Page, PaginationParams
 from test_service.domain.model.authoring.definition import Action, Definition
 from test_service.domain.model.authoring.test_case import (
     Priority,
@@ -34,6 +33,9 @@ from test_service.domain.model.authoring.test_case import (
     TestType,
 )
 from test_service.domain.model.lifecycle import VersionStatus
+from test_service.infrastructure.adapters.input.rest.versioned_resource_mapper import (
+    VersionedResourceMapper,
+)
 
 
 class TestCaseMapper:
@@ -67,18 +69,11 @@ class TestCaseMapper:
     def to_pagination(
         offset: int | None, limit: int | None, sort_by: str | None, order
     ) -> PaginationParams:
-        return PaginationParams(
-            offset=offset or 0,
-            limit=limit or 20,
-            sort_by={"version": "version", "createdAt": "created_at"}.get(
-                sort_by or "version", "version"
-            ),
-            order=SortOrder(order.value) if order is not None else SortOrder.ASC,
-        )
+        return VersionedResourceMapper.to_pagination(offset, limit, sort_by, order)
 
     @staticmethod
     def to_status(value: str | None) -> VersionStatus | None:
-        return VersionStatus(value) if value is not None else None
+        return VersionedResourceMapper.to_status(value)
 
     @staticmethod
     def to_get_query(project_key: str, identifier) -> TestCaseQuery:
@@ -159,18 +154,16 @@ class TestCaseMapper:
     def to_list_response(
         page: Page[TestCase], project_name: str, pagination: PaginationParams
     ) -> TestCaseListResponse:
-        return TestCaseListResponse(
-            data=[TestCaseMapper.to_api(test_case, project_name) for test_case in page.items],
-            pagination=TestCaseMapper._to_api_pagination(pagination, page.total),
+        return VersionedResourceMapper.to_response(
+            TestCaseListResponse, page, project_name, pagination, TestCaseMapper.to_api
         )
 
     @staticmethod
     def to_version_list_response(
         page: Page[TestCase], project_name: str, pagination: PaginationParams
     ) -> TestCaseVersionListResponse:
-        return TestCaseVersionListResponse(
-            data=[TestCaseMapper.to_api(test_case, project_name) for test_case in page.items],
-            pagination=TestCaseMapper._to_api_pagination(pagination, page.total),
+        return VersionedResourceMapper.to_response(
+            TestCaseVersionListResponse, page, project_name, pagination, TestCaseMapper.to_api
         )
 
     @staticmethod
@@ -210,7 +203,3 @@ class TestCaseMapper:
             source=action.source,
             configuration=action.config,
         )
-
-    @staticmethod
-    def _to_api_pagination(pagination: PaginationParams, total: int) -> ApiPagination:
-        return ApiPagination(offset=pagination.offset, limit=pagination.limit, total=total)

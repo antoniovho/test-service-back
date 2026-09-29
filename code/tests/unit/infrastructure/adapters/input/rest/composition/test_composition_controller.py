@@ -1,14 +1,10 @@
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
-import pytest
 from test_service_server.models.action_request import ActionRequest
 
 from test_service.infrastructure.adapters.input.rest.composition.composition_controller import (
     CompositionController,
-)
-from test_service.infrastructure.adapters.input.rest.composition.test_plans.test_plans_rest_controller import (  # noqa: E501
-    TestPlansRestController,
 )
 
 
@@ -87,9 +83,3 @@ class TestCompositionController:
             await controller.list_test_plan_versions("IAG", "release", None, 0, 10, None, None)
             == "list_versions"
         )
-
-    async def test_when_test_plan_vertical_is_not_implemented_expect_explicit_error(self):
-        controller = TestPlansRestController()
-
-        with pytest.raises(NotImplementedError, match="not implemented"):
-            await controller.list("IAG", None, 0, 10, None, None)

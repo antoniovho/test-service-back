@@ -8,6 +8,9 @@ from test_service.domain.application.services.precondition_references import (
 from test_service.domain.application.services.test_case_snapshot_resolver import (
     TestCaseSnapshotResolver,
 )
+from test_service.domain.application.services.test_set_snapshot_resolver import (
+    TestSetSnapshotResolver,
+)
 from test_service.domain.application.use_cases.authoring.preconditions.activate_precondition_use_case import (  # noqa: E501
     ActivatePreconditionUseCaseImpl,
 )
@@ -49,6 +52,27 @@ from test_service.domain.application.use_cases.authoring.test_cases.list_test_ca
 )
 from test_service.domain.application.use_cases.authoring.test_cases.list_test_cases_use_case import (  # noqa: E501
     ListTestCasesUseCaseImpl,
+)
+from test_service.domain.application.use_cases.composition.test_plans.activate_test_plan_use_case import (  # noqa: E501
+    ActivateTestPlanUseCaseImpl,
+)
+from test_service.domain.application.use_cases.composition.test_plans.create_test_plan_use_case import (  # noqa: E501
+    CreateTestPlanUseCaseImpl,
+)
+from test_service.domain.application.use_cases.composition.test_plans.create_test_plan_version_use_case import (  # noqa: E501
+    CreateTestPlanVersionUseCaseImpl,
+)
+from test_service.domain.application.use_cases.composition.test_plans.deprecate_test_plan_use_case import (  # noqa: E501
+    DeprecateTestPlanUseCaseImpl,
+)
+from test_service.domain.application.use_cases.composition.test_plans.get_test_plan_use_case import (  # noqa: E501
+    GetTestPlanUseCaseImpl,
+)
+from test_service.domain.application.use_cases.composition.test_plans.list_test_plan_versions_use_case import (  # noqa: E501
+    ListTestPlanVersionsUseCaseImpl,
+)
+from test_service.domain.application.use_cases.composition.test_plans.list_test_plans_use_case import (  # noqa: E501
+    ListTestPlansUseCaseImpl,
 )
 from test_service.domain.application.use_cases.composition.test_sets.activate_test_set_use_case import (  # noqa: E501
     ActivateTestSetUseCaseImpl,
@@ -124,6 +148,27 @@ from test_service.domain.ports.input.use_cases.authoring.test_cases.list_test_ca
 )
 from test_service.domain.ports.input.use_cases.authoring.test_cases.list_test_cases_use_case import (  # noqa: E501
     ListTestCasesUseCase,
+)
+from test_service.domain.ports.input.use_cases.composition.test_plans.activate_test_plan_use_case import (  # noqa: E501
+    ActivateTestPlanUseCase,
+)
+from test_service.domain.ports.input.use_cases.composition.test_plans.create_test_plan_use_case import (  # noqa: E501
+    CreateTestPlanUseCase,
+)
+from test_service.domain.ports.input.use_cases.composition.test_plans.create_test_plan_version_use_case import (  # noqa: E501
+    CreateTestPlanVersionUseCase,
+)
+from test_service.domain.ports.input.use_cases.composition.test_plans.deprecate_test_plan_use_case import (  # noqa: E501
+    DeprecateTestPlanUseCase,
+)
+from test_service.domain.ports.input.use_cases.composition.test_plans.get_test_plan_use_case import (  # noqa: E501
+    GetTestPlanUseCase,
+)
+from test_service.domain.ports.input.use_cases.composition.test_plans.list_test_plan_versions_use_case import (  # noqa: E501
+    ListTestPlanVersionsUseCase,
+)
+from test_service.domain.ports.input.use_cases.composition.test_plans.list_test_plans_use_case import (  # noqa: E501
+    ListTestPlansUseCase,
 )
 from test_service.domain.ports.input.use_cases.composition.test_sets.activate_test_set_use_case import (  # noqa: E501
     ActivateTestSetUseCase,
@@ -211,6 +256,20 @@ class TestSetsModule(Module):
         self.bind(ListTestSetVersionsUseCase, to_class=ListTestSetVersionsUseCaseImpl)
 
 
+class TestPlansModule(Module):
+    """Binds Test Plan composition use case ports to their implementations."""
+
+    def configure(self) -> None:
+        self.bind(TestSetSnapshotResolver)
+        self.bind(CreateTestPlanUseCase, to_class=CreateTestPlanUseCaseImpl)
+        self.bind(CreateTestPlanVersionUseCase, to_class=CreateTestPlanVersionUseCaseImpl)
+        self.bind(ActivateTestPlanUseCase, to_class=ActivateTestPlanUseCaseImpl)
+        self.bind(DeprecateTestPlanUseCase, to_class=DeprecateTestPlanUseCaseImpl)
+        self.bind(GetTestPlanUseCase, to_class=GetTestPlanUseCaseImpl)
+        self.bind(ListTestPlansUseCase, to_class=ListTestPlansUseCaseImpl)
+        self.bind(ListTestPlanVersionsUseCase, to_class=ListTestPlanVersionsUseCaseImpl)
+
+
 class DomainModule(Module):
     """Domain modules available in the runnable application composition."""
 
@@ -219,3 +278,4 @@ class DomainModule(Module):
         self.install(TestCasesModule)
         self.install(PreconditionsModule)
         self.install(TestSetsModule)
+        self.install(TestPlansModule)

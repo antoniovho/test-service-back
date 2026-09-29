@@ -25,9 +25,11 @@ class TestPlanQuery:
     """Request to retrieve a TestPlan snapshot by UUID.
 
     Args:
+        project_key: Owning project key.
         identifier: UUID of the requested TestPlan snapshot.
     """
 
+    project_key: str
     identifier: UUID
 
 

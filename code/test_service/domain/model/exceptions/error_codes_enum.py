@@ -15,6 +15,7 @@ class DomainError(Enum):
     )
     TEST_CASE_ALREADY_EXISTS = ("TEST_CASE_ALREADY_EXISTS", "Test case already exists")
     TEST_SET_ALREADY_EXISTS = ("TEST_SET_ALREADY_EXISTS", "Test set already exists")
+    TEST_PLAN_ALREADY_EXISTS = ("TEST_PLAN_ALREADY_EXISTS", "Test plan already exists")
     PRECONDITION_ALREADY_EXISTS = ("PRECONDITION_ALREADY_EXISTS", "Precondition already exists")
     INVALID_PROJECT_DELETION = ("INVALID_PROJECT_DELETION", "Invalid project deletion metadata")
     PRECONDITION_PROJECT_MISMATCH = (

@@ -158,10 +158,12 @@ class ActivateTestPlanCommand:
     """Request to activate a draft TestPlan snapshot.
 
     Args:
+        project_key: Owning project key.
         identifier: UUID of the snapshot.
         reason: Optional audit reason.
     """
 
+    project_key: str
     identifier: UUID
     reason: str | None = None
 
@@ -171,9 +173,11 @@ class DeprecateTestPlanCommand:
     """Request to deprecate an active TestPlan snapshot.
 
     Args:
+        project_key: Owning project key.
         identifier: UUID of the snapshot.
         reason: Optional audit reason.
     """
 
+    project_key: str
     identifier: UUID
     reason: str | None = None

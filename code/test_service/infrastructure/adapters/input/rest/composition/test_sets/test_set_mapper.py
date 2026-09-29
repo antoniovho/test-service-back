@@ -4,7 +4,6 @@ from datetime import datetime
 from uuid import UUID
 
 from test_service_server.models.create_test_set_request import CreateTestSetRequest
-from test_service_server.models.pagination import Pagination as ApiPagination
 from test_service_server.models.project_reference import ProjectReference
 from test_service_server.models.test_set import TestSet as ApiTestSet
 from test_service_server.models.test_set_list_response import TestSetListResponse
@@ -21,9 +20,12 @@ from test_service.domain.application.queries.composition import (
     ListTestSetVersionsQuery,
     TestSetQuery,
 )
-from test_service.domain.commons.pagination import Page, PaginationParams, SortOrder
+from test_service.domain.commons.pagination import Page, PaginationParams
 from test_service.domain.model.composition.test_set import TestSet
 from test_service.domain.model.lifecycle import VersionStatus
+from test_service.infrastructure.adapters.input.rest.versioned_resource_mapper import (
+    VersionedResourceMapper,
+)
 
 
 class TestSetMapper:
@@ -58,18 +60,11 @@ class TestSetMapper:
     def to_pagination(
         offset: int | None, limit: int | None, sort_by: str | None, order
     ) -> PaginationParams:
-        return PaginationParams(
-            offset=offset or 0,
-            limit=limit or 20,
-            sort_by={"version": "version", "createdAt": "created_at"}.get(
-                sort_by or "version", "version"
-            ),
-            order=SortOrder(order.value) if order is not None else SortOrder.ASC,
-        )
+        return VersionedResourceMapper.to_pagination(offset, limit, sort_by, order)
 
     @staticmethod
     def to_status(value: str | None) -> VersionStatus | None:
-        return VersionStatus(value) if value is not None else None
+        return VersionedResourceMapper.to_status(value)
 
     @staticmethod
     def to_get_query(project_key: str, identifier: UUID) -> TestSetQuery:
@@ -121,18 +116,16 @@ class TestSetMapper:
     def to_list_response(
         page: Page[TestSet], project_name: str, pagination: PaginationParams
     ) -> TestSetListResponse:
-        return TestSetListResponse(
-            data=[TestSetMapper.to_api(test_set, project_name) for test_set in page.items],
-            pagination=TestSetMapper._to_api_pagination(pagination, page.total),
+        return VersionedResourceMapper.to_response(
+            TestSetListResponse, page, project_name, pagination, TestSetMapper.to_api
         )
 
     @staticmethod
     def to_version_list_response(
         page: Page[TestSet], project_name: str, pagination: PaginationParams
     ) -> TestSetVersionListResponse:
-        return TestSetVersionListResponse(
-            data=[TestSetMapper.to_api(test_set, project_name) for test_set in page.items],
-            pagination=TestSetMapper._to_api_pagination(pagination, page.total),
+        return VersionedResourceMapper.to_response(
+            TestSetVersionListResponse, page, project_name, pagination, TestSetMapper.to_api
         )
 
     @staticmethod
@@ -146,7 +139,3 @@ class TestSetMapper:
             "requested_by": identity,
             "requested_at": requested_at,
         }
-
-    @staticmethod
-    def _to_api_pagination(pagination: PaginationParams, total: int) -> ApiPagination:
-        return ApiPagination(offset=pagination.offset, limit=pagination.limit, total=total)

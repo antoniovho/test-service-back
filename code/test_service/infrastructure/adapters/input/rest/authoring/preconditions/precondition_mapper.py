@@ -5,7 +5,6 @@ from datetime import datetime
 from test_service_server.models.action import Action as ApiAction
 from test_service_server.models.create_precondition_request import CreatePreconditionRequest
 from test_service_server.models.definition import Definition as ApiDefinition
-from test_service_server.models.pagination import Pagination as ApiPagination
 from test_service_server.models.precondition import Precondition as ApiPrecondition
 from test_service_server.models.precondition_list_response import PreconditionListResponse
 from test_service_server.models.project_reference import ProjectReference
@@ -21,10 +20,13 @@ from test_service.domain.application.queries.authoring import (
     PreconditionQuery,
     PreconditionVersionsQuery,
 )
-from test_service.domain.commons.pagination import Page, PaginationParams, SortOrder
+from test_service.domain.commons.pagination import Page, PaginationParams
 from test_service.domain.model.authoring.definition import Action, Definition
 from test_service.domain.model.authoring.precondition import Precondition
 from test_service.domain.model.lifecycle import VersionStatus
+from test_service.infrastructure.adapters.input.rest.versioned_resource_mapper import (
+    VersionedResourceMapper,
+)
 
 
 class PreconditionMapper:
@@ -59,18 +61,11 @@ class PreconditionMapper:
     def to_pagination(
         offset: int | None, limit: int | None, sort_by: str | None, order
     ) -> PaginationParams:
-        return PaginationParams(
-            offset=offset or 0,
-            limit=limit or 20,
-            sort_by={"version": "version", "createdAt": "created_at"}.get(
-                sort_by or "version", "version"
-            ),
-            order=SortOrder(order.value) if order is not None else SortOrder.ASC,
-        )
+        return VersionedResourceMapper.to_pagination(offset, limit, sort_by, order)
 
     @staticmethod
     def to_status(value: str | None) -> VersionStatus | None:
-        return VersionStatus(value) if value is not None else None
+        return VersionedResourceMapper.to_status(value)
 
     @staticmethod
     def to_get_query(project_key: str, identifier) -> PreconditionQuery:
@@ -135,13 +130,12 @@ class PreconditionMapper:
     def to_list_response(
         page: Page[Precondition], project_name: str, pagination: PaginationParams
     ) -> PreconditionListResponse:
-        return PreconditionListResponse(
-            data=[PreconditionMapper.to_api(item, project_name) for item in page.items],
-            pagination=ApiPagination(
-                offset=pagination.offset,
-                limit=pagination.limit,
-                total=page.total,
-            ),
+        return VersionedResourceMapper.to_response(
+            PreconditionListResponse,
+            page,
+            project_name,
+            pagination,
+            PreconditionMapper.to_api,
         )
 
     @staticmethod

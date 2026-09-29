@@ -12,6 +12,9 @@ from test_service.domain.ports.output.persistence.projects.project_persistence_p
 from test_service.domain.ports.output.persistence.test_cases.test_case_persistence_port import (
     TestCasePersistencePort,
 )
+from test_service.domain.ports.output.persistence.test_plans.test_plan_persistence_port import (
+    TestPlanPersistencePort,
+)
 from test_service.domain.ports.output.persistence.test_sets.test_set_persistence_port import (
     TestSetPersistencePort,
 )
@@ -21,8 +24,14 @@ from test_service.infrastructure.adapters.output.commons.persistence.postgres.po
 from test_service.infrastructure.adapters.output.commons.persistence.postgres.postgres_session_provider import (  # noqa: E501
     PostgresSessionProvider,
 )
+from test_service.infrastructure.adapters.output.composition.test_plans.persistence.repositories.test_plan_repository import (  # noqa: E501
+    TestPlanRepository,
+)
+from test_service.infrastructure.adapters.output.composition.test_plans.persistence.test_plan_persistence_adapter import (  # noqa: E501
+    TestPlanPersistenceAdapter,
+)
 
-from .adapters.output.authoring.preconditions.persistence.precondition_persistence_adapter import (
+from .adapters.output.authoring.preconditions.persistence.precondition_persistence_adapter import (  # noqa: E501
     PreconditionPersistenceAdapter,
 )
 from .adapters.output.authoring.preconditions.persistence.repositories.precondition_repository import (  # noqa: E501
@@ -68,9 +77,11 @@ class AuthoringModule(Module):
         self.bind(TestCaseRepository)
         self.bind(PreconditionRepository)
         self.bind(TestSetRepository)
+        self.bind(TestPlanRepository)
         self.bind(TestCasePersistencePort, to_class=TestCasePersistenceAdapter)
         self.bind(PreconditionPersistencePort, to_class=PreconditionPersistenceAdapter)
         self.bind(TestSetPersistencePort, to_class=TestSetPersistenceAdapter)
+        self.bind(TestPlanPersistencePort, to_class=TestPlanPersistenceAdapter)
 
 
 class InfrastructureModule(Module):
