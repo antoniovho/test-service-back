@@ -67,3 +67,40 @@ class TestAuthoringController:
             await controller.list_test_case_versions("IAG", "IAG-1", None, 0, 10, None, None)
             == "list_versions"
         )
+
+    async def test_when_precondition_endpoints_are_called_expect_delegation_to_feature_controller(
+        self,
+    ):
+        feature_controller = MagicMock()
+        for method in (
+            "create",
+            "get",
+            "create_version",
+            "activate",
+            "deprecate",
+            "list",
+            "list_versions",
+        ):
+            setattr(feature_controller, method, AsyncMock(return_value=method))
+        controller = AuthoringController.__new__(AuthoringController)
+        controller._preconditions = feature_controller
+        identifier = uuid4()
+        request = MagicMock()
+
+        assert await controller.create_precondition("IAG", request) == "create"
+        assert await controller.get_precondition("IAG", identifier) == "get"
+        assert (
+            await controller.create_precondition_version("IAG", identifier, request)
+            == "create_version"
+        )
+        assert (
+            await controller.activate_precondition("IAG", identifier, ActionRequest()) == "activate"
+        )
+        assert await controller.deprecate_precondition("IAG", identifier, None) == "deprecate"
+        assert await controller.list_preconditions("IAG", None, 0, 10, None, None) == "list"
+        assert (
+            await controller.list_precondition_versions(
+                "IAG", "authenticated", None, 0, 10, None, None
+            )
+            == "list_versions"
+        )
