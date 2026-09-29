@@ -43,6 +43,9 @@ from test_service.domain.model.exceptions.invalid_test_plan_exception import (
     InvalidTestPlanException,
 )
 from test_service.domain.model.exceptions.invalid_test_set_exception import InvalidTestSetException
+from test_service.domain.model.exceptions.precondition_already_exists_exception import (
+    PreconditionAlreadyExistsException,
+)
 from test_service.domain.model.exceptions.precondition_project_mismatch_exception import (
     PreconditionProjectMismatchException,
 )
@@ -54,6 +57,9 @@ from test_service.domain.model.exceptions.project_already_exists_exception impor
 )
 from test_service.domain.model.exceptions.resolved_secret_not_allowed_exception import (
     ResolvedSecretNotAllowedException,
+)
+from test_service.domain.model.exceptions.test_case_already_exists_exception import (
+    TestCaseAlreadyExistsException,
 )
 from test_service.domain.model.exceptions.test_case_version_already_exists_exception import (
     TestCaseVersionAlreadyExistsException,
@@ -163,7 +169,9 @@ class TestExceptionStatusMap:
             EntityNotFoundException: HTTPStatus.NOT_FOUND,
             ProjectAlreadyDeletedException: HTTPStatus.CONFLICT,
             ProjectAlreadyExistsException: HTTPStatus.CONFLICT,
+            TestCaseAlreadyExistsException: HTTPStatus.CONFLICT,
             TestCaseVersionAlreadyExistsException: HTTPStatus.CONFLICT,
+            PreconditionAlreadyExistsException: HTTPStatus.CONFLICT,
             PreconditionProjectMismatchException: HTTPStatus.UNPROCESSABLE_ENTITY,
             InvalidActionException: HTTPStatus.UNPROCESSABLE_ENTITY,
             InvalidDefinitionException: HTTPStatus.UNPROCESSABLE_ENTITY,

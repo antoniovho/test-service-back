@@ -1,6 +1,7 @@
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
+import pytest
 from test_service_server.models.action_request import ActionRequest
 
 from test_service.infrastructure.adapters.input.rest.authoring.authoring_controller import (
@@ -8,11 +9,27 @@ from test_service.infrastructure.adapters.input.rest.authoring.authoring_control
 )
 
 
+@pytest.fixture
+def postgres_settings_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Provide PostgreSQL settings required to build the dependency graph."""
+    monkeypatch.setenv("DATABASE_HOST", "localhost")
+    monkeypatch.setenv("DATABASE_PORT", "5432")
+    monkeypatch.setenv("DATABASE_NAME", "test_db")
+    monkeypatch.setenv("DATABASE_USER", "test_user")
+    monkeypatch.setenv("DATABASE_PASSWORD", "test_password")
+
+
 class TestAuthoringController:
-    async def test_when_constructed_expect_test_case_feature_controller(self, monkeypatch):
+    async def test_when_constructed_expect_test_case_feature_controller(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        postgres_settings_env: None,
+    ):
         feature_controller = MagicMock()
+
         monkeypatch.setattr(
-            "test_service.infrastructure.adapters.input.rest.authoring.authoring_controller.TestCasesRestController",
+            "test_service.infrastructure.adapters.input.rest.authoring."
+            "authoring_controller.TestCasesRestController",
             lambda: feature_controller,
         )
 
