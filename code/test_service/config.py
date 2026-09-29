@@ -1,6 +1,8 @@
 """Environment-driven configuration for the Test Service application."""
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy import URL
 
 
 class AuthSettings(BaseSettings):
@@ -27,3 +29,34 @@ class AuthSettings(BaseSettings):
     issuer: str | None = None
     audience: str | None = None
     jwks_url: str | None = None
+
+
+class DatabaseSettings(BaseSettings):
+    """PostgreSQL connection settings loaded from the runtime environment."""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        env_prefix="DATABASE_",
+        extra="ignore",
+    )
+
+    host: str
+    port: int
+    name: str
+    user: str
+    password: SecretStr
+    pool_size: int = 5
+    max_overflow: int = 10
+
+    @property
+    def connection_url(self) -> URL:
+        """Build the async SQLAlchemy URL without exposing it through configuration logs."""
+        return URL.create(
+            "postgresql+asyncpg",
+            username=self.user,
+            password=self.password.get_secret_value(),
+            host=self.host,
+            port=self.port,
+            database=self.name,
+        )
