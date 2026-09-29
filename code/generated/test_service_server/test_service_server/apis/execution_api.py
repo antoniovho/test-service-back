@@ -23,10 +23,11 @@ from fastapi import (  # noqa: F401
 )
 
 from test_service_server.models.extra_models import TokenModel  # noqa: F401
-from pydantic import Field
+from pydantic import Field, StrictStr, field_validator
 from typing import Optional
 from typing_extensions import Annotated
 from uuid import UUID
+from test_service_server.models.action_request import ActionRequest
 from test_service_server.models.action_result_list_response import ActionResultListResponse
 from test_service_server.models.create_environment_request import CreateEnvironmentRequest
 from test_service_server.models.create_execution_request import CreateExecutionRequest
@@ -35,6 +36,7 @@ from test_service_server.models.environment_list_response import EnvironmentList
 from test_service_server.models.error_details import ErrorDetails
 from test_service_server.models.execution import Execution
 from test_service_server.models.execution_list_response import ExecutionListResponse
+from test_service_server.models.sort_order import SortOrder
 from test_service_server.models.test_result import TestResult
 from test_service_server.models.test_result_artifact_list_response import TestResultArtifactListResponse
 from test_service_server.models.test_result_list_response import TestResultListResponse
@@ -69,6 +71,10 @@ async def list_environments(
 ,
     limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
 ,
+    sort_by: Annotated[Optional[StrictStr], Field(description="Field used to sort the result set.")] = Query('name', description="Field used to sort the result set.", alias="sortBy", examples=["name"])
+,
+    order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
+,
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
@@ -76,7 +82,7 @@ async def list_environments(
     """Returns a paginated list of configured execution environments without secret values."""
     if not BaseExecutionApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseExecutionApi.subclasses[0]().list_environments(offset, limit)
+    return await BaseExecutionApi.subclasses[0]().list_environments(offset, limit, sort_by, order)
 
 
 @router.post(
@@ -159,6 +165,8 @@ async def get_environment(
 async def activate_environment(
     environmentId: Annotated[UUID, Field(description="UUID of the environment.")] = Path(..., description="UUID of the environment.")
 ,
+    action_request: Optional[ActionRequest] = Body(None, description="")
+,
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
@@ -166,7 +174,7 @@ async def activate_environment(
     """Marks an environment as available for new executions."""
     if not BaseExecutionApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseExecutionApi.subclasses[0]().activate_environment(environmentId)
+    return await BaseExecutionApi.subclasses[0]().activate_environment(environmentId, action_request)
 
 
 @router.post(
@@ -189,6 +197,8 @@ async def activate_environment(
 async def deactivate_environment(
     environmentId: Annotated[UUID, Field(description="UUID of the environment.")] = Path(..., description="UUID of the environment.")
 ,
+    action_request: Optional[ActionRequest] = Body(None, description="")
+,
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
@@ -196,11 +206,11 @@ async def deactivate_environment(
     """Marks an environment as unavailable for new executions without deleting its history."""
     if not BaseExecutionApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseExecutionApi.subclasses[0]().deactivate_environment(environmentId)
+    return await BaseExecutionApi.subclasses[0]().deactivate_environment(environmentId, action_request)
 
 
 @router.get(
-    "/v1/executions",
+    "/v1/projects/{projectKey}/executions",
     responses={
         200: {"model": ExecutionListResponse, "description": "Executions"},
         400: {"model": ErrorDetails, "description": "The request is invalid."},
@@ -217,11 +227,15 @@ async def deactivate_environment(
     response_model_by_alias=True,
 )
 async def list_executions(
-    project_key: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project that owns the requested resources.")] = Query(..., description="Stable key of the project that owns the requested resources.", alias="projectKey", min_length=2, max_length=20)
+    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
 ,
     offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
 ,
     limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
+,
+    sort_by: Annotated[Optional[StrictStr], Field(description="Field used to sort the result set. Shared by executions, test results, and action results, which expose the same sortable fields.")] = Query('createdAt', description="Field used to sort the result set. Shared by executions, test results, and action results, which expose the same sortable fields.", alias="sortBy", examples=["createdAt"])
+,
+    order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
 ,
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
@@ -230,11 +244,11 @@ async def list_executions(
     """Returns a paginated list of historical and active plan executions."""
     if not BaseExecutionApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseExecutionApi.subclasses[0]().list_executions(project_key, offset, limit)
+    return await BaseExecutionApi.subclasses[0]().list_executions(projectKey, offset, limit, sort_by, order)
 
 
 @router.post(
-    "/v1/executions",
+    "/v1/projects/{projectKey}/executions",
     responses={
         202: {"model": Execution, "description": "Execution accepted"},
         400: {"model": ErrorDetails, "description": "The request is invalid."},
@@ -251,6 +265,8 @@ async def list_executions(
     response_model_by_alias=True,
 )
 async def create_execution(
+    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+,
     create_execution_request: CreateExecutionRequest = Body(..., description="")
 ,
     token_bearerAuth: TokenModel = Security(
@@ -260,11 +276,11 @@ async def create_execution(
     """Accepts a plan execution request and schedules it for asynchronous processing."""
     if not BaseExecutionApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseExecutionApi.subclasses[0]().create_execution(create_execution_request)
+    return await BaseExecutionApi.subclasses[0]().create_execution(projectKey, create_execution_request)
 
 
 @router.get(
-    "/v1/executions/{executionId}",
+    "/v1/projects/{projectKey}/executions/{executionId}",
     responses={
         200: {"model": Execution, "description": "Execution"},
         400: {"model": ErrorDetails, "description": "The request is invalid."},
@@ -281,6 +297,8 @@ async def create_execution(
     response_model_by_alias=True,
 )
 async def get_execution(
+    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+,
     executionId: UUID = Path(..., description="")
 ,
     token_bearerAuth: TokenModel = Security(
@@ -290,11 +308,11 @@ async def get_execution(
     """Returns the status, timing, and immutable references of an execution."""
     if not BaseExecutionApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseExecutionApi.subclasses[0]().get_execution(executionId)
+    return await BaseExecutionApi.subclasses[0]().get_execution(projectKey, executionId)
 
 
 @router.post(
-    "/v1/executions/{executionId}/cancellations",
+    "/v1/projects/{projectKey}/executions/{executionId}/cancellations",
     responses={
         200: {"model": Execution, "description": "Cancelled"},
         400: {"model": ErrorDetails, "description": "The request is invalid."},
@@ -311,6 +329,8 @@ async def get_execution(
     response_model_by_alias=True,
 )
 async def cancel_execution(
+    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+,
     executionId: UUID = Path(..., description="")
 ,
     token_bearerAuth: TokenModel = Security(
@@ -320,11 +340,11 @@ async def cancel_execution(
     """Requests cancellation of an execution that has not reached a terminal state."""
     if not BaseExecutionApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseExecutionApi.subclasses[0]().cancel_execution(executionId)
+    return await BaseExecutionApi.subclasses[0]().cancel_execution(projectKey, executionId)
 
 
 @router.get(
-    "/v1/executions/{executionId}/results",
+    "/v1/projects/{projectKey}/executions/{executionId}/results",
     responses={
         200: {"model": TestResultListResponse, "description": "Results"},
         400: {"model": ErrorDetails, "description": "The request is invalid."},
@@ -341,11 +361,17 @@ async def cancel_execution(
     response_model_by_alias=True,
 )
 async def list_execution_results(
+    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+,
     executionId: UUID = Path(..., description="")
 ,
     offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
 ,
     limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
+,
+    sort_by: Annotated[Optional[StrictStr], Field(description="Field used to sort the result set. Shared by executions, test results, and action results, which expose the same sortable fields.")] = Query('createdAt', description="Field used to sort the result set. Shared by executions, test results, and action results, which expose the same sortable fields.", alias="sortBy", examples=["createdAt"])
+,
+    order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
 ,
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
@@ -354,11 +380,11 @@ async def list_execution_results(
     """Returns a paginated list of test results recorded for an execution."""
     if not BaseExecutionApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseExecutionApi.subclasses[0]().list_execution_results(executionId, offset, limit)
+    return await BaseExecutionApi.subclasses[0]().list_execution_results(projectKey, executionId, offset, limit, sort_by, order)
 
 
 @router.get(
-    "/v1/executions/{executionId}/results/{testResultId}",
+    "/v1/projects/{projectKey}/executions/{executionId}/results/{testResultId}",
     responses={
         200: {"model": TestResult, "description": "Test result"},
         400: {"model": ErrorDetails, "description": "The request is invalid."},
@@ -375,6 +401,8 @@ async def list_execution_results(
     response_model_by_alias=True,
 )
 async def get_execution_result(
+    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+,
     executionId: Annotated[UUID, Field(description="UUID of the execution.")] = Path(..., description="UUID of the execution.")
 ,
     testResultId: Annotated[UUID, Field(description="UUID of the test result.")] = Path(..., description="UUID of the test result.")
@@ -386,11 +414,11 @@ async def get_execution_result(
     """Returns one immutable test result belonging to an execution."""
     if not BaseExecutionApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseExecutionApi.subclasses[0]().get_execution_result(executionId, testResultId)
+    return await BaseExecutionApi.subclasses[0]().get_execution_result(projectKey, executionId, testResultId)
 
 
 @router.get(
-    "/v1/executions/{executionId}/results/{testResultId}/actions",
+    "/v1/projects/{projectKey}/executions/{executionId}/results/{testResultId}/actions",
     responses={
         200: {"model": ActionResultListResponse, "description": "Action results"},
         400: {"model": ErrorDetails, "description": "The request is invalid."},
@@ -407,6 +435,8 @@ async def get_execution_result(
     response_model_by_alias=True,
 )
 async def list_execution_result_actions(
+    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+,
     executionId: Annotated[UUID, Field(description="UUID of the execution.")] = Path(..., description="UUID of the execution.")
 ,
     testResultId: Annotated[UUID, Field(description="UUID of the test result.")] = Path(..., description="UUID of the test result.")
@@ -415,6 +445,10 @@ async def list_execution_result_actions(
 ,
     limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
 ,
+    sort_by: Annotated[Optional[StrictStr], Field(description="Field used to sort the result set. Shared by executions, test results, and action results, which expose the same sortable fields.")] = Query('createdAt', description="Field used to sort the result set. Shared by executions, test results, and action results, which expose the same sortable fields.", alias="sortBy", examples=["createdAt"])
+,
+    order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
+,
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
@@ -422,11 +456,11 @@ async def list_execution_result_actions(
     """Returns the action results recorded for an execution result."""
     if not BaseExecutionApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseExecutionApi.subclasses[0]().list_execution_result_actions(executionId, testResultId, offset, limit)
+    return await BaseExecutionApi.subclasses[0]().list_execution_result_actions(projectKey, executionId, testResultId, offset, limit, sort_by, order)
 
 
 @router.get(
-    "/v1/executions/{executionId}/results/{testResultId}/artifacts",
+    "/v1/projects/{projectKey}/executions/{executionId}/results/{testResultId}/artifacts",
     responses={
         200: {"model": TestResultArtifactListResponse, "description": "Result artifacts"},
         400: {"model": ErrorDetails, "description": "The request is invalid."},
@@ -443,6 +477,8 @@ async def list_execution_result_actions(
     response_model_by_alias=True,
 )
 async def list_execution_result_artifacts(
+    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+,
     executionId: Annotated[UUID, Field(description="UUID of the execution.")] = Path(..., description="UUID of the execution.")
 ,
     testResultId: Annotated[UUID, Field(description="UUID of the test result.")] = Path(..., description="UUID of the test result.")
@@ -451,6 +487,10 @@ async def list_execution_result_artifacts(
 ,
     limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
 ,
+    sort_by: Annotated[Optional[StrictStr], Field(description="Field used to sort the result set.")] = Query('createdAt', description="Field used to sort the result set.", alias="sortBy", examples=["createdAt"])
+,
+    order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
+,
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
@@ -458,4 +498,4 @@ async def list_execution_result_artifacts(
     """Returns metadata for technical evidence attached to an execution result."""
     if not BaseExecutionApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseExecutionApi.subclasses[0]().list_execution_result_artifacts(executionId, testResultId, offset, limit)
+    return await BaseExecutionApi.subclasses[0]().list_execution_result_artifacts(projectKey, executionId, testResultId, offset, limit, sort_by, order)

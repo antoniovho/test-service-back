@@ -1,0 +1,1 @@
+"""Projects REST adapters package."""

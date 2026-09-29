@@ -1,0 +1,1 @@
+"""Inbound use-case contracts."""

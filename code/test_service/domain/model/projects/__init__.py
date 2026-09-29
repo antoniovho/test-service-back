@@ -1,0 +1,1 @@
+"""Project Catalog domain models."""

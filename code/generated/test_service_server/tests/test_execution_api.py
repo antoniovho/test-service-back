@@ -3,10 +3,11 @@
 from fastapi.testclient import TestClient
 
 
-from pydantic import Field  # noqa: F401
+from pydantic import Field, StrictStr, field_validator  # noqa: F401
 from typing import Optional  # noqa: F401
 from typing_extensions import Annotated  # noqa: F401
 from uuid import UUID  # noqa: F401
+from test_service_server.models.action_request import ActionRequest  # noqa: F401
 from test_service_server.models.action_result_list_response import ActionResultListResponse  # noqa: F401
 from test_service_server.models.create_environment_request import CreateEnvironmentRequest  # noqa: F401
 from test_service_server.models.create_execution_request import CreateExecutionRequest  # noqa: F401
@@ -15,6 +16,7 @@ from test_service_server.models.environment_list_response import EnvironmentList
 from test_service_server.models.error_details import ErrorDetails  # noqa: F401
 from test_service_server.models.execution import Execution  # noqa: F401
 from test_service_server.models.execution_list_response import ExecutionListResponse  # noqa: F401
+from test_service_server.models.sort_order import SortOrder  # noqa: F401
 from test_service_server.models.test_result import TestResult  # noqa: F401
 from test_service_server.models.test_result_artifact_list_response import TestResultArtifactListResponse  # noqa: F401
 from test_service_server.models.test_result_list_response import TestResultListResponse  # noqa: F401
@@ -25,7 +27,7 @@ def test_list_environments(client: TestClient):
 
     List execution environments
     """
-    params = [("offset", 0),     ("limit", 20)]
+    params = [("offset", 0),     ("limit", 20),     ("sort_by", 'name'),     ("order", 'ASC')]
     headers = {
         "Authorization": "Bearer special-key",
     }
@@ -88,6 +90,7 @@ def test_activate_environment(client: TestClient):
 
     Activate an environment
     """
+    action_request = test_service_server.ActionRequest()
 
     headers = {
         "Authorization": "Bearer special-key",
@@ -97,6 +100,7 @@ def test_activate_environment(client: TestClient):
     #    "POST",
     #    "/v1/environments/{environmentId}/activations".format(environmentId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d')),
     #    headers=headers,
+    #    json=action_request,
     #)
 
     # uncomment below to assert the status code of the HTTP response
@@ -108,6 +112,7 @@ def test_deactivate_environment(client: TestClient):
 
     Deactivate an environment
     """
+    action_request = test_service_server.ActionRequest()
 
     headers = {
         "Authorization": "Bearer special-key",
@@ -117,6 +122,7 @@ def test_deactivate_environment(client: TestClient):
     #    "POST",
     #    "/v1/environments/{environmentId}/deactivations".format(environmentId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d')),
     #    headers=headers,
+    #    json=action_request,
     #)
 
     # uncomment below to assert the status code of the HTTP response
@@ -128,14 +134,14 @@ def test_list_executions(client: TestClient):
 
     List executions
     """
-    params = [("project_key", 'project_key_example'),     ("offset", 0),     ("limit", 20)]
+    params = [("offset", 0),     ("limit", 20),     ("sort_by", 'createdAt'),     ("order", 'ASC')]
     headers = {
         "Authorization": "Bearer special-key",
     }
     # uncomment below to make a request
     #response = client.request(
     #    "GET",
-    #    "/v1/executions",
+    #    "/v1/projects/{projectKey}/executions".format(projectKey='project_key_example'),
     #    headers=headers,
     #    params=params,
     #)
@@ -157,7 +163,7 @@ def test_create_execution(client: TestClient):
     # uncomment below to make a request
     #response = client.request(
     #    "POST",
-    #    "/v1/executions",
+    #    "/v1/projects/{projectKey}/executions".format(projectKey='project_key_example'),
     #    headers=headers,
     #    json=create_execution_request,
     #)
@@ -178,7 +184,7 @@ def test_get_execution(client: TestClient):
     # uncomment below to make a request
     #response = client.request(
     #    "GET",
-    #    "/v1/executions/{executionId}".format(executionId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d')),
+    #    "/v1/projects/{projectKey}/executions/{executionId}".format(projectKey='project_key_example', executionId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d')),
     #    headers=headers,
     #)
 
@@ -198,7 +204,7 @@ def test_cancel_execution(client: TestClient):
     # uncomment below to make a request
     #response = client.request(
     #    "POST",
-    #    "/v1/executions/{executionId}/cancellations".format(executionId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d')),
+    #    "/v1/projects/{projectKey}/executions/{executionId}/cancellations".format(projectKey='project_key_example', executionId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d')),
     #    headers=headers,
     #)
 
@@ -211,14 +217,14 @@ def test_list_execution_results(client: TestClient):
 
     List results for an execution
     """
-    params = [("offset", 0),     ("limit", 20)]
+    params = [("offset", 0),     ("limit", 20),     ("sort_by", 'createdAt'),     ("order", 'ASC')]
     headers = {
         "Authorization": "Bearer special-key",
     }
     # uncomment below to make a request
     #response = client.request(
     #    "GET",
-    #    "/v1/executions/{executionId}/results".format(executionId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d')),
+    #    "/v1/projects/{projectKey}/executions/{executionId}/results".format(projectKey='project_key_example', executionId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d')),
     #    headers=headers,
     #    params=params,
     #)
@@ -239,7 +245,7 @@ def test_get_execution_result(client: TestClient):
     # uncomment below to make a request
     #response = client.request(
     #    "GET",
-    #    "/v1/executions/{executionId}/results/{testResultId}".format(executionId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d'), testResultId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d')),
+    #    "/v1/projects/{projectKey}/executions/{executionId}/results/{testResultId}".format(projectKey='project_key_example', executionId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d'), testResultId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d')),
     #    headers=headers,
     #)
 
@@ -252,14 +258,14 @@ def test_list_execution_result_actions(client: TestClient):
 
     List execution result actions
     """
-    params = [("offset", 0),     ("limit", 20)]
+    params = [("offset", 0),     ("limit", 20),     ("sort_by", 'createdAt'),     ("order", 'ASC')]
     headers = {
         "Authorization": "Bearer special-key",
     }
     # uncomment below to make a request
     #response = client.request(
     #    "GET",
-    #    "/v1/executions/{executionId}/results/{testResultId}/actions".format(executionId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d'), testResultId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d')),
+    #    "/v1/projects/{projectKey}/executions/{executionId}/results/{testResultId}/actions".format(projectKey='project_key_example', executionId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d'), testResultId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d')),
     #    headers=headers,
     #    params=params,
     #)
@@ -273,14 +279,14 @@ def test_list_execution_result_artifacts(client: TestClient):
 
     List execution result artifacts
     """
-    params = [("offset", 0),     ("limit", 20)]
+    params = [("offset", 0),     ("limit", 20),     ("sort_by", 'createdAt'),     ("order", 'ASC')]
     headers = {
         "Authorization": "Bearer special-key",
     }
     # uncomment below to make a request
     #response = client.request(
     #    "GET",
-    #    "/v1/executions/{executionId}/results/{testResultId}/artifacts".format(executionId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d'), testResultId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d')),
+    #    "/v1/projects/{projectKey}/executions/{executionId}/results/{testResultId}/artifacts".format(projectKey='project_key_example', executionId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d'), testResultId=UUID('38400000-8cf0-11bd-b23e-10b96e4ef00d')),
     #    headers=headers,
     #    params=params,
     #)

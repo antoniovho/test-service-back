@@ -7,7 +7,7 @@ info:
     \ executing validated plans, and publishing read-only projections to an external\
     \ testing viewer."
   title: Test Service
-  version: 0.1.2
+  version: 0.1.6
 servers:
 - description: Local development server
   url: http://localhost:8080
@@ -503,19 +503,19 @@ paths:
       summary: Get a project
       tags:
       - Projects
-  /v1/test-cases:
+  /v1/projects/{projectKey}/test-cases:
     get:
       description: Returns a paginated list of immutable test case versions.
       operationId: listTestCases
       parameters:
-      - description: Stable key of the project that owns the requested resources.
-        explode: true
-        in: query
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
         name: projectKey
         required: true
         schema:
           $ref: "#/components/schemas/ProjectKey"
-        style: form
+        style: simple
       - description: "Filter versions by lifecycle status. When omitted, all statuses\
           \ are returned."
         explode: true
@@ -668,6 +668,15 @@ paths:
     post:
       description: Creates a new immutable test case version in draft status.
       operationId: createTestCase
+      parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
       requestBody:
         content:
           application/json:
@@ -781,11 +790,19 @@ paths:
       summary: Create a test case version
       tags:
       - Authoring
-  /v1/test-cases/{testCaseId}:
+  /v1/projects/{projectKey}/test-cases/{testCaseId}:
     get:
       description: Returns the complete definition and metadata of a test case version.
       operationId: getTestCase
       parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
       - description: UUID of the test case version.
         explode: false
         in: path
@@ -892,138 +909,20 @@ paths:
       summary: Get a test case version
       tags:
       - Authoring
-  /v1/test-cases/{testCaseId}/versions:
-    get:
-      description: Returns all immutable versions associated with a test case key.
-      operationId: listTestCaseVersions
-      parameters:
-      - description: UUID of the test case version.
-        explode: false
-        in: path
-        name: testCaseId
-        required: true
-        schema:
-          $ref: "#/components/schemas/UUID"
-        style: simple
-      - description: Number of records to skip before returning results.
-        explode: true
-        in: query
-        name: offset
-        required: false
-        schema:
-          $ref: "#/components/schemas/Offset"
-        style: form
-      - description: Maximum number of records returned in one page.
-        explode: true
-        in: query
-        name: limit
-        required: false
-        schema:
-          $ref: "#/components/schemas/Limit"
-        style: form
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/TestCaseVersionListResponse"
-          description: Versions
-        "400":
-          content:
-            application/problem+json:
-              example:
-                type: /problems/bad-request
-                status: 400
-                title: Bad Request
-                detail: The request is invalid.
-              schema:
-                $ref: "#/components/schemas/ErrorDetails"
-          description: The request is invalid.
-        "401":
-          content:
-            application/problem+json:
-              example:
-                type: /problems/unauthorized
-                status: 401
-                title: Unauthorized
-                detail: Authentication is required or the credentials are invalid.
-              schema:
-                $ref: "#/components/schemas/ErrorDetails"
-          description: Authentication is required or failed.
-        "403":
-          content:
-            application/problem+json:
-              example:
-                type: /problems/forbidden
-                status: 403
-                title: Forbidden
-                detail: The authenticated principal lacks the required permission.
-              schema:
-                $ref: "#/components/schemas/ErrorDetails"
-          description: The authenticated principal is not allowed to perform the operation.
-        "404":
-          content:
-            application/problem+json:
-              example:
-                type: /problems/not-found
-                status: 404
-                title: Not Found
-                detail: The requested resource was not found.
-              schema:
-                $ref: "#/components/schemas/ErrorDetails"
-          description: The requested resource was not found.
-        "409":
-          content:
-            application/problem+json:
-              example:
-                type: /problems/conflict
-                status: 409
-                title: Conflict
-                detail: The resource state conflicts with this operation.
-              schema:
-                $ref: "#/components/schemas/ErrorDetails"
-          description: The operation conflicts with the current state of the resource.
-        "422":
-          content:
-            application/problem+json:
-              example:
-                type: /problems/domain-validation
-                status: 422
-                title: Unprocessable Entity
-                detail: The request violates a domain rule.
-              schema:
-                $ref: "#/components/schemas/ErrorDetails"
-          description: The request is syntactically valid but violates a domain rule.
-        "500":
-          content:
-            application/problem+json:
-              example:
-                type: /problems/internal-server-error
-                status: 500
-                title: Internal Server Error
-                detail: An unexpected server error occurred.
-              schema:
-                $ref: "#/components/schemas/ErrorDetails"
-          description: An unexpected server error occurred.
-        "503":
-          content:
-            application/problem+json:
-              example:
-                type: /problems/service-unavailable
-                status: 503
-                title: Service Unavailable
-                detail: The service is temporarily unavailable.
-              schema:
-                $ref: "#/components/schemas/ErrorDetails"
-          description: The service is temporarily unavailable.
-      summary: List versions of a test case key
-      tags:
-      - Authoring
+  /v1/projects/{projectKey}/test-cases/{testCaseId}/versions:
     post:
       description: Creates a new version without modifying any existing test case
         version.
       operationId: createTestCaseVersion
       parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
       - description: UUID of the test case version.
         explode: false
         in: path
@@ -1145,12 +1044,20 @@ paths:
       summary: Create a new immutable test case version
       tags:
       - Authoring
-  /v1/test-cases/{testCaseId}/activations:
+  /v1/projects/{projectKey}/test-cases/{testCaseId}/activations:
     post:
       description: Activates a draft test case version for future compositions and
         executions.
       operationId: activateTestCase
       parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
       - description: UUID of the test case version.
         explode: false
         in: path
@@ -1262,12 +1169,20 @@ paths:
       summary: Activate a test case version
       tags:
       - Authoring
-  /v1/test-cases/{testCaseId}/deprecations:
+  /v1/projects/{projectKey}/test-cases/{testCaseId}/deprecations:
     post:
       description: Deprecates a test case version so it cannot be selected for new
         compositions.
       operationId: deprecateTestCase
       parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
       - description: UUID of the test case version.
         explode: false
         in: path
@@ -1379,11 +1294,192 @@ paths:
       summary: Deprecate a test case version
       tags:
       - Authoring
-  /v1/preconditions:
+  /v1/projects/{projectKey}/test-case-keys/{testKey}/versions:
+    get:
+      description: Returns all immutable versions associated with a test case key.
+      operationId: listTestCaseVersions
+      parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
+      - description: Stable business key of the test case.
+        explode: false
+        in: path
+        name: testKey
+        required: true
+        schema:
+          example: checkout-happy-path
+          maxLength: 100
+          minLength: 1
+          type: string
+        style: simple
+      - description: "Filter versions by lifecycle status. When omitted, all statuses\
+          \ are returned."
+        explode: true
+        in: query
+        name: status
+        required: false
+        schema:
+          enum:
+          - DRAFT
+          - ACTIVE
+          - DEPRECATED
+          type: string
+        style: form
+      - description: Number of records to skip before returning results.
+        explode: true
+        in: query
+        name: offset
+        required: false
+        schema:
+          $ref: "#/components/schemas/Offset"
+        style: form
+      - description: Maximum number of records returned in one page.
+        explode: true
+        in: query
+        name: limit
+        required: false
+        schema:
+          $ref: "#/components/schemas/Limit"
+        style: form
+      - description: Field used to sort the result set.
+        explode: true
+        in: query
+        name: sortBy
+        required: false
+        schema:
+          default: version
+          enum:
+          - status
+          - version
+          - name
+          example: version
+          type: string
+        style: form
+      - description: Sort direction.
+        explode: true
+        in: query
+        name: order
+        required: false
+        schema:
+          $ref: "#/components/schemas/SortOrder"
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TestCaseVersionListResponse"
+          description: Versions
+        "400":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/bad-request
+                status: 400
+                title: Bad Request
+                detail: The request is invalid.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The request is invalid.
+        "401":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/unauthorized
+                status: 401
+                title: Unauthorized
+                detail: Authentication is required or the credentials are invalid.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: Authentication is required or failed.
+        "403":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/forbidden
+                status: 403
+                title: Forbidden
+                detail: The authenticated principal lacks the required permission.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The authenticated principal is not allowed to perform the operation.
+        "404":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/not-found
+                status: 404
+                title: Not Found
+                detail: The requested resource was not found.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The requested resource was not found.
+        "409":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/conflict
+                status: 409
+                title: Conflict
+                detail: The resource state conflicts with this operation.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The operation conflicts with the current state of the resource.
+        "422":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/domain-validation
+                status: 422
+                title: Unprocessable Entity
+                detail: The request violates a domain rule.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The request is syntactically valid but violates a domain rule.
+        "500":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/internal-server-error
+                status: 500
+                title: Internal Server Error
+                detail: An unexpected server error occurred.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: An unexpected server error occurred.
+        "503":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/service-unavailable
+                status: 503
+                title: Service Unavailable
+                detail: The service is temporarily unavailable.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The service is temporarily unavailable.
+      summary: List versions of a test case key
+      tags:
+      - Authoring
+  /v1/projects/{projectKey}/preconditions:
     get:
       description: Returns a paginated list of versioned preconditions.
       operationId: listPreconditions
       parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
       - description: "Filter versions by lifecycle status. When omitted, all statuses\
           \ are returned."
         explode: true
@@ -1536,6 +1632,15 @@ paths:
     post:
       description: Creates a new immutable precondition version in draft status.
       operationId: createPrecondition
+      parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
       requestBody:
         content:
           application/json:
@@ -1649,11 +1754,19 @@ paths:
       summary: Create a precondition version
       tags:
       - Authoring
-  /v1/preconditions/{preconditionId}:
+  /v1/projects/{projectKey}/preconditions/{preconditionId}:
     get:
       description: Returns an immutable precondition version by UUID.
       operationId: getPrecondition
       parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
       - description: UUID of the precondition version.
         explode: false
         in: path
@@ -1760,126 +1873,19 @@ paths:
       summary: Get a precondition version
       tags:
       - Authoring
-  /v1/preconditions/{preconditionId}/versions:
-    get:
-      description: Returns all immutable versions associated with a precondition key.
-      operationId: listPreconditionVersions
-      parameters:
-      - description: UUID of the precondition version.
-        explode: false
-        in: path
-        name: preconditionId
-        required: true
-        schema:
-          $ref: "#/components/schemas/UUID"
-        style: simple
-      - description: Number of records to skip before returning results.
-        explode: true
-        in: query
-        name: offset
-        required: false
-        schema:
-          $ref: "#/components/schemas/Offset"
-        style: form
-      - description: Maximum number of records returned in one page.
-        explode: true
-        in: query
-        name: limit
-        required: false
-        schema:
-          $ref: "#/components/schemas/Limit"
-        style: form
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PreconditionListResponse"
-          description: Precondition versions
-        "400":
-          content:
-            application/problem+json:
-              example:
-                type: /problems/bad-request
-                status: 400
-                title: Bad Request
-                detail: The request is invalid.
-              schema:
-                $ref: "#/components/schemas/ErrorDetails"
-          description: The request is invalid.
-        "401":
-          content:
-            application/problem+json:
-              example:
-                type: /problems/unauthorized
-                status: 401
-                title: Unauthorized
-                detail: Authentication is required or the credentials are invalid.
-              schema:
-                $ref: "#/components/schemas/ErrorDetails"
-          description: Authentication is required or failed.
-        "403":
-          content:
-            application/problem+json:
-              example:
-                type: /problems/forbidden
-                status: 403
-                title: Forbidden
-                detail: The authenticated principal lacks the required permission.
-              schema:
-                $ref: "#/components/schemas/ErrorDetails"
-          description: The authenticated principal is not allowed to perform the operation.
-        "409":
-          content:
-            application/problem+json:
-              example:
-                type: /problems/conflict
-                status: 409
-                title: Conflict
-                detail: The resource state conflicts with this operation.
-              schema:
-                $ref: "#/components/schemas/ErrorDetails"
-          description: The operation conflicts with the current state of the resource.
-        "422":
-          content:
-            application/problem+json:
-              example:
-                type: /problems/domain-validation
-                status: 422
-                title: Unprocessable Entity
-                detail: The request violates a domain rule.
-              schema:
-                $ref: "#/components/schemas/ErrorDetails"
-          description: The request is syntactically valid but violates a domain rule.
-        "500":
-          content:
-            application/problem+json:
-              example:
-                type: /problems/internal-server-error
-                status: 500
-                title: Internal Server Error
-                detail: An unexpected server error occurred.
-              schema:
-                $ref: "#/components/schemas/ErrorDetails"
-          description: An unexpected server error occurred.
-        "503":
-          content:
-            application/problem+json:
-              example:
-                type: /problems/service-unavailable
-                status: 503
-                title: Service Unavailable
-                detail: The service is temporarily unavailable.
-              schema:
-                $ref: "#/components/schemas/ErrorDetails"
-          description: The service is temporarily unavailable.
-      summary: List versions of a precondition
-      tags:
-      - Authoring
+  /v1/projects/{projectKey}/preconditions/{preconditionId}/versions:
     post:
       description: Creates a new immutable version for the selected precondition key.
       operationId: createPreconditionVersion
       parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
       - description: UUID of the precondition version.
         explode: false
         in: path
@@ -2001,11 +2007,19 @@ paths:
       summary: Create a precondition version
       tags:
       - Authoring
-  /v1/preconditions/{preconditionId}/activations:
+  /v1/projects/{projectKey}/preconditions/{preconditionId}/activations:
     post:
       description: Activates a draft precondition version for future test executions.
       operationId: activatePrecondition
       parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
       - description: UUID of the precondition version.
         explode: false
         in: path
@@ -2014,6 +2028,11 @@ paths:
         schema:
           $ref: "#/components/schemas/UUID"
         style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActionRequest"
       responses:
         "200":
           content:
@@ -2112,11 +2131,19 @@ paths:
       summary: Activate a precondition version
       tags:
       - Authoring
-  /v1/preconditions/{preconditionId}/deprecations:
+  /v1/projects/{projectKey}/preconditions/{preconditionId}/deprecations:
     post:
       description: Marks an immutable precondition version as deprecated.
       operationId: deprecatePrecondition
       parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
       - description: UUID of the precondition version.
         explode: false
         in: path
@@ -2228,19 +2255,192 @@ paths:
       summary: Deprecate a precondition version
       tags:
       - Authoring
-  /v1/test-sets:
+  /v1/projects/{projectKey}/precondition-keys/{preconditionKey}/versions:
     get:
-      description: Returns a paginated list of versioned test set snapshots.
-      operationId: listTestSets
+      description: Returns all immutable versions associated with a precondition key.
+      operationId: listPreconditionVersions
       parameters:
-      - description: Stable key of the project that owns the requested resources.
-        explode: true
-        in: query
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
         name: projectKey
         required: true
         schema:
           $ref: "#/components/schemas/ProjectKey"
+        style: simple
+      - description: Stable business key of the precondition.
+        explode: false
+        in: path
+        name: preconditionKey
+        required: true
+        schema:
+          example: customer-is-authenticated
+          maxLength: 100
+          minLength: 1
+          type: string
+        style: simple
+      - description: "Filter versions by lifecycle status. When omitted, all statuses\
+          \ are returned."
+        explode: true
+        in: query
+        name: status
+        required: false
+        schema:
+          enum:
+          - DRAFT
+          - ACTIVE
+          - DEPRECATED
+          type: string
         style: form
+      - description: Number of records to skip before returning results.
+        explode: true
+        in: query
+        name: offset
+        required: false
+        schema:
+          $ref: "#/components/schemas/Offset"
+        style: form
+      - description: Maximum number of records returned in one page.
+        explode: true
+        in: query
+        name: limit
+        required: false
+        schema:
+          $ref: "#/components/schemas/Limit"
+        style: form
+      - description: Field used to sort the result set.
+        explode: true
+        in: query
+        name: sortBy
+        required: false
+        schema:
+          default: version
+          enum:
+          - status
+          - version
+          - name
+          example: version
+          type: string
+        style: form
+      - description: Sort direction.
+        explode: true
+        in: query
+        name: order
+        required: false
+        schema:
+          $ref: "#/components/schemas/SortOrder"
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PreconditionListResponse"
+          description: Precondition versions
+        "400":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/bad-request
+                status: 400
+                title: Bad Request
+                detail: The request is invalid.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The request is invalid.
+        "401":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/unauthorized
+                status: 401
+                title: Unauthorized
+                detail: Authentication is required or the credentials are invalid.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: Authentication is required or failed.
+        "403":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/forbidden
+                status: 403
+                title: Forbidden
+                detail: The authenticated principal lacks the required permission.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The authenticated principal is not allowed to perform the operation.
+        "404":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/not-found
+                status: 404
+                title: Not Found
+                detail: The requested resource was not found.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The requested resource was not found.
+        "409":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/conflict
+                status: 409
+                title: Conflict
+                detail: The resource state conflicts with this operation.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The operation conflicts with the current state of the resource.
+        "422":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/domain-validation
+                status: 422
+                title: Unprocessable Entity
+                detail: The request violates a domain rule.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The request is syntactically valid but violates a domain rule.
+        "500":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/internal-server-error
+                status: 500
+                title: Internal Server Error
+                detail: An unexpected server error occurred.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: An unexpected server error occurred.
+        "503":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/service-unavailable
+                status: 503
+                title: Service Unavailable
+                detail: The service is temporarily unavailable.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The service is temporarily unavailable.
+      summary: List versions of a precondition key
+      tags:
+      - Authoring
+  /v1/projects/{projectKey}/test-sets:
+    get:
+      description: Returns a paginated list of versioned test set snapshots.
+      operationId: listTestSets
+      parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
       - description: "Filter versions by lifecycle status. When omitted, all statuses\
           \ are returned."
         explode: true
@@ -2394,6 +2594,15 @@ paths:
       description: Creates an immutable test set snapshot referencing exact test case
         versions.
       operationId: createTestSet
+      parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
       requestBody:
         content:
           application/json:
@@ -2507,11 +2716,19 @@ paths:
       summary: Create a test set snapshot
       tags:
       - Composition
-  /v1/test-sets/{testSetId}:
+  /v1/projects/{projectKey}/test-sets/{testSetId}:
     get:
       description: Returns an immutable test set version by UUID.
       operationId: getTestSet
       parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
       - description: UUID of the immutable test set version.
         explode: false
         in: path
@@ -2618,11 +2835,19 @@ paths:
       summary: Get a test set version
       tags:
       - Composition
-  /v1/test-sets/{testSetId}/versions:
+  /v1/projects/{projectKey}/test-sets/{testSetId}/versions:
     post:
       description: Creates a new immutable draft version of a test set.
       operationId: createTestSetVersion
       parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
       - description: UUID of the immutable test set version.
         explode: false
         in: path
@@ -2744,11 +2969,19 @@ paths:
       summary: Create a test set version
       tags:
       - Composition
-  /v1/test-sets/{testSetId}/activations:
+  /v1/projects/{projectKey}/test-sets/{testSetId}/activations:
     post:
       description: Marks a test set version as active for new compositions.
       operationId: activateTestSet
       parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
       - description: UUID of the immutable test set version.
         explode: false
         in: path
@@ -2860,11 +3093,19 @@ paths:
       summary: Activate a test set version
       tags:
       - Composition
-  /v1/test-sets/{testSetId}/deprecations:
+  /v1/projects/{projectKey}/test-sets/{testSetId}/deprecations:
     post:
       description: Marks a test set version as deprecated.
       operationId: deprecateTestSet
       parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
       - description: UUID of the immutable test set version.
         explode: false
         in: path
@@ -2976,19 +3217,192 @@ paths:
       summary: Deprecate a test set version
       tags:
       - Composition
-  /v1/test-plans:
+  /v1/projects/{projectKey}/test-set-keys/{setKey}/versions:
     get:
-      description: Returns a paginated list of versioned test plan snapshots.
-      operationId: listTestPlans
+      description: Returns all immutable versions associated with a test set key.
+      operationId: listTestSetVersions
       parameters:
-      - description: Stable key of the project that owns the requested resources.
-        explode: true
-        in: query
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
         name: projectKey
         required: true
         schema:
           $ref: "#/components/schemas/ProjectKey"
+        style: simple
+      - description: Stable business key of the test set.
+        explode: false
+        in: path
+        name: setKey
+        required: true
+        schema:
+          example: checkout-regression
+          maxLength: 100
+          minLength: 1
+          type: string
+        style: simple
+      - description: "Filter versions by lifecycle status. When omitted, all statuses\
+          \ are returned."
+        explode: true
+        in: query
+        name: status
+        required: false
+        schema:
+          enum:
+          - DRAFT
+          - ACTIVE
+          - DEPRECATED
+          type: string
         style: form
+      - description: Number of records to skip before returning results.
+        explode: true
+        in: query
+        name: offset
+        required: false
+        schema:
+          $ref: "#/components/schemas/Offset"
+        style: form
+      - description: Maximum number of records returned in one page.
+        explode: true
+        in: query
+        name: limit
+        required: false
+        schema:
+          $ref: "#/components/schemas/Limit"
+        style: form
+      - description: Field used to sort the result set.
+        explode: true
+        in: query
+        name: sortBy
+        required: false
+        schema:
+          default: version
+          enum:
+          - status
+          - version
+          - name
+          example: version
+          type: string
+        style: form
+      - description: Sort direction.
+        explode: true
+        in: query
+        name: order
+        required: false
+        schema:
+          $ref: "#/components/schemas/SortOrder"
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TestSetVersionListResponse"
+          description: Test set versions
+        "400":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/bad-request
+                status: 400
+                title: Bad Request
+                detail: The request is invalid.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The request is invalid.
+        "401":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/unauthorized
+                status: 401
+                title: Unauthorized
+                detail: Authentication is required or the credentials are invalid.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: Authentication is required or failed.
+        "403":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/forbidden
+                status: 403
+                title: Forbidden
+                detail: The authenticated principal lacks the required permission.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The authenticated principal is not allowed to perform the operation.
+        "404":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/not-found
+                status: 404
+                title: Not Found
+                detail: The requested resource was not found.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The requested resource was not found.
+        "409":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/conflict
+                status: 409
+                title: Conflict
+                detail: The resource state conflicts with this operation.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The operation conflicts with the current state of the resource.
+        "422":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/domain-validation
+                status: 422
+                title: Unprocessable Entity
+                detail: The request violates a domain rule.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The request is syntactically valid but violates a domain rule.
+        "500":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/internal-server-error
+                status: 500
+                title: Internal Server Error
+                detail: An unexpected server error occurred.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: An unexpected server error occurred.
+        "503":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/service-unavailable
+                status: 503
+                title: Service Unavailable
+                detail: The service is temporarily unavailable.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The service is temporarily unavailable.
+      summary: List versions of a test set key
+      tags:
+      - Composition
+  /v1/projects/{projectKey}/test-plans:
+    get:
+      description: Returns a paginated list of versioned test plan snapshots.
+      operationId: listTestPlans
+      parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
       - description: "Filter versions by lifecycle status. When omitted, all statuses\
           \ are returned."
         explode: true
@@ -3131,6 +3545,15 @@ paths:
       description: "Creates an immutable test plan snapshot with sets, tests, and\
         \ exclusions."
       operationId: createTestPlan
+      parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
       requestBody:
         content:
           application/json:
@@ -3244,11 +3667,19 @@ paths:
       summary: Create a test plan snapshot
       tags:
       - Composition
-  /v1/test-plans/{testPlanId}:
+  /v1/projects/{projectKey}/test-plans/{testPlanId}:
     get:
       description: Returns an immutable test plan version by UUID.
       operationId: getTestPlan
       parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
       - description: UUID of the immutable test plan version.
         explode: false
         in: path
@@ -3355,11 +3786,19 @@ paths:
       summary: Get a test plan version
       tags:
       - Composition
-  /v1/test-plans/{testPlanId}/versions:
+  /v1/projects/{projectKey}/test-plans/{testPlanId}/versions:
     post:
       description: Creates a new immutable draft version of a test plan.
       operationId: createTestPlanVersion
       parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
       - description: UUID of the immutable test plan version.
         explode: false
         in: path
@@ -3481,11 +3920,19 @@ paths:
       summary: Create a test plan version
       tags:
       - Composition
-  /v1/test-plans/{testPlanId}/activations:
+  /v1/projects/{projectKey}/test-plans/{testPlanId}/activations:
     post:
       description: Marks a test plan version as active for execution.
       operationId: activateTestPlan
       parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
       - description: UUID of the immutable test plan version.
         explode: false
         in: path
@@ -3597,11 +4044,19 @@ paths:
       summary: Activate a test plan version
       tags:
       - Composition
-  /v1/test-plans/{testPlanId}/deprecations:
+  /v1/projects/{projectKey}/test-plans/{testPlanId}/deprecations:
     post:
       description: Marks a test plan version as deprecated.
       operationId: deprecateTestPlan
       parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
       - description: UUID of the immutable test plan version.
         explode: false
         in: path
@@ -3713,6 +4168,179 @@ paths:
       summary: Deprecate a test plan version
       tags:
       - Composition
+  /v1/projects/{projectKey}/test-plan-keys/{planKey}/versions:
+    get:
+      description: Returns all immutable versions associated with a test plan key.
+      operationId: listTestPlanVersions
+      parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
+      - description: Stable business key of the test plan.
+        explode: false
+        in: path
+        name: planKey
+        required: true
+        schema:
+          example: checkout-nightly
+          maxLength: 100
+          minLength: 1
+          type: string
+        style: simple
+      - description: "Filter versions by lifecycle status. When omitted, all statuses\
+          \ are returned."
+        explode: true
+        in: query
+        name: status
+        required: false
+        schema:
+          enum:
+          - DRAFT
+          - ACTIVE
+          - DEPRECATED
+          type: string
+        style: form
+      - description: Number of records to skip before returning results.
+        explode: true
+        in: query
+        name: offset
+        required: false
+        schema:
+          $ref: "#/components/schemas/Offset"
+        style: form
+      - description: Maximum number of records returned in one page.
+        explode: true
+        in: query
+        name: limit
+        required: false
+        schema:
+          $ref: "#/components/schemas/Limit"
+        style: form
+      - description: Field used to sort the result set.
+        explode: true
+        in: query
+        name: sortBy
+        required: false
+        schema:
+          default: version
+          enum:
+          - status
+          - version
+          - name
+          example: version
+          type: string
+        style: form
+      - description: Sort direction.
+        explode: true
+        in: query
+        name: order
+        required: false
+        schema:
+          $ref: "#/components/schemas/SortOrder"
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TestPlanVersionListResponse"
+          description: Test plan versions
+        "400":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/bad-request
+                status: 400
+                title: Bad Request
+                detail: The request is invalid.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The request is invalid.
+        "401":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/unauthorized
+                status: 401
+                title: Unauthorized
+                detail: Authentication is required or the credentials are invalid.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: Authentication is required or failed.
+        "403":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/forbidden
+                status: 403
+                title: Forbidden
+                detail: The authenticated principal lacks the required permission.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The authenticated principal is not allowed to perform the operation.
+        "404":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/not-found
+                status: 404
+                title: Not Found
+                detail: The requested resource was not found.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The requested resource was not found.
+        "409":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/conflict
+                status: 409
+                title: Conflict
+                detail: The resource state conflicts with this operation.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The operation conflicts with the current state of the resource.
+        "422":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/domain-validation
+                status: 422
+                title: Unprocessable Entity
+                detail: The request violates a domain rule.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The request is syntactically valid but violates a domain rule.
+        "500":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/internal-server-error
+                status: 500
+                title: Internal Server Error
+                detail: An unexpected server error occurred.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: An unexpected server error occurred.
+        "503":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/service-unavailable
+                status: 503
+                title: Service Unavailable
+                detail: The service is temporarily unavailable.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The service is temporarily unavailable.
+      summary: List versions of a test plan key
+      tags:
+      - Composition
   /v1/environments:
     get:
       description: Returns a paginated list of configured execution environments without
@@ -3734,6 +4362,28 @@ paths:
         required: false
         schema:
           $ref: "#/components/schemas/Limit"
+        style: form
+      - description: Field used to sort the result set.
+        explode: true
+        in: query
+        name: sortBy
+        required: false
+        schema:
+          default: name
+          enum:
+          - name
+          - status
+          - createdAt
+          example: name
+          type: string
+        style: form
+      - description: Sort direction.
+        explode: true
+        in: query
+        name: order
+        required: false
+        schema:
+          $ref: "#/components/schemas/SortOrder"
         style: form
       responses:
         "200":
@@ -4075,6 +4725,11 @@ paths:
         schema:
           $ref: "#/components/schemas/UUID"
         style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActionRequest"
       responses:
         "200":
           content:
@@ -4187,6 +4842,11 @@ paths:
         schema:
           $ref: "#/components/schemas/UUID"
         style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActionRequest"
       responses:
         "200":
           content:
@@ -4285,19 +4945,19 @@ paths:
       summary: Deactivate an environment
       tags:
       - Execution
-  /v1/executions:
+  /v1/projects/{projectKey}/executions:
     get:
       description: Returns a paginated list of historical and active plan executions.
       operationId: listExecutions
       parameters:
-      - description: Stable key of the project that owns the requested resources.
-        explode: true
-        in: query
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
         name: projectKey
         required: true
         schema:
           $ref: "#/components/schemas/ProjectKey"
-        style: form
+        style: simple
       - description: Number of records to skip before returning results.
         explode: true
         in: query
@@ -4313,6 +4973,30 @@ paths:
         required: false
         schema:
           $ref: "#/components/schemas/Limit"
+        style: form
+      - description: "Field used to sort the result set. Shared by executions, test\
+          \ results, and action results, which expose the same sortable fields."
+        explode: true
+        in: query
+        name: sortBy
+        required: false
+        schema:
+          default: createdAt
+          enum:
+          - status
+          - startedAt
+          - finishedAt
+          - createdAt
+          example: createdAt
+          type: string
+        style: form
+      - description: Sort direction.
+        explode: true
+        in: query
+        name: order
+        required: false
+        schema:
+          $ref: "#/components/schemas/SortOrder"
         style: form
       responses:
         "200":
@@ -4416,6 +5100,15 @@ paths:
       description: Accepts a plan execution request and schedules it for asynchronous
         processing.
       operationId: createExecution
+      parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
       requestBody:
         content:
           application/json:
@@ -4520,11 +5213,19 @@ paths:
       summary: Create and schedule a plan execution
       tags:
       - Execution
-  /v1/executions/{executionId}:
+  /v1/projects/{projectKey}/executions/{executionId}:
     get:
       description: "Returns the status, timing, and immutable references of an execution."
       operationId: getExecution
       parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
       - explode: false
         in: path
         name: executionId
@@ -4630,12 +5331,20 @@ paths:
       summary: Get an execution
       tags:
       - Execution
-  /v1/executions/{executionId}/cancellations:
+  /v1/projects/{projectKey}/executions/{executionId}/cancellations:
     post:
       description: Requests cancellation of an execution that has not reached a terminal
         state.
       operationId: cancelExecution
       parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
       - explode: false
         in: path
         name: executionId
@@ -4741,11 +5450,19 @@ paths:
       summary: Cancel an execution
       tags:
       - Execution
-  /v1/executions/{executionId}/results:
+  /v1/projects/{projectKey}/executions/{executionId}/results:
     get:
       description: Returns a paginated list of test results recorded for an execution.
       operationId: listExecutionResults
       parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
       - explode: false
         in: path
         name: executionId
@@ -4768,6 +5485,30 @@ paths:
         required: false
         schema:
           $ref: "#/components/schemas/Limit"
+        style: form
+      - description: "Field used to sort the result set. Shared by executions, test\
+          \ results, and action results, which expose the same sortable fields."
+        explode: true
+        in: query
+        name: sortBy
+        required: false
+        schema:
+          default: createdAt
+          enum:
+          - status
+          - startedAt
+          - finishedAt
+          - createdAt
+          example: createdAt
+          type: string
+        style: form
+      - description: Sort direction.
+        explode: true
+        in: query
+        name: order
+        required: false
+        schema:
+          $ref: "#/components/schemas/SortOrder"
         style: form
       responses:
         "200":
@@ -4867,11 +5608,19 @@ paths:
       summary: List results for an execution
       tags:
       - Execution
-  /v1/executions/{executionId}/results/{testResultId}:
+  /v1/projects/{projectKey}/executions/{executionId}/results/{testResultId}:
     get:
       description: Returns one immutable test result belonging to an execution.
       operationId: getExecutionResult
       parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
       - description: UUID of the execution.
         explode: false
         in: path
@@ -4986,11 +5735,19 @@ paths:
       summary: Get an execution result
       tags:
       - Execution
-  /v1/executions/{executionId}/results/{testResultId}/actions:
+  /v1/projects/{projectKey}/executions/{executionId}/results/{testResultId}/actions:
     get:
       description: Returns the action results recorded for an execution result.
       operationId: listExecutionResultActions
       parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
       - description: UUID of the execution.
         explode: false
         in: path
@@ -5022,6 +5779,30 @@ paths:
         required: false
         schema:
           $ref: "#/components/schemas/Limit"
+        style: form
+      - description: "Field used to sort the result set. Shared by executions, test\
+          \ results, and action results, which expose the same sortable fields."
+        explode: true
+        in: query
+        name: sortBy
+        required: false
+        schema:
+          default: createdAt
+          enum:
+          - status
+          - startedAt
+          - finishedAt
+          - createdAt
+          example: createdAt
+          type: string
+        style: form
+      - description: Sort direction.
+        explode: true
+        in: query
+        name: order
+        required: false
+        schema:
+          $ref: "#/components/schemas/SortOrder"
         style: form
       responses:
         "200":
@@ -5121,12 +5902,20 @@ paths:
       summary: List execution result actions
       tags:
       - Execution
-  /v1/executions/{executionId}/results/{testResultId}/artifacts:
+  /v1/projects/{projectKey}/executions/{executionId}/results/{testResultId}/artifacts:
     get:
       description: Returns metadata for technical evidence attached to an execution
         result.
       operationId: listExecutionResultArtifacts
       parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
       - description: UUID of the execution.
         explode: false
         in: path
@@ -5158,6 +5947,27 @@ paths:
         required: false
         schema:
           $ref: "#/components/schemas/Limit"
+        style: form
+      - description: Field used to sort the result set.
+        explode: true
+        in: query
+        name: sortBy
+        required: false
+        schema:
+          default: createdAt
+          enum:
+          - artifactType
+          - createdAt
+          example: createdAt
+          type: string
+        style: form
+      - description: Sort direction.
+        explode: true
+        in: query
+        name: order
+        required: false
+        schema:
+          $ref: "#/components/schemas/SortOrder"
         style: form
       responses:
         "200":
@@ -5257,17 +6067,26 @@ paths:
       summary: List execution result artifacts
       tags:
       - Execution
-  /v1/viewer/publications:
+  /v1/projects/{projectKey}/viewer/publications:
     post:
-      description: Publishes the canonical local projection to the configured external
-        viewer.
+      description: |
+        Publishes the current ACTIVE version of every test case, precondition, test set, and test plan in the project to the configured external viewer.
       operationId: publishViewerProjection
+      parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
       responses:
         "202":
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ViewerSyncRecord"
+                $ref: "#/components/schemas/ViewerSyncRecordListResponse"
           description: Publication accepted
         "400":
           content:
@@ -5360,17 +6179,26 @@ paths:
       summary: Publish canonical data to the external viewer
       tags:
       - Viewer Integration
-  /v1/viewer/drift-checks:
+  /v1/projects/{projectKey}/viewer/drift-checks:
     post:
-      description: Checks the external viewer for drift without importing remote data
-        into the domain.
+      description: |
+        Checks the external viewer for drift across every ACTIVE test case, precondition, test set, and test plan version in the project, without importing remote data into the domain.
       operationId: checkViewerDrift
+      parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
       responses:
         "202":
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DriftEvent"
+                $ref: "#/components/schemas/DriftEventListResponse"
           description: Drift check accepted
         "400":
           content:
@@ -5463,6 +6291,308 @@ paths:
       summary: Detect changes made in the external viewer
       tags:
       - Viewer Integration
+  /v1/projects/{projectKey}/viewer/sync-records:
+    get:
+      description: Returns a paginated list of canonical-to-viewer synchronization
+        records for one project.
+      operationId: listProjectViewerSyncRecords
+      parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
+      - description: Number of records to skip before returning results.
+        explode: true
+        in: query
+        name: offset
+        required: false
+        schema:
+          $ref: "#/components/schemas/Offset"
+        style: form
+      - description: Maximum number of records returned in one page.
+        explode: true
+        in: query
+        name: limit
+        required: false
+        schema:
+          $ref: "#/components/schemas/Limit"
+        style: form
+      - description: Field used to sort the result set.
+        explode: true
+        in: query
+        name: sortBy
+        required: false
+        schema:
+          default: createdAt
+          enum:
+          - entityType
+          - syncStatus
+          - lastSyncedAt
+          - createdAt
+          example: createdAt
+          type: string
+        style: form
+      - description: Sort direction.
+        explode: true
+        in: query
+        name: order
+        required: false
+        schema:
+          $ref: "#/components/schemas/SortOrder"
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ViewerSyncRecordListResponse"
+          description: Sync records
+        "400":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/bad-request
+                status: 400
+                title: Bad Request
+                detail: The request is invalid.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The request is invalid.
+        "401":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/unauthorized
+                status: 401
+                title: Unauthorized
+                detail: Authentication is required or the credentials are invalid.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: Authentication is required or failed.
+        "403":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/forbidden
+                status: 403
+                title: Forbidden
+                detail: The authenticated principal lacks the required permission.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The authenticated principal is not allowed to perform the operation.
+        "404":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/not-found
+                status: 404
+                title: Not Found
+                detail: The requested resource was not found.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The requested resource was not found.
+        "409":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/conflict
+                status: 409
+                title: Conflict
+                detail: The resource state conflicts with this operation.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The operation conflicts with the current state of the resource.
+        "422":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/domain-validation
+                status: 422
+                title: Unprocessable Entity
+                detail: The request violates a domain rule.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The request is syntactically valid but violates a domain rule.
+        "500":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/internal-server-error
+                status: 500
+                title: Internal Server Error
+                detail: An unexpected server error occurred.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: An unexpected server error occurred.
+        "503":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/service-unavailable
+                status: 503
+                title: Service Unavailable
+                detail: The service is temporarily unavailable.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The service is temporarily unavailable.
+      summary: List outbound synchronization records for a project
+      tags:
+      - Viewer Integration
+  /v1/projects/{projectKey}/viewer/drift-events:
+    get:
+      description: Returns a paginated list of detected viewer changes and notification
+        states for one project.
+      operationId: listProjectViewerDriftEvents
+      parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
+      - description: Number of records to skip before returning results.
+        explode: true
+        in: query
+        name: offset
+        required: false
+        schema:
+          $ref: "#/components/schemas/Offset"
+        style: form
+      - description: Maximum number of records returned in one page.
+        explode: true
+        in: query
+        name: limit
+        required: false
+        schema:
+          $ref: "#/components/schemas/Limit"
+        style: form
+      - description: Field used to sort the result set.
+        explode: true
+        in: query
+        name: sortBy
+        required: false
+        schema:
+          default: detectedAt
+          enum:
+          - detectedAt
+          - driftType
+          - notificationStatus
+          - createdAt
+          example: detectedAt
+          type: string
+        style: form
+      - description: Sort direction.
+        explode: true
+        in: query
+        name: order
+        required: false
+        schema:
+          $ref: "#/components/schemas/SortOrder"
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DriftEventListResponse"
+          description: Drift events
+        "400":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/bad-request
+                status: 400
+                title: Bad Request
+                detail: The request is invalid.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The request is invalid.
+        "401":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/unauthorized
+                status: 401
+                title: Unauthorized
+                detail: Authentication is required or the credentials are invalid.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: Authentication is required or failed.
+        "403":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/forbidden
+                status: 403
+                title: Forbidden
+                detail: The authenticated principal lacks the required permission.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The authenticated principal is not allowed to perform the operation.
+        "404":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/not-found
+                status: 404
+                title: Not Found
+                detail: The requested resource was not found.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The requested resource was not found.
+        "409":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/conflict
+                status: 409
+                title: Conflict
+                detail: The resource state conflicts with this operation.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The operation conflicts with the current state of the resource.
+        "422":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/domain-validation
+                status: 422
+                title: Unprocessable Entity
+                detail: The request violates a domain rule.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The request is syntactically valid but violates a domain rule.
+        "500":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/internal-server-error
+                status: 500
+                title: Internal Server Error
+                detail: An unexpected server error occurred.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: An unexpected server error occurred.
+        "503":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/service-unavailable
+                status: 503
+                title: Service Unavailable
+                detail: The service is temporarily unavailable.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The service is temporarily unavailable.
+      summary: List detected viewer drift events for a project
+      tags:
+      - Viewer Integration
   /v1/viewer/sync-records:
     get:
       description: Returns a paginated list of canonical-to-viewer synchronization
@@ -5484,6 +6614,29 @@ paths:
         required: false
         schema:
           $ref: "#/components/schemas/Limit"
+        style: form
+      - description: Field used to sort the result set.
+        explode: true
+        in: query
+        name: sortBy
+        required: false
+        schema:
+          default: createdAt
+          enum:
+          - entityType
+          - syncStatus
+          - lastSyncedAt
+          - createdAt
+          example: createdAt
+          type: string
+        style: form
+      - description: Sort direction.
+        explode: true
+        in: query
+        name: order
+        required: false
+        schema:
+          $ref: "#/components/schemas/SortOrder"
         style: form
       responses:
         "200":
@@ -5604,6 +6757,29 @@ paths:
         required: false
         schema:
           $ref: "#/components/schemas/Limit"
+        style: form
+      - description: Field used to sort the result set.
+        explode: true
+        in: query
+        name: sortBy
+        required: false
+        schema:
+          default: detectedAt
+          enum:
+          - detectedAt
+          - driftType
+          - notificationStatus
+          - createdAt
+          example: detectedAt
+          type: string
+        style: form
+      - description: Sort direction.
+        explode: true
+        in: query
+        name: order
+        required: false
+        schema:
+          $ref: "#/components/schemas/SortOrder"
         style: form
       responses:
         "200":
@@ -5756,15 +6932,6 @@ components:
       schema:
         $ref: "#/components/schemas/ProjectKey"
       style: simple
-    projectKey:
-      description: Stable key of the project that owns the requested resources.
-      explode: true
-      in: query
-      name: projectKey
-      required: true
-      schema:
-        $ref: "#/components/schemas/ProjectKey"
-      style: form
     status:
       description: "Filter versions by lifecycle status. When omitted, all statuses\
         \ are returned."
@@ -5788,6 +6955,18 @@ components:
       schema:
         $ref: "#/components/schemas/UUID"
       style: simple
+    TestCaseKey:
+      description: Stable business key of the test case.
+      explode: false
+      in: path
+      name: testKey
+      required: true
+      schema:
+        example: checkout-happy-path
+        maxLength: 100
+        minLength: 1
+        type: string
+      style: simple
     PreconditionId:
       description: UUID of the precondition version.
       explode: false
@@ -5796,6 +6975,18 @@ components:
       required: true
       schema:
         $ref: "#/components/schemas/UUID"
+      style: simple
+    PreconditionKey:
+      description: Stable business key of the precondition.
+      explode: false
+      in: path
+      name: preconditionKey
+      required: true
+      schema:
+        example: customer-is-authenticated
+        maxLength: 100
+        minLength: 1
+        type: string
       style: simple
     TestSetId:
       description: UUID of the immutable test set version.
@@ -5806,6 +6997,18 @@ components:
       schema:
         $ref: "#/components/schemas/UUID"
       style: simple
+    TestSetKey:
+      description: Stable business key of the test set.
+      explode: false
+      in: path
+      name: setKey
+      required: true
+      schema:
+        example: checkout-regression
+        maxLength: 100
+        minLength: 1
+        type: string
+      style: simple
     TestPlanId:
       description: UUID of the immutable test plan version.
       explode: false
@@ -5815,6 +7018,33 @@ components:
       schema:
         $ref: "#/components/schemas/UUID"
       style: simple
+    TestPlanKey:
+      description: Stable business key of the test plan.
+      explode: false
+      in: path
+      name: planKey
+      required: true
+      schema:
+        example: checkout-nightly
+        maxLength: 100
+        minLength: 1
+        type: string
+      style: simple
+    EnvironmentSortBy:
+      description: Field used to sort the result set.
+      explode: true
+      in: query
+      name: sortBy
+      required: false
+      schema:
+        default: name
+        enum:
+        - name
+        - status
+        - createdAt
+        example: name
+        type: string
+      style: form
     EnvironmentId:
       description: UUID of the environment.
       explode: false
@@ -5824,6 +7054,23 @@ components:
       schema:
         $ref: "#/components/schemas/UUID"
       style: simple
+    ExecutionOutcomeSortBy:
+      description: "Field used to sort the result set. Shared by executions, test\
+        \ results, and action results, which expose the same sortable fields."
+      explode: true
+      in: query
+      name: sortBy
+      required: false
+      schema:
+        default: createdAt
+        enum:
+        - status
+        - startedAt
+        - finishedAt
+        - createdAt
+        example: createdAt
+        type: string
+      style: form
     ExecutionId:
       description: UUID of the execution.
       explode: false
@@ -5842,6 +7089,52 @@ components:
       schema:
         $ref: "#/components/schemas/UUID"
       style: simple
+    TestResultArtifactSortBy:
+      description: Field used to sort the result set.
+      explode: true
+      in: query
+      name: sortBy
+      required: false
+      schema:
+        default: createdAt
+        enum:
+        - artifactType
+        - createdAt
+        example: createdAt
+        type: string
+      style: form
+    ViewerSyncRecordSortBy:
+      description: Field used to sort the result set.
+      explode: true
+      in: query
+      name: sortBy
+      required: false
+      schema:
+        default: createdAt
+        enum:
+        - entityType
+        - syncStatus
+        - lastSyncedAt
+        - createdAt
+        example: createdAt
+        type: string
+      style: form
+    DriftEventSortBy:
+      description: Field used to sort the result set.
+      explode: true
+      in: query
+      name: sortBy
+      required: false
+      schema:
+        default: detectedAt
+        enum:
+        - detectedAt
+        - driftType
+        - notificationStatus
+        - createdAt
+        example: detectedAt
+        type: string
+      style: form
   responses:
     BadRequest400:
       content:
@@ -6522,7 +7815,6 @@ components:
       additionalProperties: false
       description: Payload used to create an immutable test case version.
       example:
-        projectKey: IAG
         testKey: checkout-happy-path
         name: Checkout happy path
         summary: Customer completes checkout
@@ -6544,13 +7836,6 @@ components:
         metadata:
           team: payments
       properties:
-        projectKey:
-          description: Stable key used to identify a project in the Project Catalog.
-          example: IAG
-          maxLength: 20
-          minLength: 2
-          title: ProjectKey
-          type: string
         testKey:
           description: Stable business key of the test case.
           example: checkout-happy-path
@@ -6583,6 +7868,7 @@ components:
           description: Test execution modality.
           enum:
           - AUTOMATED
+          - MANUAL
           example: AUTOMATED
           title: testType
           type: string
@@ -6637,13 +7923,27 @@ components:
       - name
       - objective
       - priority
-      - projectKey
       - summary
       - testKey
       - testLevel
       - testType
       - timeoutSeconds
       title: CreateTestCaseRequest
+      type: object
+    ActionRequest:
+      additionalProperties: false
+      description: Optional reason supplied for a lifecycle action.
+      example:
+        reason: Approved after review
+      properties:
+        reason:
+          description: Reason for the requested lifecycle action.
+          example: Approved after review
+          maxLength: 1000
+          minLength: 1
+          title: reason
+          type: string
+      title: ActionRequest
       type: object
     TestCaseVersionListResponse:
       allOf:
@@ -6795,21 +8095,6 @@ components:
           limit: 60
           total: 125
       title: TestCaseVersionListResponse
-    ActionRequest:
-      additionalProperties: false
-      description: Optional reason supplied for a lifecycle action.
-      example:
-        reason: Approved after review
-      properties:
-        reason:
-          description: Reason for the requested lifecycle action.
-          example: Approved after review
-          maxLength: 1000
-          minLength: 1
-          title: reason
-          type: string
-      title: ActionRequest
-      type: object
     Precondition:
       additionalProperties: false
       description: Immutable version of a validation precondition.
@@ -6941,7 +8226,6 @@ components:
       additionalProperties: false
       description: Payload used to create an immutable precondition version.
       example:
-        projectKey: IAG
         preconditionKey: customer-is-authenticated
         name: Customer is authenticated
         description: Checks that the customer session is valid
@@ -6957,13 +8241,6 @@ components:
         metadata:
           team: payments
       properties:
-        projectKey:
-          description: Stable key used to identify a project in the Project Catalog.
-          example: IAG
-          maxLength: 20
-          minLength: 2
-          title: ProjectKey
-          type: string
         preconditionKey:
           description: Stable business key of the precondition.
           example: customer-is-authenticated
@@ -6996,7 +8273,6 @@ components:
       - description
       - name
       - preconditionKey
-      - projectKey
       - validationDefinition
       title: CreatePreconditionRequest
       type: object
@@ -7122,7 +8398,6 @@ components:
       additionalProperties: false
       description: Payload used to create an immutable test set version.
       example:
-        projectKey: IAG
         setKey: checkout-regression
         name: Checkout regression
         description: Regression tests for checkout
@@ -7130,13 +8405,6 @@ components:
         - 550e8400-e29b-41d4-a716-446655440000
         - 550e8400-e29b-41d4-a716-446655440000
       properties:
-        projectKey:
-          description: Stable key used to identify a project in the Project Catalog.
-          example: IAG
-          maxLength: 20
-          minLength: 2
-          title: ProjectKey
-          type: string
         setKey:
           description: Stable business key of the test set.
           example: checkout-regression
@@ -7168,10 +8436,89 @@ components:
       required:
       - items
       - name
-      - projectKey
       - setKey
       title: CreateTestSetRequest
       type: object
+    TestSetVersionListResponse:
+      allOf:
+      - $ref: "#/components/schemas/TestSetListResponse"
+      example:
+        data:
+        - id: 550e8400-e29b-41d4-a716-446655440000
+          project:
+            key: IAG
+            name: AI Gateway
+          setKey: checkout-regression
+          version: 1
+          name: Checkout regression
+          description: Regression tests for checkout
+          status: DRAFT
+          items:
+          - 550e8400-e29b-41d4-a716-446655440000
+          - 550e8400-e29b-41d4-a716-446655440000
+          createdAt: 2026-01-15T10:30:00Z
+          createdBy: user@example.com
+        - id: 550e8400-e29b-41d4-a716-446655440000
+          project:
+            key: IAG
+            name: AI Gateway
+          setKey: checkout-regression
+          version: 1
+          name: Checkout regression
+          description: Regression tests for checkout
+          status: DRAFT
+          items:
+          - 550e8400-e29b-41d4-a716-446655440000
+          - 550e8400-e29b-41d4-a716-446655440000
+          createdAt: 2026-01-15T10:30:00Z
+          createdBy: user@example.com
+        - id: 550e8400-e29b-41d4-a716-446655440000
+          project:
+            key: IAG
+            name: AI Gateway
+          setKey: checkout-regression
+          version: 1
+          name: Checkout regression
+          description: Regression tests for checkout
+          status: DRAFT
+          items:
+          - 550e8400-e29b-41d4-a716-446655440000
+          - 550e8400-e29b-41d4-a716-446655440000
+          createdAt: 2026-01-15T10:30:00Z
+          createdBy: user@example.com
+        - id: 550e8400-e29b-41d4-a716-446655440000
+          project:
+            key: IAG
+            name: AI Gateway
+          setKey: checkout-regression
+          version: 1
+          name: Checkout regression
+          description: Regression tests for checkout
+          status: DRAFT
+          items:
+          - 550e8400-e29b-41d4-a716-446655440000
+          - 550e8400-e29b-41d4-a716-446655440000
+          createdAt: 2026-01-15T10:30:00Z
+          createdBy: user@example.com
+        - id: 550e8400-e29b-41d4-a716-446655440000
+          project:
+            key: IAG
+            name: AI Gateway
+          setKey: checkout-regression
+          version: 1
+          name: Checkout regression
+          description: Regression tests for checkout
+          status: DRAFT
+          items:
+          - 550e8400-e29b-41d4-a716-446655440000
+          - 550e8400-e29b-41d4-a716-446655440000
+          createdAt: 2026-01-15T10:30:00Z
+          createdBy: user@example.com
+        pagination:
+          offset: 0
+          limit: 60
+          total: 125
+      title: TestSetVersionListResponse
     TestPlan:
       additionalProperties: false
       description: Immutable version of an executable test plan.
@@ -7337,7 +8684,6 @@ components:
       additionalProperties: false
       description: Payload used to create an immutable test plan version.
       example:
-        projectKey: IAG
         planKey: checkout-nightly
         name: Checkout nightly
         description: Nightly checkout validation
@@ -7350,13 +8696,6 @@ components:
         - 550e8400-e29b-41d4-a716-446655440000
         exclusions: []
       properties:
-        projectKey:
-          description: Stable key used to identify a project in the Project Catalog.
-          example: IAG
-          maxLength: 20
-          minLength: 2
-          title: ProjectKey
-          type: string
         planKey:
           description: Stable business key of the test plan.
           example: checkout-nightly
@@ -7426,10 +8765,114 @@ components:
       - executionMode
       - name
       - planKey
-      - projectKey
       - timeoutSeconds
       title: CreateTestPlanRequest
       type: object
+    TestPlanVersionListResponse:
+      allOf:
+      - $ref: "#/components/schemas/TestPlanListResponse"
+      example:
+        data:
+        - id: 550e8400-e29b-41d4-a716-446655440000
+          project:
+            key: IAG
+            name: AI Gateway
+          planKey: checkout-nightly
+          version: 1
+          name: Checkout nightly
+          description: Nightly checkout validation
+          status: ACTIVE
+          executionMode: SEQUENTIAL
+          maxParallelism: 4
+          timeoutSeconds: 900
+          testSetIds:
+          - 550e8400-e29b-41d4-a716-446655440000
+          testCaseIds:
+          - 550e8400-e29b-41d4-a716-446655440000
+          exclusions: []
+          createdAt: 2026-01-15T10:30:00Z
+          createdBy: user@example.com
+        - id: 550e8400-e29b-41d4-a716-446655440000
+          project:
+            key: IAG
+            name: AI Gateway
+          planKey: checkout-nightly
+          version: 1
+          name: Checkout nightly
+          description: Nightly checkout validation
+          status: ACTIVE
+          executionMode: SEQUENTIAL
+          maxParallelism: 4
+          timeoutSeconds: 900
+          testSetIds:
+          - 550e8400-e29b-41d4-a716-446655440000
+          testCaseIds:
+          - 550e8400-e29b-41d4-a716-446655440000
+          exclusions: []
+          createdAt: 2026-01-15T10:30:00Z
+          createdBy: user@example.com
+        - id: 550e8400-e29b-41d4-a716-446655440000
+          project:
+            key: IAG
+            name: AI Gateway
+          planKey: checkout-nightly
+          version: 1
+          name: Checkout nightly
+          description: Nightly checkout validation
+          status: ACTIVE
+          executionMode: SEQUENTIAL
+          maxParallelism: 4
+          timeoutSeconds: 900
+          testSetIds:
+          - 550e8400-e29b-41d4-a716-446655440000
+          testCaseIds:
+          - 550e8400-e29b-41d4-a716-446655440000
+          exclusions: []
+          createdAt: 2026-01-15T10:30:00Z
+          createdBy: user@example.com
+        - id: 550e8400-e29b-41d4-a716-446655440000
+          project:
+            key: IAG
+            name: AI Gateway
+          planKey: checkout-nightly
+          version: 1
+          name: Checkout nightly
+          description: Nightly checkout validation
+          status: ACTIVE
+          executionMode: SEQUENTIAL
+          maxParallelism: 4
+          timeoutSeconds: 900
+          testSetIds:
+          - 550e8400-e29b-41d4-a716-446655440000
+          testCaseIds:
+          - 550e8400-e29b-41d4-a716-446655440000
+          exclusions: []
+          createdAt: 2026-01-15T10:30:00Z
+          createdBy: user@example.com
+        - id: 550e8400-e29b-41d4-a716-446655440000
+          project:
+            key: IAG
+            name: AI Gateway
+          planKey: checkout-nightly
+          version: 1
+          name: Checkout nightly
+          description: Nightly checkout validation
+          status: ACTIVE
+          executionMode: SEQUENTIAL
+          maxParallelism: 4
+          timeoutSeconds: 900
+          testSetIds:
+          - 550e8400-e29b-41d4-a716-446655440000
+          testCaseIds:
+          - 550e8400-e29b-41d4-a716-446655440000
+          exclusions: []
+          createdAt: 2026-01-15T10:30:00Z
+          createdBy: user@example.com
+        pagination:
+          offset: 0
+          limit: 60
+          total: 125
+      title: TestPlanVersionListResponse
     Environment:
       additionalProperties: false
       description: Target environment configuration used by test executions.
@@ -8098,18 +9541,6 @@ components:
       additionalProperties: false
       description: |
         Read-only synchronization state between a logical domain entity and its stable representation in the external viewer. For versioned entities, projectedVersionId identifies the immutable domain version currently projected to the viewer.
-      example:
-        id: 550e8400-e29b-41d4-a716-446655440000
-        entityType: TEST_CASE
-        entityKey: checkout-happy-path
-        projectedVersionId: ""
-        viewerType: XRAY
-        externalEntityKey: TEST-123
-        externalEntityId: "123456"
-        syncStatus: SYNCED
-        lastSyncedAt: 2026-01-15T10:31:00Z
-        lastCheckedAt: 2026-01-15T10:32:00Z
-        createdAt: 2026-01-15T10:30:00Z
       properties:
         id:
           description: Universally unique identifier.
@@ -8117,6 +9548,8 @@ components:
           format: uuid
           title: UUID
           type: string
+        project:
+          $ref: "#/components/schemas/ProjectReference"
         entityType:
           description: Type of domain entity represented in the external viewer.
           enum:
@@ -8197,27 +9630,39 @@ components:
       - entityType
       - externalEntityKey
       - id
+      - project
       - projectedVersionId
       - syncStatus
       - viewerType
       title: ViewerSyncRecord
       type: object
+    ViewerSyncRecordListResponse:
+      additionalProperties: false
+      description: Paginated collection of viewer synchronization records.
+      example:
+        data: []
+        pagination:
+          offset: 0
+          limit: 20
+          total: 0
+      properties:
+        data:
+          description: Synchronization records in the current page.
+          items:
+            $ref: "#/components/schemas/ViewerSyncRecord"
+          maxItems: 100
+          type: array
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+      required:
+      - data
+      - pagination
+      title: ViewerSyncRecordListResponse
+      type: object
     DriftEvent:
       additionalProperties: false
       description: |
         Immutable record of a difference detected between the expected domain projection and its representation in the external viewer.
-      example:
-        id: 550e8400-e29b-41d4-a716-446655440000
-        syncRecordId: ""
-        projectedVersionId: ""
-        detectedAt: 2026-01-15T10:32:00Z
-        driftType: MODIFIED
-        notificationStatus: PENDING
-        details:
-          field: status
-          expected: Active
-          actual: Draft
-        createdAt: 2026-01-15T10:30:25Z
       properties:
         id:
           description: Universally unique identifier.
@@ -8225,6 +9670,8 @@ components:
           format: uuid
           title: UUID
           type: string
+        project:
+          $ref: "#/components/schemas/ProjectReference"
         syncRecordId:
           allOf:
           - $ref: "#/components/schemas/UUID"
@@ -8283,32 +9730,10 @@ components:
       - driftType
       - id
       - notificationStatus
+      - project
       - projectedVersionId
       - syncRecordId
       title: DriftEvent
-      type: object
-    ViewerSyncRecordListResponse:
-      additionalProperties: false
-      description: Paginated collection of viewer synchronization records.
-      example:
-        data: []
-        pagination:
-          offset: 0
-          limit: 20
-          total: 0
-      properties:
-        data:
-          description: Synchronization records in the current page.
-          items:
-            $ref: "#/components/schemas/ViewerSyncRecord"
-          maxItems: 100
-          type: array
-        pagination:
-          $ref: "#/components/schemas/Pagination"
-      required:
-      - data
-      - pagination
-      title: ViewerSyncRecordListResponse
       type: object
     DriftEventListResponse:
       additionalProperties: false

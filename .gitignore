@@ -17,5 +17,7 @@ dist/
 code/contracts/
 .env
 code/.sonar/
-
+nosetests.xml
+coverage.xml
 openapitools.json
+pect

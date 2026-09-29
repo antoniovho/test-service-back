@@ -13,8 +13,10 @@ from test_service_server.models.error_details import ErrorDetails
 from test_service_server.models.sort_order import SortOrder
 from test_service_server.models.test_plan import TestPlan
 from test_service_server.models.test_plan_list_response import TestPlanListResponse
+from test_service_server.models.test_plan_version_list_response import TestPlanVersionListResponse
 from test_service_server.models.test_set import TestSet
 from test_service_server.models.test_set_list_response import TestSetListResponse
+from test_service_server.models.test_set_version_list_response import TestSetVersionListResponse
 from test_service_server.security_api import get_token_bearerAuth
 
 class BaseCompositionApi:
@@ -25,7 +27,7 @@ class BaseCompositionApi:
         BaseCompositionApi.subclasses = BaseCompositionApi.subclasses + (cls,)
     async def list_test_sets(
         self,
-        project_key: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project that owns the requested resources.")],
+        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
         status: Annotated[Optional[StrictStr], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")],
         offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")],
         limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")],
@@ -38,6 +40,7 @@ class BaseCompositionApi:
 
     async def create_test_set(
         self,
+        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
         create_test_set_request: CreateTestSetRequest,
     ) -> TestSet:
         """Creates an immutable test set snapshot referencing exact test case versions."""
@@ -46,6 +49,7 @@ class BaseCompositionApi:
 
     async def get_test_set(
         self,
+        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
         testSetId: Annotated[UUID, Field(description="UUID of the immutable test set version.")],
     ) -> TestSet:
         """Returns an immutable test set version by UUID."""
@@ -54,6 +58,7 @@ class BaseCompositionApi:
 
     async def create_test_set_version(
         self,
+        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
         testSetId: Annotated[UUID, Field(description="UUID of the immutable test set version.")],
         create_test_set_request: CreateTestSetRequest,
     ) -> TestSet:
@@ -63,6 +68,7 @@ class BaseCompositionApi:
 
     async def activate_test_set(
         self,
+        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
         testSetId: Annotated[UUID, Field(description="UUID of the immutable test set version.")],
         action_request: Optional[ActionRequest],
     ) -> TestSet:
@@ -72,6 +78,7 @@ class BaseCompositionApi:
 
     async def deprecate_test_set(
         self,
+        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
         testSetId: Annotated[UUID, Field(description="UUID of the immutable test set version.")],
         action_request: Optional[ActionRequest],
     ) -> TestSet:
@@ -79,9 +86,23 @@ class BaseCompositionApi:
         ...
 
 
+    async def list_test_set_versions(
+        self,
+        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
+        setKey: Annotated[str, Field(min_length=1, strict=True, max_length=100, description="Stable business key of the test set.")],
+        status: Annotated[Optional[StrictStr], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")],
+        offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")],
+        limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")],
+        sort_by: Annotated[Optional[StrictStr], Field(description="Field used to sort the result set.")],
+        order: Annotated[Optional[SortOrder], Field(description="Sort direction.")],
+    ) -> TestSetVersionListResponse:
+        """Returns all immutable versions associated with a test set key."""
+        ...
+
+
     async def list_test_plans(
         self,
-        project_key: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project that owns the requested resources.")],
+        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
         status: Annotated[Optional[StrictStr], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")],
         offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")],
         limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")],
@@ -94,6 +115,7 @@ class BaseCompositionApi:
 
     async def create_test_plan(
         self,
+        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
         create_test_plan_request: CreateTestPlanRequest,
     ) -> TestPlan:
         """Creates an immutable test plan snapshot with sets, tests, and exclusions."""
@@ -102,6 +124,7 @@ class BaseCompositionApi:
 
     async def get_test_plan(
         self,
+        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
         testPlanId: Annotated[UUID, Field(description="UUID of the immutable test plan version.")],
     ) -> TestPlan:
         """Returns an immutable test plan version by UUID."""
@@ -110,6 +133,7 @@ class BaseCompositionApi:
 
     async def create_test_plan_version(
         self,
+        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
         testPlanId: Annotated[UUID, Field(description="UUID of the immutable test plan version.")],
         create_test_plan_request: CreateTestPlanRequest,
     ) -> TestPlan:
@@ -119,6 +143,7 @@ class BaseCompositionApi:
 
     async def activate_test_plan(
         self,
+        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
         testPlanId: Annotated[UUID, Field(description="UUID of the immutable test plan version.")],
         action_request: Optional[ActionRequest],
     ) -> TestPlan:
@@ -128,8 +153,23 @@ class BaseCompositionApi:
 
     async def deprecate_test_plan(
         self,
+        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
         testPlanId: Annotated[UUID, Field(description="UUID of the immutable test plan version.")],
         action_request: Optional[ActionRequest],
     ) -> TestPlan:
         """Marks a test plan version as deprecated."""
+        ...
+
+
+    async def list_test_plan_versions(
+        self,
+        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
+        planKey: Annotated[str, Field(min_length=1, strict=True, max_length=100, description="Stable business key of the test plan.")],
+        status: Annotated[Optional[StrictStr], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")],
+        offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")],
+        limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")],
+        sort_by: Annotated[Optional[StrictStr], Field(description="Field used to sort the result set.")],
+        order: Annotated[Optional[SortOrder], Field(description="Sort direction.")],
+    ) -> TestPlanVersionListResponse:
+        """Returns all immutable versions associated with a test plan key."""
         ...

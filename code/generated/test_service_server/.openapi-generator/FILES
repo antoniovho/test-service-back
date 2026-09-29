@@ -56,12 +56,14 @@ test_service_server/models/test_case_list_response.py
 test_service_server/models/test_case_version_list_response.py
 test_service_server/models/test_plan.py
 test_service_server/models/test_plan_list_response.py
+test_service_server/models/test_plan_version_list_response.py
 test_service_server/models/test_result.py
 test_service_server/models/test_result_artifact.py
 test_service_server/models/test_result_artifact_list_response.py
 test_service_server/models/test_result_list_response.py
 test_service_server/models/test_set.py
 test_service_server/models/test_set_list_response.py
+test_service_server/models/test_set_version_list_response.py
 test_service_server/models/viewer_sync_record.py
 test_service_server/models/viewer_sync_record_list_response.py
 test_service_server/security_api.py

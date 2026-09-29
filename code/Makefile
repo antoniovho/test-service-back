@@ -1,4 +1,4 @@
-.PHONY: test coverage test-coverage sonar format lint-fix verify super-verify integration ci clean
+.PHONY: test coverage test-coverage sonar format lint-fix lint verify super-verify integration ci clean
 
 # -----------------------------------------------------------------------------
 # Tests
@@ -15,7 +15,7 @@ coverage:
 		--cov-report=term-missing \
 		--cov-report=xml:coverage.xml
 
-## Ejecuta los tests y genera JUnit XML + cobertura XML.
+## Ejecuta tests unitarios + JUnit XML + cobertura XML.
 test-coverage:
 	uv run pytest -v \
 		--cov=. \
@@ -29,21 +29,22 @@ test-coverage:
 
 ## Formatea el código.
 format:
-	uv run format
+	uv run ruff format .
 
 ## Ejecuta el lint y aplica correcciones.
 lint-fix:
-	uv run lint-fix
+	uv run ruff check --fix .
 
-## Ejecuta las verificaciones del proyecto.
-verify:
-	uv run verify
+## Verifica formato y lint sin modificar archivos.
+lint:
+	uv run ruff format --check .
+	uv run ruff check .
 
-## Ejecuta todas las verificaciones de calidad.
-super-verify:
-	uv run format
-	uv run lint-fix
-	uv run verify
+## Ejecuta lint + tests unitarios.
+verify: lint test
+
+## Corrige formato/lint y ejecuta todas las verificaciones.
+super-verify: format lint-fix lint test-coverage
 
 # -----------------------------------------------------------------------------
 # Tests de integración
@@ -67,7 +68,7 @@ sonar:
 # -----------------------------------------------------------------------------
 
 ## Ejecuta el pipeline completo.
-ci: clean super-verify test-coverage sonar
+ci: clean super-verify sonar
 
 # -----------------------------------------------------------------------------
 # Limpieza

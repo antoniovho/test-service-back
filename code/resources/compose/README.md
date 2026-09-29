@@ -20,6 +20,8 @@ User:     postgresqldba
 Password: admin
 ```
 
+The backend reads its local connection settings from `code/.env`.
+
 The official PostgreSQL image executes the files in `postgres/init/` in lexical order on
 the first initialization of the named volume. To recreate the database from the
 current scripts, remove the volume first:

@@ -2,6 +2,7 @@
 
 CREATE TABLE IF NOT EXISTS test_service_v1.drift_event (
     id                    uuid            DEFAULT gen_random_uuid() NOT NULL,
+    project_key           TEXT            NOT NULL,
     sync_record_id        uuid            NOT NULL,
     projected_version_id  uuid            NOT NULL,
     detected_at           timestamptz(6)  NOT NULL,
@@ -13,6 +14,7 @@ CREATE TABLE IF NOT EXISTS test_service_v1.drift_event (
 );
 
 COMMENT ON COLUMN test_service_v1.drift_event.id                   IS 'Unique drift event identifier';
+COMMENT ON COLUMN test_service_v1.drift_event.project_key         IS 'Project that owns the entity for which drift was detected (denormalized from viewer_sync_record)';
 COMMENT ON COLUMN test_service_v1.drift_event.sync_record_id       IS 'UUID of the viewer synchronization record for which the drift was detected';
 COMMENT ON COLUMN test_service_v1.drift_event.projected_version_id IS 'UUID of the immutable domain version expected to be represented when the drift was detected';
 COMMENT ON COLUMN test_service_v1.drift_event.detected_at          IS 'Drift detection timestamp';
@@ -23,3 +25,4 @@ COMMENT ON COLUMN test_service_v1.drift_event.created_at           IS 'Timestamp
 
 CREATE INDEX IF NOT EXISTS idx_drift_event_sync_record_id       ON test_service_v1.drift_event (sync_record_id);
 CREATE INDEX IF NOT EXISTS idx_drift_event_notification_status  ON test_service_v1.drift_event (notification_status);
+CREATE INDEX IF NOT EXISTS idx_drift_event_project_key          ON test_service_v1.drift_event (project_key);

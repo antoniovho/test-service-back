@@ -26,7 +26,7 @@ class BaseAuthoringApi:
         BaseAuthoringApi.subclasses = BaseAuthoringApi.subclasses + (cls,)
     async def list_test_cases(
         self,
-        project_key: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project that owns the requested resources.")],
+        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
         status: Annotated[Optional[StrictStr], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")],
         offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")],
         limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")],
@@ -39,6 +39,7 @@ class BaseAuthoringApi:
 
     async def create_test_case(
         self,
+        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
         create_test_case_request: CreateTestCaseRequest,
     ) -> TestCase:
         """Creates a new immutable test case version in draft status."""
@@ -47,24 +48,16 @@ class BaseAuthoringApi:
 
     async def get_test_case(
         self,
+        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
         testCaseId: Annotated[UUID, Field(description="UUID of the test case version.")],
     ) -> TestCase:
         """Returns the complete definition and metadata of a test case version."""
         ...
 
 
-    async def list_test_case_versions(
-        self,
-        testCaseId: Annotated[UUID, Field(description="UUID of the test case version.")],
-        offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")],
-        limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")],
-    ) -> TestCaseVersionListResponse:
-        """Returns all immutable versions associated with a test case key."""
-        ...
-
-
     async def create_test_case_version(
         self,
+        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
         testCaseId: Annotated[UUID, Field(description="UUID of the test case version.")],
         create_test_case_request: CreateTestCaseRequest,
     ) -> TestCase:
@@ -74,6 +67,7 @@ class BaseAuthoringApi:
 
     async def activate_test_case(
         self,
+        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
         testCaseId: Annotated[UUID, Field(description="UUID of the test case version.")],
         action_request: Optional[ActionRequest],
     ) -> TestCase:
@@ -83,6 +77,7 @@ class BaseAuthoringApi:
 
     async def deprecate_test_case(
         self,
+        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
         testCaseId: Annotated[UUID, Field(description="UUID of the test case version.")],
         action_request: Optional[ActionRequest],
     ) -> TestCase:
@@ -90,8 +85,23 @@ class BaseAuthoringApi:
         ...
 
 
+    async def list_test_case_versions(
+        self,
+        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
+        testKey: Annotated[str, Field(min_length=1, strict=True, max_length=100, description="Stable business key of the test case.")],
+        status: Annotated[Optional[StrictStr], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")],
+        offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")],
+        limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")],
+        sort_by: Annotated[Optional[StrictStr], Field(description="Field used to sort the result set.")],
+        order: Annotated[Optional[SortOrder], Field(description="Sort direction.")],
+    ) -> TestCaseVersionListResponse:
+        """Returns all immutable versions associated with a test case key."""
+        ...
+
+
     async def list_preconditions(
         self,
+        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
         status: Annotated[Optional[StrictStr], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")],
         offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")],
         limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")],
@@ -104,6 +114,7 @@ class BaseAuthoringApi:
 
     async def create_precondition(
         self,
+        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
         create_precondition_request: CreatePreconditionRequest,
     ) -> Precondition:
         """Creates a new immutable precondition version in draft status."""
@@ -112,24 +123,16 @@ class BaseAuthoringApi:
 
     async def get_precondition(
         self,
+        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
         preconditionId: Annotated[UUID, Field(description="UUID of the precondition version.")],
     ) -> Precondition:
         """Returns an immutable precondition version by UUID."""
         ...
 
 
-    async def list_precondition_versions(
-        self,
-        preconditionId: Annotated[UUID, Field(description="UUID of the precondition version.")],
-        offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")],
-        limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")],
-    ) -> PreconditionListResponse:
-        """Returns all immutable versions associated with a precondition key."""
-        ...
-
-
     async def create_precondition_version(
         self,
+        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
         preconditionId: Annotated[UUID, Field(description="UUID of the precondition version.")],
         create_precondition_request: CreatePreconditionRequest,
     ) -> Precondition:
@@ -139,7 +142,9 @@ class BaseAuthoringApi:
 
     async def activate_precondition(
         self,
+        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
         preconditionId: Annotated[UUID, Field(description="UUID of the precondition version.")],
+        action_request: Optional[ActionRequest],
     ) -> Precondition:
         """Activates a draft precondition version for future test executions."""
         ...
@@ -147,8 +152,23 @@ class BaseAuthoringApi:
 
     async def deprecate_precondition(
         self,
+        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
         preconditionId: Annotated[UUID, Field(description="UUID of the precondition version.")],
         action_request: Optional[ActionRequest],
     ) -> Precondition:
         """Marks an immutable precondition version as deprecated."""
+        ...
+
+
+    async def list_precondition_versions(
+        self,
+        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
+        preconditionKey: Annotated[str, Field(min_length=1, strict=True, max_length=100, description="Stable business key of the precondition.")],
+        status: Annotated[Optional[StrictStr], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")],
+        offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")],
+        limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")],
+        sort_by: Annotated[Optional[StrictStr], Field(description="Field used to sort the result set.")],
+        order: Annotated[Optional[SortOrder], Field(description="Sort direction.")],
+    ) -> PreconditionListResponse:
+        """Returns all immutable versions associated with a precondition key."""
         ...

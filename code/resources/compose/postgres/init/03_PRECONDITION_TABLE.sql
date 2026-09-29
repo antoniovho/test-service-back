@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS test_service_v1.precondition (
     created_at            timestamptz(6)  DEFAULT CURRENT_TIMESTAMP NOT NULL,
     created_by            TEXT            NOT NULL,
     CONSTRAINT precondition_pkey PRIMARY KEY (id),
-    CONSTRAINT precondition_key_version_uq UNIQUE (precondition_key, version)
+    CONSTRAINT precondition_project_key_version_uq UNIQUE (project_key, precondition_key, version)
 );
 
 COMMENT ON COLUMN test_service_v1.precondition.id                    IS 'Unique immutable precondition version identifier';

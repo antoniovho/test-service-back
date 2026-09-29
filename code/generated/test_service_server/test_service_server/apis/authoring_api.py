@@ -47,7 +47,7 @@ for _, name, _ in pkgutil.iter_modules(ns_pkg.__path__, ns_pkg.__name__ + "."):
 
 
 @router.get(
-    "/v1/test-cases",
+    "/v1/projects/{projectKey}/test-cases",
     responses={
         200: {"model": TestCaseListResponse, "description": "Paginated test cases"},
         400: {"model": ErrorDetails, "description": "The request is invalid."},
@@ -64,7 +64,7 @@ for _, name, _ in pkgutil.iter_modules(ns_pkg.__path__, ns_pkg.__name__ + "."):
     response_model_by_alias=True,
 )
 async def list_test_cases(
-    project_key: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project that owns the requested resources.")] = Query(..., description="Stable key of the project that owns the requested resources.", alias="projectKey", min_length=2, max_length=20)
+    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
 ,
     status: Annotated[Optional[StrictStr], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")] = Query(None, description="Filter versions by lifecycle status. When omitted, all statuses are returned.", alias="status")
 ,
@@ -83,11 +83,11 @@ async def list_test_cases(
     """Returns a paginated list of immutable test case versions."""
     if not BaseAuthoringApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseAuthoringApi.subclasses[0]().list_test_cases(project_key, status, offset, limit, sort_by, order)
+    return await BaseAuthoringApi.subclasses[0]().list_test_cases(projectKey, status, offset, limit, sort_by, order)
 
 
 @router.post(
-    "/v1/test-cases",
+    "/v1/projects/{projectKey}/test-cases",
     responses={
         201: {"model": TestCase, "description": "Created"},
         400: {"model": ErrorDetails, "description": "The request is invalid."},
@@ -104,6 +104,8 @@ async def list_test_cases(
     response_model_by_alias=True,
 )
 async def create_test_case(
+    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+,
     create_test_case_request: CreateTestCaseRequest = Body(..., description="")
 ,
     token_bearerAuth: TokenModel = Security(
@@ -113,11 +115,11 @@ async def create_test_case(
     """Creates a new immutable test case version in draft status."""
     if not BaseAuthoringApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseAuthoringApi.subclasses[0]().create_test_case(create_test_case_request)
+    return await BaseAuthoringApi.subclasses[0]().create_test_case(projectKey, create_test_case_request)
 
 
 @router.get(
-    "/v1/test-cases/{testCaseId}",
+    "/v1/projects/{projectKey}/test-cases/{testCaseId}",
     responses={
         200: {"model": TestCase, "description": "Test case"},
         400: {"model": ErrorDetails, "description": "The request is invalid."},
@@ -134,6 +136,8 @@ async def create_test_case(
     response_model_by_alias=True,
 )
 async def get_test_case(
+    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+,
     testCaseId: Annotated[UUID, Field(description="UUID of the test case version.")] = Path(..., description="UUID of the test case version.")
 ,
     token_bearerAuth: TokenModel = Security(
@@ -143,45 +147,11 @@ async def get_test_case(
     """Returns the complete definition and metadata of a test case version."""
     if not BaseAuthoringApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseAuthoringApi.subclasses[0]().get_test_case(testCaseId)
-
-
-@router.get(
-    "/v1/test-cases/{testCaseId}/versions",
-    responses={
-        200: {"model": TestCaseVersionListResponse, "description": "Versions"},
-        400: {"model": ErrorDetails, "description": "The request is invalid."},
-        401: {"model": ErrorDetails, "description": "Authentication is required or failed."},
-        403: {"model": ErrorDetails, "description": "The authenticated principal is not allowed to perform the operation."},
-        404: {"model": ErrorDetails, "description": "The requested resource was not found."},
-        409: {"model": ErrorDetails, "description": "The operation conflicts with the current state of the resource."},
-        422: {"model": ErrorDetails, "description": "The request is syntactically valid but violates a domain rule."},
-        500: {"model": ErrorDetails, "description": "An unexpected server error occurred."},
-        503: {"model": ErrorDetails, "description": "The service is temporarily unavailable."},
-    },
-    tags=["Authoring"],
-    summary="List versions of a test case key",
-    response_model_by_alias=True,
-)
-async def list_test_case_versions(
-    testCaseId: Annotated[UUID, Field(description="UUID of the test case version.")] = Path(..., description="UUID of the test case version.")
-,
-    offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
-,
-    limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
-,
-    token_bearerAuth: TokenModel = Security(
-        get_token_bearerAuth
-    ),
-) -> TestCaseVersionListResponse:
-    """Returns all immutable versions associated with a test case key."""
-    if not BaseAuthoringApi.subclasses:
-        raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseAuthoringApi.subclasses[0]().list_test_case_versions(testCaseId, offset, limit)
+    return await BaseAuthoringApi.subclasses[0]().get_test_case(projectKey, testCaseId)
 
 
 @router.post(
-    "/v1/test-cases/{testCaseId}/versions",
+    "/v1/projects/{projectKey}/test-cases/{testCaseId}/versions",
     responses={
         201: {"model": TestCase, "description": "Created"},
         400: {"model": ErrorDetails, "description": "The request is invalid."},
@@ -198,6 +168,8 @@ async def list_test_case_versions(
     response_model_by_alias=True,
 )
 async def create_test_case_version(
+    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+,
     testCaseId: Annotated[UUID, Field(description="UUID of the test case version.")] = Path(..., description="UUID of the test case version.")
 ,
     create_test_case_request: CreateTestCaseRequest = Body(..., description="")
@@ -209,11 +181,11 @@ async def create_test_case_version(
     """Creates a new version without modifying any existing test case version."""
     if not BaseAuthoringApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseAuthoringApi.subclasses[0]().create_test_case_version(testCaseId, create_test_case_request)
+    return await BaseAuthoringApi.subclasses[0]().create_test_case_version(projectKey, testCaseId, create_test_case_request)
 
 
 @router.post(
-    "/v1/test-cases/{testCaseId}/activations",
+    "/v1/projects/{projectKey}/test-cases/{testCaseId}/activations",
     responses={
         200: {"model": TestCase, "description": "Activated"},
         400: {"model": ErrorDetails, "description": "The request is invalid."},
@@ -230,6 +202,8 @@ async def create_test_case_version(
     response_model_by_alias=True,
 )
 async def activate_test_case(
+    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+,
     testCaseId: Annotated[UUID, Field(description="UUID of the test case version.")] = Path(..., description="UUID of the test case version.")
 ,
     action_request: Optional[ActionRequest] = Body(None, description="")
@@ -241,11 +215,11 @@ async def activate_test_case(
     """Activates a draft test case version for future compositions and executions."""
     if not BaseAuthoringApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseAuthoringApi.subclasses[0]().activate_test_case(testCaseId, action_request)
+    return await BaseAuthoringApi.subclasses[0]().activate_test_case(projectKey, testCaseId, action_request)
 
 
 @router.post(
-    "/v1/test-cases/{testCaseId}/deprecations",
+    "/v1/projects/{projectKey}/test-cases/{testCaseId}/deprecations",
     responses={
         200: {"model": TestCase, "description": "Deprecated"},
         400: {"model": ErrorDetails, "description": "The request is invalid."},
@@ -262,6 +236,8 @@ async def activate_test_case(
     response_model_by_alias=True,
 )
 async def deprecate_test_case(
+    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+,
     testCaseId: Annotated[UUID, Field(description="UUID of the test case version.")] = Path(..., description="UUID of the test case version.")
 ,
     action_request: Optional[ActionRequest] = Body(None, description="")
@@ -273,11 +249,53 @@ async def deprecate_test_case(
     """Deprecates a test case version so it cannot be selected for new compositions."""
     if not BaseAuthoringApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseAuthoringApi.subclasses[0]().deprecate_test_case(testCaseId, action_request)
+    return await BaseAuthoringApi.subclasses[0]().deprecate_test_case(projectKey, testCaseId, action_request)
 
 
 @router.get(
-    "/v1/preconditions",
+    "/v1/projects/{projectKey}/test-case-keys/{testKey}/versions",
+    responses={
+        200: {"model": TestCaseVersionListResponse, "description": "Versions"},
+        400: {"model": ErrorDetails, "description": "The request is invalid."},
+        401: {"model": ErrorDetails, "description": "Authentication is required or failed."},
+        403: {"model": ErrorDetails, "description": "The authenticated principal is not allowed to perform the operation."},
+        404: {"model": ErrorDetails, "description": "The requested resource was not found."},
+        409: {"model": ErrorDetails, "description": "The operation conflicts with the current state of the resource."},
+        422: {"model": ErrorDetails, "description": "The request is syntactically valid but violates a domain rule."},
+        500: {"model": ErrorDetails, "description": "An unexpected server error occurred."},
+        503: {"model": ErrorDetails, "description": "The service is temporarily unavailable."},
+    },
+    tags=["Authoring"],
+    summary="List versions of a test case key",
+    response_model_by_alias=True,
+)
+async def list_test_case_versions(
+    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+,
+    testKey: Annotated[str, Field(min_length=1, strict=True, max_length=100, description="Stable business key of the test case.")] = Path(..., description="Stable business key of the test case.", min_length=1, max_length=100, examples=["checkout-happy-path"])
+,
+    status: Annotated[Optional[StrictStr], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")] = Query(None, description="Filter versions by lifecycle status. When omitted, all statuses are returned.", alias="status")
+,
+    offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
+,
+    limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
+,
+    sort_by: Annotated[Optional[StrictStr], Field(description="Field used to sort the result set.")] = Query('version', description="Field used to sort the result set.", alias="sortBy", examples=["version"])
+,
+    order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
+,
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth
+    ),
+) -> TestCaseVersionListResponse:
+    """Returns all immutable versions associated with a test case key."""
+    if not BaseAuthoringApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseAuthoringApi.subclasses[0]().list_test_case_versions(projectKey, testKey, status, offset, limit, sort_by, order)
+
+
+@router.get(
+    "/v1/projects/{projectKey}/preconditions",
     responses={
         200: {"model": PreconditionListResponse, "description": "Preconditions"},
         400: {"model": ErrorDetails, "description": "The request is invalid."},
@@ -294,6 +312,8 @@ async def deprecate_test_case(
     response_model_by_alias=True,
 )
 async def list_preconditions(
+    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+,
     status: Annotated[Optional[StrictStr], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")] = Query(None, description="Filter versions by lifecycle status. When omitted, all statuses are returned.", alias="status")
 ,
     offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
@@ -311,11 +331,11 @@ async def list_preconditions(
     """Returns a paginated list of versioned preconditions."""
     if not BaseAuthoringApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseAuthoringApi.subclasses[0]().list_preconditions(status, offset, limit, sort_by, order)
+    return await BaseAuthoringApi.subclasses[0]().list_preconditions(projectKey, status, offset, limit, sort_by, order)
 
 
 @router.post(
-    "/v1/preconditions",
+    "/v1/projects/{projectKey}/preconditions",
     responses={
         201: {"model": Precondition, "description": "Created"},
         400: {"model": ErrorDetails, "description": "The request is invalid."},
@@ -332,6 +352,8 @@ async def list_preconditions(
     response_model_by_alias=True,
 )
 async def create_precondition(
+    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+,
     create_precondition_request: CreatePreconditionRequest = Body(..., description="")
 ,
     token_bearerAuth: TokenModel = Security(
@@ -341,11 +363,11 @@ async def create_precondition(
     """Creates a new immutable precondition version in draft status."""
     if not BaseAuthoringApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseAuthoringApi.subclasses[0]().create_precondition(create_precondition_request)
+    return await BaseAuthoringApi.subclasses[0]().create_precondition(projectKey, create_precondition_request)
 
 
 @router.get(
-    "/v1/preconditions/{preconditionId}",
+    "/v1/projects/{projectKey}/preconditions/{preconditionId}",
     responses={
         200: {"model": Precondition, "description": "Precondition"},
         400: {"model": ErrorDetails, "description": "The request is invalid."},
@@ -362,6 +384,8 @@ async def create_precondition(
     response_model_by_alias=True,
 )
 async def get_precondition(
+    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+,
     preconditionId: Annotated[UUID, Field(description="UUID of the precondition version.")] = Path(..., description="UUID of the precondition version.")
 ,
     token_bearerAuth: TokenModel = Security(
@@ -371,44 +395,11 @@ async def get_precondition(
     """Returns an immutable precondition version by UUID."""
     if not BaseAuthoringApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseAuthoringApi.subclasses[0]().get_precondition(preconditionId)
-
-
-@router.get(
-    "/v1/preconditions/{preconditionId}/versions",
-    responses={
-        200: {"model": PreconditionListResponse, "description": "Precondition versions"},
-        400: {"model": ErrorDetails, "description": "The request is invalid."},
-        401: {"model": ErrorDetails, "description": "Authentication is required or failed."},
-        403: {"model": ErrorDetails, "description": "The authenticated principal is not allowed to perform the operation."},
-        409: {"model": ErrorDetails, "description": "The operation conflicts with the current state of the resource."},
-        422: {"model": ErrorDetails, "description": "The request is syntactically valid but violates a domain rule."},
-        500: {"model": ErrorDetails, "description": "An unexpected server error occurred."},
-        503: {"model": ErrorDetails, "description": "The service is temporarily unavailable."},
-    },
-    tags=["Authoring"],
-    summary="List versions of a precondition",
-    response_model_by_alias=True,
-)
-async def list_precondition_versions(
-    preconditionId: Annotated[UUID, Field(description="UUID of the precondition version.")] = Path(..., description="UUID of the precondition version.")
-,
-    offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
-,
-    limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
-,
-    token_bearerAuth: TokenModel = Security(
-        get_token_bearerAuth
-    ),
-) -> PreconditionListResponse:
-    """Returns all immutable versions associated with a precondition key."""
-    if not BaseAuthoringApi.subclasses:
-        raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseAuthoringApi.subclasses[0]().list_precondition_versions(preconditionId, offset, limit)
+    return await BaseAuthoringApi.subclasses[0]().get_precondition(projectKey, preconditionId)
 
 
 @router.post(
-    "/v1/preconditions/{preconditionId}/versions",
+    "/v1/projects/{projectKey}/preconditions/{preconditionId}/versions",
     responses={
         201: {"model": Precondition, "description": "Created"},
         400: {"model": ErrorDetails, "description": "The request is invalid."},
@@ -425,6 +416,8 @@ async def list_precondition_versions(
     response_model_by_alias=True,
 )
 async def create_precondition_version(
+    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+,
     preconditionId: Annotated[UUID, Field(description="UUID of the precondition version.")] = Path(..., description="UUID of the precondition version.")
 ,
     create_precondition_request: CreatePreconditionRequest = Body(..., description="")
@@ -436,11 +429,11 @@ async def create_precondition_version(
     """Creates a new immutable version for the selected precondition key."""
     if not BaseAuthoringApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseAuthoringApi.subclasses[0]().create_precondition_version(preconditionId, create_precondition_request)
+    return await BaseAuthoringApi.subclasses[0]().create_precondition_version(projectKey, preconditionId, create_precondition_request)
 
 
 @router.post(
-    "/v1/preconditions/{preconditionId}/activations",
+    "/v1/projects/{projectKey}/preconditions/{preconditionId}/activations",
     responses={
         200: {"model": Precondition, "description": "Activated"},
         400: {"model": ErrorDetails, "description": "The request is invalid."},
@@ -457,7 +450,11 @@ async def create_precondition_version(
     response_model_by_alias=True,
 )
 async def activate_precondition(
+    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+,
     preconditionId: Annotated[UUID, Field(description="UUID of the precondition version.")] = Path(..., description="UUID of the precondition version.")
+,
+    action_request: Optional[ActionRequest] = Body(None, description="")
 ,
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
@@ -466,11 +463,11 @@ async def activate_precondition(
     """Activates a draft precondition version for future test executions."""
     if not BaseAuthoringApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseAuthoringApi.subclasses[0]().activate_precondition(preconditionId)
+    return await BaseAuthoringApi.subclasses[0]().activate_precondition(projectKey, preconditionId, action_request)
 
 
 @router.post(
-    "/v1/preconditions/{preconditionId}/deprecations",
+    "/v1/projects/{projectKey}/preconditions/{preconditionId}/deprecations",
     responses={
         200: {"model": Precondition, "description": "Deprecated"},
         400: {"model": ErrorDetails, "description": "The request is invalid."},
@@ -487,6 +484,8 @@ async def activate_precondition(
     response_model_by_alias=True,
 )
 async def deprecate_precondition(
+    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+,
     preconditionId: Annotated[UUID, Field(description="UUID of the precondition version.")] = Path(..., description="UUID of the precondition version.")
 ,
     action_request: Optional[ActionRequest] = Body(None, description="")
@@ -498,4 +497,46 @@ async def deprecate_precondition(
     """Marks an immutable precondition version as deprecated."""
     if not BaseAuthoringApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseAuthoringApi.subclasses[0]().deprecate_precondition(preconditionId, action_request)
+    return await BaseAuthoringApi.subclasses[0]().deprecate_precondition(projectKey, preconditionId, action_request)
+
+
+@router.get(
+    "/v1/projects/{projectKey}/precondition-keys/{preconditionKey}/versions",
+    responses={
+        200: {"model": PreconditionListResponse, "description": "Precondition versions"},
+        400: {"model": ErrorDetails, "description": "The request is invalid."},
+        401: {"model": ErrorDetails, "description": "Authentication is required or failed."},
+        403: {"model": ErrorDetails, "description": "The authenticated principal is not allowed to perform the operation."},
+        404: {"model": ErrorDetails, "description": "The requested resource was not found."},
+        409: {"model": ErrorDetails, "description": "The operation conflicts with the current state of the resource."},
+        422: {"model": ErrorDetails, "description": "The request is syntactically valid but violates a domain rule."},
+        500: {"model": ErrorDetails, "description": "An unexpected server error occurred."},
+        503: {"model": ErrorDetails, "description": "The service is temporarily unavailable."},
+    },
+    tags=["Authoring"],
+    summary="List versions of a precondition key",
+    response_model_by_alias=True,
+)
+async def list_precondition_versions(
+    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+,
+    preconditionKey: Annotated[str, Field(min_length=1, strict=True, max_length=100, description="Stable business key of the precondition.")] = Path(..., description="Stable business key of the precondition.", min_length=1, max_length=100, examples=["customer-is-authenticated"])
+,
+    status: Annotated[Optional[StrictStr], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")] = Query(None, description="Filter versions by lifecycle status. When omitted, all statuses are returned.", alias="status")
+,
+    offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
+,
+    limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
+,
+    sort_by: Annotated[Optional[StrictStr], Field(description="Field used to sort the result set.")] = Query('version', description="Field used to sort the result set.", alias="sortBy", examples=["version"])
+,
+    order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
+,
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth
+    ),
+) -> PreconditionListResponse:
+    """Returns all immutable versions associated with a precondition key."""
+    if not BaseAuthoringApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseAuthoringApi.subclasses[0]().list_precondition_versions(projectKey, preconditionKey, status, offset, limit, sort_by, order)
