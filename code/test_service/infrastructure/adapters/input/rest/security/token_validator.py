@@ -1,7 +1,6 @@
 """Bearer token validation for the inbound identity middleware."""
 
 import base64
-import binascii
 import json
 from functools import lru_cache
 from typing import Protocol
@@ -80,7 +79,7 @@ def _decode_unverified_subject(token: str) -> str | None:
     padding = "=" * (-len(payload_segment) % 4)
     try:
         payload = json.loads(base64.urlsafe_b64decode(payload_segment + padding))
-    except (ValueError, binascii.Error, UnicodeDecodeError):
+    except ValueError:
         return None
     subject = payload.get("sub")
     return subject if isinstance(subject, str) else None

@@ -61,8 +61,10 @@ class TestGetTokenValidator:
 
 class TestJwtTokenValidator:
     def test_when_jwks_url_missing_expect_value_error(self):
+        settings = AuthSettings(mock_enabled=False, jwks_url=None)
+
         with pytest.raises(ValueError, match="AUTH_JWKS_URL"):
-            JwtTokenValidator(AuthSettings(mock_enabled=False, jwks_url=None))
+            JwtTokenValidator(settings)
 
     def test_when_token_signature_is_valid_expect_claims_returned(
         self, monkeypatch: pytest.MonkeyPatch
