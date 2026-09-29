@@ -4,13 +4,13 @@ import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
 
-from test_service.adapters.input.rest.security.token_validator import (
+from test_service.config import AuthSettings
+from test_service.infrastructure.adapters.input.rest.security.token_validator import (
     InvalidTokenError,
     JwtTokenValidator,
     MockTokenValidator,
     get_token_validator,
 )
-from test_service.config import AuthSettings
 
 
 @pytest.fixture(autouse=True)

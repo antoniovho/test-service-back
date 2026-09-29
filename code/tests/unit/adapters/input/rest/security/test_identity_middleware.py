@@ -4,9 +4,13 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 from starlette.testclient import TestClient
 
-from test_service.adapters.input.rest.security.identity_context import get_current_identity
-from test_service.adapters.input.rest.security.identity_middleware import IdentityMiddleware
-from test_service.adapters.input.rest.security.token_validator import (
+from test_service.infrastructure.adapters.input.rest.security.identity_context import (
+    get_current_identity,
+)
+from test_service.infrastructure.adapters.input.rest.security.identity_middleware import (
+    IdentityMiddleware,
+)
+from test_service.infrastructure.adapters.input.rest.security.token_validator import (
     InvalidTokenError,
     get_token_validator,
 )

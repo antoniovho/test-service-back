@@ -8,13 +8,15 @@ from test_service.domain.model.projects.project import Project
 from test_service.domain.ports.input.use_cases.projects.create_project_use_case import (
     CreateProjectUseCase,
 )
-from test_service.domain.ports.output.repositories import ProjectRepositoryPort
+from test_service.domain.ports.output.persistence.projects.project_persistence_port import (
+    ProjectPersistencePort,
+)
 
 
 class CreateProjectUseCaseImpl(CreateProjectUseCase):
     """Registers a new Project Catalog entry."""
 
-    def __init__(self, project_repository: ProjectRepositoryPort) -> None:
+    def __init__(self, project_repository: ProjectPersistencePort) -> None:
         self._project_repository = project_repository
 
     async def execute(self, request: CreateProjectCommand) -> Project:

@@ -4,13 +4,6 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from test_service.adapters.input.rest.handlers.exceptions.exception_handler import (
-    _raise_location,
-    register_exception_handlers,
-)
-from test_service.adapters.input.rest.mappers.exceptions.exception_mapper import (
-    _EXCEPTION_STATUS_MAP,
-)
 from test_service.domain.model.exceptions.domain_exception import DomainException
 from test_service.domain.model.exceptions.entity_not_found_exception import (
     EntityNotFoundException,
@@ -61,6 +54,13 @@ from test_service.domain.model.exceptions.project_already_exists_exception impor
 )
 from test_service.domain.model.exceptions.resolved_secret_not_allowed_exception import (
     ResolvedSecretNotAllowedException,
+)
+from test_service.infrastructure.adapters.input.rest.exceptions.exception_handler import (
+    _raise_location,
+    register_exception_handlers,
+)
+from test_service.infrastructure.adapters.input.rest.exceptions.exception_mapper import (
+    _EXCEPTION_STATUS_MAP,
 )
 
 

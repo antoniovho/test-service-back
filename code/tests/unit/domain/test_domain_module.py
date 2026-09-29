@@ -25,7 +25,9 @@ from test_service.domain.ports.input.use_cases.projects.get_project_use_case imp
 from test_service.domain.ports.input.use_cases.projects.list_projects_use_case import (
     ListProjectsUseCase,
 )
-from test_service.domain.ports.output.repositories import ProjectRepositoryPort
+from test_service.domain.ports.output.persistence.projects.project_persistence_port import (
+    ProjectPersistencePort,
+)
 
 
 class _FakeProjectRepository:
@@ -43,7 +45,7 @@ class TestDomainModule:
     def test_when_injecting_project_use_cases_expect_bound_implementations(self):
         injector = Injector(
             [DomainModule],
-            bindings=[InstanceBinding(ProjectRepositoryPort, _FakeProjectRepository())],
+            bindings=[InstanceBinding(ProjectPersistencePort, _FakeProjectRepository())],
         )
 
         assert isinstance(injector.inject(ListProjectsUseCase), ListProjectsUseCaseImpl)

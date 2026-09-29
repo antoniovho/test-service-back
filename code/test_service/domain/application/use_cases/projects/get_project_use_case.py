@@ -6,13 +6,15 @@ from test_service.domain.model.projects.project import Project
 from test_service.domain.ports.input.use_cases.projects.get_project_use_case import (
     GetProjectUseCase,
 )
-from test_service.domain.ports.output.repositories import ProjectRepositoryPort
+from test_service.domain.ports.output.persistence.projects.project_persistence_port import (
+    ProjectPersistencePort,
+)
 
 
 class GetProjectUseCaseImpl(GetProjectUseCase):
     """Retrieves one Project Catalog entry by key."""
 
-    def __init__(self, project_repository: ProjectRepositoryPort) -> None:
+    def __init__(self, project_repository: ProjectPersistencePort) -> None:
         self._project_repository = project_repository
 
     async def execute(self, request: GetProjectQuery) -> Project:
