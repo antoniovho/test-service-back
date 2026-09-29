@@ -2,9 +2,13 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from test_service_server.apis.authoring_api import router as authoring_api_router
 from test_service_server.apis.projects_api import router as projects_api_router
 
 from test_service.bootstrap.container import get_injector
+from test_service.infrastructure.adapters.input.rest.authoring import (
+    authoring_controller,  # noqa: F401
+)
 from test_service.infrastructure.adapters.input.rest.exceptions.exception_handler import (
     register_exception_handlers,
 )
@@ -39,6 +43,7 @@ def create_app() -> FastAPI:
     app.add_middleware(IdentityMiddleware)
     register_exception_handlers(app)
     app.include_router(projects_api_router)
+    app.include_router(authoring_api_router)
     return app
 
 

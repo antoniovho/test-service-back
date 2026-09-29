@@ -10,13 +10,15 @@ from test_service.domain.model.exceptions.entity_not_found_exception import (
 from test_service.domain.model.exceptions.precondition_project_mismatch_exception import (
     PreconditionProjectMismatchException,
 )
-from test_service.domain.ports.output.repositories import PreconditionRepositoryPort
+from test_service.domain.ports.output.persistence.preconditions.precondition_persistence_port import (  # noqa: E501
+    PreconditionPersistencePort,
+)
 
 
 class PreconditionReferenceResolver:
     """Resolve request UUIDs while enforcing their project ownership."""
 
-    def __init__(self, precondition_repository: PreconditionRepositoryPort) -> None:
+    def __init__(self, precondition_repository: PreconditionPersistencePort) -> None:
         self._precondition_repository = precondition_repository
 
     async def resolve(

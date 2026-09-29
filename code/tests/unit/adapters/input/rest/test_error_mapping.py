@@ -55,6 +55,9 @@ from test_service.domain.model.exceptions.project_already_exists_exception impor
 from test_service.domain.model.exceptions.resolved_secret_not_allowed_exception import (
     ResolvedSecretNotAllowedException,
 )
+from test_service.domain.model.exceptions.test_case_version_already_exists_exception import (
+    TestCaseVersionAlreadyExistsException,
+)
 from test_service.infrastructure.adapters.input.rest.exceptions.exception_handler import (
     _raise_location,
     register_exception_handlers,
@@ -160,6 +163,7 @@ class TestExceptionStatusMap:
             EntityNotFoundException: HTTPStatus.NOT_FOUND,
             ProjectAlreadyDeletedException: HTTPStatus.CONFLICT,
             ProjectAlreadyExistsException: HTTPStatus.CONFLICT,
+            TestCaseVersionAlreadyExistsException: HTTPStatus.CONFLICT,
             PreconditionProjectMismatchException: HTTPStatus.UNPROCESSABLE_ENTITY,
             InvalidActionException: HTTPStatus.UNPROCESSABLE_ENTITY,
             InvalidDefinitionException: HTTPStatus.UNPROCESSABLE_ENTITY,

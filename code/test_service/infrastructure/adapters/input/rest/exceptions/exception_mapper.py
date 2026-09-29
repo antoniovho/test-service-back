@@ -58,6 +58,9 @@ from test_service.domain.model.exceptions.project_already_exists_exception impor
 from test_service.domain.model.exceptions.resolved_secret_not_allowed_exception import (
     ResolvedSecretNotAllowedException,
 )
+from test_service.domain.model.exceptions.test_case_version_already_exists_exception import (
+    TestCaseVersionAlreadyExistsException,
+)
 
 _GENERIC_SERVER_ERROR_DETAIL = "An unexpected server error occurred."
 _GENERIC_PROVIDER_ERROR_DETAIL = "A dependent service error occurred."
@@ -66,6 +69,7 @@ _EXCEPTION_STATUS_MAP: dict[type[DomainException], HTTPStatus] = {
     EntityNotFoundException: HTTPStatus.NOT_FOUND,
     ProjectAlreadyDeletedException: HTTPStatus.CONFLICT,
     ProjectAlreadyExistsException: HTTPStatus.CONFLICT,
+    TestCaseVersionAlreadyExistsException: HTTPStatus.CONFLICT,
     PreconditionProjectMismatchException: HTTPStatus.UNPROCESSABLE_ENTITY,
     InvalidActionException: HTTPStatus.UNPROCESSABLE_ENTITY,
     InvalidDefinitionException: HTTPStatus.UNPROCESSABLE_ENTITY,
