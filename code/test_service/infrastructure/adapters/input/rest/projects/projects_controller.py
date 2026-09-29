@@ -8,10 +8,6 @@ from test_service_server.models.project import Project as ApiProject
 from test_service_server.models.project_list_response import ProjectListResponse
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 
-from test_service.adapters.input.rest.controllers.projects.mappers.project_mapper import (
-    ProjectMapper,
-)
-from test_service.adapters.input.rest.security.identity_context import get_current_identity
 from test_service.bootstrap.container import get_injector
 from test_service.domain.ports.input.use_cases.projects.create_project_use_case import (
     CreateProjectUseCase,
@@ -24,6 +20,12 @@ from test_service.domain.ports.input.use_cases.projects.get_project_use_case imp
 )
 from test_service.domain.ports.input.use_cases.projects.list_projects_use_case import (
     ListProjectsUseCase,
+)
+from test_service.infrastructure.adapters.input.rest.projects.project_mapper import (
+    ProjectMapper,
+)
+from test_service.infrastructure.adapters.input.rest.security.identity_context import (
+    get_current_identity,
 )
 
 

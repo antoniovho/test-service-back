@@ -6,11 +6,11 @@ from types import TracebackType
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from test_service.adapters.input.rest.mappers.exceptions.exception_mapper import (
+from test_service.domain.model.exceptions.domain_exception import DomainException
+from test_service.infrastructure.adapters.input.rest.exceptions.exception_mapper import (
     ExceptionMapper,
     build_problem_response,
 )
-from test_service.domain.model.exceptions.domain_exception import DomainException
 
 logger = logging.getLogger(__name__)
 _GENERIC_SERVER_ERROR_DETAIL = "An unexpected server error occurred."
