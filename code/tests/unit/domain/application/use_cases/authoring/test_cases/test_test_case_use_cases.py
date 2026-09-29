@@ -244,6 +244,10 @@ class TestCreateTestCaseVersionUseCaseImpl:
             await use_case.execute(request)
 
         assert exception.value.code == "ENTITY_NOT_FOUND"
+        assert (
+            exception.value.error_description
+            == f"Test case '{request.source_id}' was not found in project '{request.project_key}'."
+        )
 
     async def test_when_source_belongs_to_another_project_expect_not_found_exception(self):
         source = _test_case(project_key="OTHER")

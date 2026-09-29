@@ -1,0 +1,1 @@
+"""Precondition output adapters."""

@@ -3,8 +3,14 @@
 from opyoid import Module  # type: ignore
 
 from test_service.config import PostgresDatabaseSettings
+from test_service.domain.ports.output.persistence.preconditions.precondition_persistence_port import (  # noqa: E501
+    PreconditionPersistencePort,
+)
 from test_service.domain.ports.output.persistence.projects.project_persistence_port import (
     ProjectPersistencePort,
+)
+from test_service.domain.ports.output.persistence.test_cases.test_case_persistence_port import (
+    TestCasePersistencePort,
 )
 from test_service.infrastructure.adapters.output.commons.persistence.postgres.postgres_database_configuration import (  # noqa: E501
     PostgresDatabaseConfiguration,
@@ -13,6 +19,18 @@ from test_service.infrastructure.adapters.output.commons.persistence.postgres.po
     PostgresSessionProvider,
 )
 
+from .adapters.output.authoring.preconditions.persistence.precondition_persistence_adapter import (
+    PreconditionPersistenceAdapter,
+)
+from .adapters.output.authoring.preconditions.persistence.repositories.precondition_repository import (  # noqa: E501
+    PreconditionRepository,
+)
+from .adapters.output.authoring.test_cases.persistence.repositories.test_case_repository import (
+    TestCaseRepository,
+)
+from .adapters.output.authoring.test_cases.persistence.test_case_persistence_adapter import (
+    TestCasePersistenceAdapter,
+)
 from .adapters.output.projects.persistence.project_persistence_adapter import (
     ProjectPersistenceAdapter,
 )
@@ -34,9 +52,20 @@ class ProjectModule(Module):
         self.bind(ProjectPersistencePort, to_class=ProjectPersistenceAdapter)
 
 
+class AuthoringModule(Module):
+    """Bind persistence adapters required by Test Case authoring."""
+
+    def configure(self) -> None:
+        self.bind(TestCaseRepository)
+        self.bind(PreconditionRepository)
+        self.bind(TestCasePersistencePort, to_class=TestCasePersistenceAdapter)
+        self.bind(PreconditionPersistencePort, to_class=PreconditionPersistenceAdapter)
+
+
 class InfrastructureModule(Module):
     """Master module for outbound infrastructure adapters."""
 
     def configure(self) -> None:
         self.install(DatabaseModule)
         self.install(ProjectModule)
+        self.install(AuthoringModule)

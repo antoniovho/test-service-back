@@ -1,0 +1,1 @@
+"""Authoring REST adapters."""

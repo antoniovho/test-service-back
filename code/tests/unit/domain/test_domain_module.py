@@ -114,6 +114,8 @@ class TestDomainModule:
             [DomainModule],
             bindings=[
                 InstanceBinding(ProjectPersistencePort, _FakeProjectRepository()),
+                InstanceBinding(TestCasePersistencePort, _FakeTestCaseRepository()),
+                InstanceBinding(PreconditionPersistencePort, _FakePreconditionRepository()),
             ],
         )
 
