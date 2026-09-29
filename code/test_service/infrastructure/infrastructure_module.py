@@ -12,6 +12,9 @@ from test_service.domain.ports.output.persistence.projects.project_persistence_p
 from test_service.domain.ports.output.persistence.test_cases.test_case_persistence_port import (
     TestCasePersistencePort,
 )
+from test_service.domain.ports.output.persistence.test_sets.test_set_persistence_port import (
+    TestSetPersistencePort,
+)
 from test_service.infrastructure.adapters.output.commons.persistence.postgres.postgres_database_configuration import (  # noqa: E501
     PostgresDatabaseConfiguration,
 )
@@ -30,6 +33,12 @@ from .adapters.output.authoring.test_cases.persistence.repositories.test_case_re
 )
 from .adapters.output.authoring.test_cases.persistence.test_case_persistence_adapter import (
     TestCasePersistenceAdapter,
+)
+from .adapters.output.composition.test_sets.persistence.repositories.test_set_repository import (
+    TestSetRepository,
+)
+from .adapters.output.composition.test_sets.persistence.test_set_persistence_adapter import (
+    TestSetPersistenceAdapter,
 )
 from .adapters.output.projects.persistence.project_persistence_adapter import (
     ProjectPersistenceAdapter,
@@ -58,8 +67,10 @@ class AuthoringModule(Module):
     def configure(self) -> None:
         self.bind(TestCaseRepository)
         self.bind(PreconditionRepository)
+        self.bind(TestSetRepository)
         self.bind(TestCasePersistencePort, to_class=TestCasePersistenceAdapter)
         self.bind(PreconditionPersistencePort, to_class=PreconditionPersistenceAdapter)
+        self.bind(TestSetPersistencePort, to_class=TestSetPersistenceAdapter)
 
 
 class InfrastructureModule(Module):

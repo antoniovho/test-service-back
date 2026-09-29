@@ -12,9 +12,11 @@ class TestSetQuery:
     """Request to retrieve a TestSet snapshot by UUID.
 
     Args:
+        project_key: Owning project key.
         identifier: UUID of the requested TestSet snapshot.
     """
 
+    project_key: str
     identifier: UUID
 
 
