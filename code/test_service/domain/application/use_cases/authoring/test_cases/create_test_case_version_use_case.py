@@ -31,11 +31,17 @@ class CreateTestCaseVersionUseCaseImpl(CreateTestCaseVersionUseCase):
         """Create and persist the next immutable Test Case version."""
         source = await self._test_case_repository.find_by_id(request.source_id)
         if source is None or source.project_key != request.project_key:
-            raise EntityNotFoundException("test case", str(request.source_id))
+            raise EntityNotFoundException(
+                "Test case",
+                str(request.source_id),
+                f"project '{request.project_key}'",
+            )
+
         latest_version = await self._test_case_repository.find_latest_version(
             source.project_key, source.test_key
         )
         next_version = (latest_version or source.version) + 1
+
         preconditions = await self._precondition_reference_resolver.resolve(
             source.project_key, request.preconditions
         )

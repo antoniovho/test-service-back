@@ -102,3 +102,4 @@ class DomainModule(Module):
 
     def configure(self) -> None:
         self.install(ProjectsModule)
+        self.install(TestCasesModule)
