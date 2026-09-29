@@ -31,7 +31,7 @@ class AuthSettings(BaseSettings):
     jwks_url: str | None = None
 
 
-class DatabaseSettings(BaseSettings):
+class PostgresDatabaseSettings(BaseSettings):
     """PostgreSQL connection settings loaded from the runtime environment."""
 
     model_config = SettingsConfigDict(
