@@ -4,7 +4,6 @@ from datetime import datetime
 from uuid import UUID
 
 from test_service_server.models.create_test_plan_request import CreateTestPlanRequest
-from test_service_server.models.pagination import Pagination as ApiPagination
 from test_service_server.models.project_reference import ProjectReference
 from test_service_server.models.test_plan import TestPlan as ApiTestPlan
 from test_service_server.models.test_plan_list_response import TestPlanListResponse
@@ -21,9 +20,12 @@ from test_service.domain.application.queries.composition import (
     ListTestPlanVersionsQuery,
     TestPlanQuery,
 )
-from test_service.domain.commons.pagination import Page, PaginationParams, SortOrder
+from test_service.domain.commons.pagination import Page, PaginationParams
 from test_service.domain.model.composition.test_plan import ExecutionMode, TestPlan
 from test_service.domain.model.lifecycle import VersionStatus
+from test_service.infrastructure.adapters.input.rest.versioned_resource_mapper import (
+    VersionedResourceMapper,
+)
 
 
 class TestPlanMapper:
@@ -46,11 +48,9 @@ class TestPlanMapper:
     def to_create_command(
         project_key: str, request: CreateTestPlanRequest, identity: str, requested_at: datetime
     ) -> CreateTestPlanCommand:
-        return CreateTestPlanCommand(
-            project_key=project_key,
-            plan_key=request.plan_key,
-            **TestPlanMapper._fields(request, identity, requested_at),
-        )
+        fields = TestPlanMapper._fields(request, identity, requested_at)
+        fields.update(project_key=project_key, plan_key=request.plan_key)
+        return CreateTestPlanCommand(**fields)
 
     @staticmethod
     def to_create_version_command(
@@ -60,57 +60,56 @@ class TestPlanMapper:
         identity: str,
         requested_at: datetime,
     ) -> CreateTestPlanVersionCommand:
-        return CreateTestPlanVersionCommand(
-            source_id=source_id,
-            project_key=project_key,
-            plan_key=request.plan_key,
-            **TestPlanMapper._fields(request, identity, requested_at),
-        )
+        fields = TestPlanMapper._fields(request, identity, requested_at)
+        fields.update(source_id=source_id, project_key=project_key, plan_key=request.plan_key)
+        return CreateTestPlanVersionCommand(**fields)
 
     @staticmethod
     def to_pagination(
         offset: int | None, limit: int | None, sort_by: str | None, order
     ) -> PaginationParams:
-        return PaginationParams(
-            offset=offset or 0,
-            limit=limit or 20,
-            sort_by={"version": "version", "createdAt": "created_at"}.get(
-                sort_by or "version", "version"
-            ),
-            order=SortOrder(order.value) if order is not None else SortOrder.ASC,
-        )
+        return VersionedResourceMapper.to_pagination(offset, limit, sort_by, order)
 
     @staticmethod
     def to_status(value: str | None) -> VersionStatus | None:
-        return VersionStatus(value) if value is not None else None
+        return VersionedResourceMapper.to_status(value)
 
     @staticmethod
     def to_get_query(project_key: str, identifier: UUID) -> TestPlanQuery:
-        return TestPlanQuery(project_key, identifier)
+        return TestPlanQuery(project_key=project_key, identifier=identifier)
 
     @staticmethod
     def to_activate_command(
         project_key: str, identifier: UUID, reason: str | None
     ) -> ActivateTestPlanCommand:
-        return ActivateTestPlanCommand(project_key, identifier, reason)
+        return ActivateTestPlanCommand(
+            project_key=project_key, identifier=identifier, reason=reason
+        )
 
     @staticmethod
     def to_deprecate_command(
         project_key: str, identifier: UUID, reason: str | None
     ) -> DeprecateTestPlanCommand:
-        return DeprecateTestPlanCommand(project_key, identifier, reason)
+        return DeprecateTestPlanCommand(
+            project_key=project_key, identifier=identifier, reason=reason
+        )
 
     @staticmethod
     def to_list_query(
         project_key: str, pagination: PaginationParams, status: VersionStatus | None
     ) -> ListTestPlansQuery:
-        return ListTestPlansQuery(project_key, pagination, status)
+        return ListTestPlansQuery(project_key=project_key, pagination=pagination, status=status)
 
     @staticmethod
     def to_versions_query(
         project_key: str, plan_key: str, pagination: PaginationParams, status: VersionStatus | None
     ) -> ListTestPlanVersionsQuery:
-        return ListTestPlanVersionsQuery(project_key, plan_key, pagination, status)
+        return ListTestPlanVersionsQuery(
+            project_key=project_key,
+            plan_key=plan_key,
+            pagination=pagination,
+            status=status,
+        )
 
     @staticmethod
     def to_api(test_plan: TestPlan, project_name: str) -> ApiTestPlan:
@@ -136,20 +135,14 @@ class TestPlanMapper:
     def to_list_response(
         page: Page[TestPlan], project_name: str, pagination: PaginationParams
     ) -> TestPlanListResponse:
-        return TestPlanListResponse(
-            data=[TestPlanMapper.to_api(item, project_name) for item in page.items],
-            pagination=ApiPagination(
-                offset=pagination.offset, limit=pagination.limit, total=page.total
-            ),
+        return VersionedResourceMapper.to_response(
+            TestPlanListResponse, page, project_name, pagination, TestPlanMapper.to_api
         )
 
     @staticmethod
     def to_version_list_response(
         page: Page[TestPlan], project_name: str, pagination: PaginationParams
     ) -> TestPlanVersionListResponse:
-        return TestPlanVersionListResponse(
-            data=[TestPlanMapper.to_api(item, project_name) for item in page.items],
-            pagination=ApiPagination(
-                offset=pagination.offset, limit=pagination.limit, total=page.total
-            ),
+        return VersionedResourceMapper.to_response(
+            TestPlanVersionListResponse, page, project_name, pagination, TestPlanMapper.to_api
         )
