@@ -13,6 +13,10 @@ from test_service.domain.ports.output.persistence.versioned.versioned_persistenc
 class PreconditionPersistencePort(VersionedPersistencePort[Precondition], Protocol):
     """Persistence contract for Precondition snapshots."""
 
+    async def find_latest_version(self, project_key: str, precondition_key: str) -> int | None:
+        """Return the latest version number for one logical Precondition."""
+        ...
+
     async def find_page(
         self,
         project_key: str,

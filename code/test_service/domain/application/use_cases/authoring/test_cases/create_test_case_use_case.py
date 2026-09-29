@@ -7,6 +7,9 @@ from test_service.domain.application.services.precondition_references import (
     PreconditionReferenceResolver,
 )
 from test_service.domain.model.authoring.test_case import TestCase
+from test_service.domain.model.exceptions.test_case_already_exists_exception import (
+    TestCaseAlreadyExistsException,
+)
 from test_service.domain.ports.input.use_cases.authoring.test_cases.create_test_case_use_case import (  # noqa: E501
     CreateTestCaseUseCase,
 )
@@ -28,6 +31,11 @@ class CreateTestCaseUseCaseImpl(CreateTestCaseUseCase):
 
     async def execute(self, request: CreateTestCaseCommand) -> TestCase:
         """Create and persist version one of a Test Case."""
+        latest_version = await self._test_case_repository.find_latest_version(
+            request.project_key, request.test_key
+        )
+        if latest_version is not None:
+            raise TestCaseAlreadyExistsException(request.project_key, request.test_key)
         preconditions = await self._precondition_reference_resolver.resolve(
             request.project_key, request.preconditions
         )
