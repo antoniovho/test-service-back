@@ -17,45 +17,7 @@ from test_service.domain.model.execution.execution import (
     TestResultArtifact,
 )
 from test_service.domain.model.lifecycle import VersionStatus
-from test_service.domain.model.projects.project import Project
 from test_service.domain.model.viewer.records import DriftEvent, ViewerSyncRecord
-
-
-class ProjectRepositoryPort(Protocol):
-    """Persistence contract for Project Catalog entries."""
-
-    async def save(self, project: Project) -> Project:
-        """Persist a project.
-
-        Args:
-            project: Project to persist.
-
-        Returns:
-            Persisted project.
-        """
-        ...
-
-    async def find_by_key(self, key: str) -> Project | None:
-        """Find a project by its stable key.
-
-        Args:
-            key: Stable project key.
-
-        Returns:
-            The project, or ``None`` when absent.
-        """
-        ...
-
-    async def find_page(self, pagination: PaginationParams) -> Page[Project]:
-        """Find a page of projects.
-
-        Args:
-            pagination: Page and ordering parameters.
-
-        Returns:
-            Matching project page.
-        """
-        ...
 
 
 class VersionedRepositoryPort[Snapshot](Protocol):

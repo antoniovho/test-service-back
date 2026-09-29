@@ -1,6 +1,6 @@
 """Domain IoC module — binds use case ports to their implementations."""
 
-from opyoid import Module # type: ignore
+from opyoid import Module  # type: ignore
 
 from test_service.domain.application.use_cases.projects.create_project_use_case import (
     CreateProjectUseCaseImpl,
