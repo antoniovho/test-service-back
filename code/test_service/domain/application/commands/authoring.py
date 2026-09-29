@@ -143,10 +143,12 @@ class ActivateTestCaseCommand:
     """Request to activate a draft TestCase snapshot.
 
     Args:
+        project_key: Owning project key.
         identifier: UUID of the snapshot.
         reason: Optional audit reason.
     """
 
+    project_key: str
     identifier: UUID
     reason: str | None = None
 
@@ -156,10 +158,12 @@ class DeprecateTestCaseCommand:
     """Request to deprecate an active TestCase snapshot.
 
     Args:
+        project_key: Owning project key.
         identifier: UUID of the snapshot.
         reason: Optional audit reason.
     """
 
+    project_key: str
     identifier: UUID
     reason: str | None = None
 
@@ -169,10 +173,12 @@ class ActivatePreconditionCommand:
     """Request to activate a draft Precondition snapshot.
 
     Args:
+        project_key: Owning project key.
         identifier: UUID of the snapshot.
         reason: Optional audit reason.
     """
 
+    project_key: str
     identifier: UUID
     reason: str | None = None
 
@@ -182,9 +188,11 @@ class DeprecatePreconditionCommand:
     """Request to deprecate an active Precondition snapshot.
 
     Args:
+        project_key: Owning project key.
         identifier: UUID of the snapshot.
         reason: Optional audit reason.
     """
 
+    project_key: str
     identifier: UUID
     reason: str | None = None

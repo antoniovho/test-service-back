@@ -12,9 +12,11 @@ class TestCaseQuery:
     """Request to retrieve a TestCase snapshot by UUID.
 
     Args:
+        project_key: Owning project key.
         identifier: UUID of the requested TestCase snapshot.
     """
 
+    project_key: str
     identifier: UUID
 
 
@@ -23,9 +25,11 @@ class PreconditionQuery:
     """Request to retrieve a Precondition snapshot by UUID.
 
     Args:
+        project_key: Owning project key.
         identifier: UUID of the requested Precondition snapshot.
     """
 
+    project_key: str
     identifier: UUID
 
 

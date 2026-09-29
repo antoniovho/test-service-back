@@ -4,8 +4,12 @@ from uuid import UUID
 
 from test_service_server.apis.authoring_api_base import BaseAuthoringApi
 from test_service_server.models.action_request import ActionRequest
+from test_service_server.models.create_precondition_request import CreatePreconditionRequest
 from test_service_server.models.create_test_case_request import CreateTestCaseRequest
 
+from test_service.infrastructure.adapters.input.rest.authoring.preconditions.preconditions_rest_controller import (  # noqa: E501
+    PreconditionsRestController,
+)
 from test_service.infrastructure.adapters.input.rest.authoring.test_cases.test_cases_rest_controller import (  # noqa: E501
     TestCasesRestController,
 )
@@ -16,6 +20,7 @@ class AuthoringController(BaseAuthoringApi):
 
     def __init__(self) -> None:
         self._test_cases = TestCasesRestController()
+        self._preconditions = PreconditionsRestController()
 
     async def create_test_case(
         self,
@@ -76,4 +81,69 @@ class AuthoringController(BaseAuthoringApi):
     ):
         return await self._test_cases.list_versions(
             projectKey, testKey, status, offset, limit, sort_by, order
+        )
+
+    async def create_precondition(
+        self,
+        projectKey: str,  # NOSONAR
+        create_precondition_request: CreatePreconditionRequest,  # NOSONAR
+    ):  # NOSONAR
+        return await self._preconditions.create(projectKey, create_precondition_request)
+
+    async def get_precondition(
+        self,
+        projectKey: str,  # NOSONAR
+        preconditionId: UUID,  # NOSONAR
+    ):  # NOSONAR
+        return await self._preconditions.get(projectKey, preconditionId)
+
+    async def create_precondition_version(
+        self,
+        projectKey: str,  # NOSONAR
+        preconditionId: UUID,  # NOSONAR
+        create_precondition_request: CreatePreconditionRequest,  # NOSONAR
+    ):  # NOSONAR
+        return await self._preconditions.create_version(
+            projectKey, preconditionId, create_precondition_request
+        )
+
+    async def activate_precondition(
+        self,
+        projectKey: str,  # NOSONAR
+        preconditionId: UUID,  # NOSONAR
+        action_request: ActionRequest | None,
+    ):  # NOSONAR
+        return await self._preconditions.activate(projectKey, preconditionId, action_request)
+
+    async def deprecate_precondition(
+        self,
+        projectKey: str,  # NOSONAR
+        preconditionId: UUID,  # NOSONAR
+        action_request: ActionRequest | None,
+    ):  # NOSONAR
+        return await self._preconditions.deprecate(projectKey, preconditionId, action_request)
+
+    async def list_preconditions(
+        self,
+        projectKey: str,  # NOSONAR
+        status: str | None,
+        offset: int | None,
+        limit: int | None,
+        sort_by: str | None,
+        order,
+    ):  # NOSONAR
+        return await self._preconditions.list(projectKey, status, offset, limit, sort_by, order)
+
+    async def list_precondition_versions(
+        self,
+        projectKey: str,  # NOSONAR
+        preconditionKey: str,  # NOSONAR
+        status: str | None,
+        offset: int | None,
+        limit: int | None,
+        sort_by: str | None,
+        order,
+    ):  # NOSONAR
+        return await self._preconditions.list_versions(
+            projectKey, preconditionKey, status, offset, limit, sort_by, order
         )

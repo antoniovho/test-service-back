@@ -20,6 +20,8 @@ class ActivateTestCaseUseCaseImpl(ActivateTestCaseUseCase):
     async def execute(self, request: ActivateTestCaseCommand) -> TestCase:
         """Transition the requested Test Case snapshot to active."""
         test_case = await self._test_case_repository.find_by_id(request.identifier)
-        if test_case is None:
-            raise EntityNotFoundException("test case", str(request.identifier))
+        if test_case is None or test_case.project_key != request.project_key:
+            raise EntityNotFoundException(
+                "Test case", str(request.identifier), f"project '{request.project_key}'"
+            )
         return await self._test_case_repository.save(test_case.activate())

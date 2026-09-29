@@ -7,8 +7,14 @@ from test_service_server.models.definition import Definition as ApiDefinition
 from test_service_server.models.precondition_version_reference import PreconditionVersionReference
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 
-from test_service.domain.commons.pagination import SortOrder
-from test_service.domain.model.authoring.test_case import Priority, TestLevel, TestType
+from test_service.domain.commons.pagination import Page, PaginationParams, SortOrder
+from test_service.domain.model.authoring.definition import Action, Definition
+from test_service.domain.model.authoring.test_case import (
+    Priority,
+    TestCase,
+    TestLevel,
+    TestType,
+)
 from test_service.domain.model.lifecycle import VersionStatus
 from test_service.infrastructure.adapters.input.rest.authoring.test_cases.test_case_mapper import (  # noqa: E501
     TestCaseMapper,
@@ -32,6 +38,30 @@ def _request() -> CreateTestCaseRequest:
             variables={"url": "https://example.test"},
             actions=[ApiAction(id="request", type="HTTP_REQUEST", source="http", config={})],
         ),
+    )
+
+
+def _test_case() -> TestCase:
+    return TestCase(
+        identifier=uuid4(),
+        project_key="IAG",
+        test_key="IAG-1",
+        version=1,
+        name="Gateway test",
+        summary="Checks the gateway",
+        objective="Receive success",
+        test_type=TestType.AUTOMATED,
+        test_level=TestLevel.FUNCTIONAL,
+        priority=Priority.HIGH,
+        definition=Definition(
+            schema_version="1.0",
+            variables={},
+            actions=(Action(identifier="request", action_type="HTTP_REQUEST", configuration={}),),
+        ),
+        timeout_seconds=30,
+        created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        created_by="author@example.test",
+        metadata={"team": "gateway"},
     )
 
 
@@ -65,10 +95,33 @@ class TestTestCaseMapper:
         assert TestCaseMapper.to_pagination(None, None, None, None).limit == 20
         assert TestCaseMapper.to_status("ACTIVE") is VersionStatus.ACTIVE
         assert TestCaseMapper.to_status(None) is None
-        assert TestCaseMapper.to_get_query(identifier).identifier == identifier
-        assert TestCaseMapper.to_activate_command(identifier, "ok").reason == "ok"
-        assert TestCaseMapper.to_deprecate_command(identifier, None).reason is None
+        assert TestCaseMapper.to_get_query("IAG", identifier).project_key == "IAG"
+        assert TestCaseMapper.to_activate_command("IAG", identifier, "ok").reason == "ok"
+        assert TestCaseMapper.to_deprecate_command("IAG", identifier, None).reason is None
         assert TestCaseMapper.to_list_query("IAG", pagination, None).project_key == "IAG"
         assert (
             TestCaseMapper.to_versions_query("IAG", "IAG-1", pagination, None).test_key == "IAG-1"
         )
+
+    def test_when_test_case_is_mapped_expect_api_resource(self):
+        test_case = _test_case()
+
+        response = TestCaseMapper.to_api(test_case, "AI Gateway")
+
+        assert response.id == test_case.identifier
+        assert response.project.name == "AI Gateway"
+        assert response.definition.actions[0].id == "request"
+        assert response.metadata == {"team": "gateway"}
+
+    def test_when_test_case_page_is_mapped_expect_typed_list_responses(self):
+        test_case = _test_case()
+        page = Page((test_case,), total=1)
+        pagination = PaginationParams(offset=0, limit=10)
+
+        list_response = TestCaseMapper.to_list_response(page, "AI Gateway", pagination)
+        version_response = TestCaseMapper.to_version_list_response(page, "AI Gateway", pagination)
+
+        assert list_response.pagination.total == 1
+        assert list_response.data[0].test_key == "IAG-1"
+        assert version_response.pagination.limit == 10
+        assert version_response.data[0].id == test_case.identifier

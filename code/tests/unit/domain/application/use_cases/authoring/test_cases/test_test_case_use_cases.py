@@ -50,6 +50,9 @@ from test_service.domain.model.authoring.test_case import (
 from test_service.domain.model.exceptions.entity_not_found_exception import (
     EntityNotFoundException,
 )
+from test_service.domain.model.exceptions.test_case_already_exists_exception import (
+    TestCaseAlreadyExistsException,
+)
 from test_service.domain.model.lifecycle import VersionStatus
 
 
@@ -218,6 +221,21 @@ class TestCreateTestCaseUseCaseImpl:
         assert test_case.preconditions[0].identifier == precondition.identifier
         assert await repository.find_by_id(test_case.identifier) == test_case
 
+    async def test_when_test_key_exists_expect_conflict_with_version_endpoint(self):
+        existing = _test_case()
+        repository = InMemoryTestCaseRepository((existing,))
+        resolver = PreconditionReferenceResolver(InMemoryPreconditionRepository())
+        use_case = CreateTestCaseUseCaseImpl(repository, resolver)
+        request = _create_command()
+
+        with pytest.raises(TestCaseAlreadyExistsException) as exception:
+            await use_case.execute(request)
+
+        assert exception.value.code == "TEST_CASE_ALREADY_EXISTS"
+        assert (
+            "/v1/projects/IAG/test-cases/{testCaseId}/versions" in exception.value.error_description
+        )
+
 
 class TestCreateTestCaseVersionUseCaseImpl:
     async def test_when_source_exists_expect_next_draft_version_persisted(self):
@@ -278,7 +296,7 @@ class TestGetTestCaseUseCaseImpl:
         test_case = _test_case()
         use_case = GetTestCaseUseCaseImpl(InMemoryTestCaseRepository((test_case,)))
 
-        result = await use_case.execute(TestCaseQuery(test_case.identifier))
+        result = await use_case.execute(TestCaseQuery("IAG", test_case.identifier))
 
         assert result == test_case
 
@@ -286,9 +304,16 @@ class TestGetTestCaseUseCaseImpl:
         use_case = GetTestCaseUseCaseImpl(InMemoryTestCaseRepository())
 
         with pytest.raises(EntityNotFoundException) as exception:
-            await use_case.execute(TestCaseQuery(uuid4()))
+            await use_case.execute(TestCaseQuery("IAG", uuid4()))
 
         assert exception.value.code == "ENTITY_NOT_FOUND"
+
+    async def test_when_snapshot_belongs_to_another_project_expect_not_found_exception(self):
+        test_case = _test_case(project_key="OTHER")
+        use_case = GetTestCaseUseCaseImpl(InMemoryTestCaseRepository((test_case,)))
+
+        with pytest.raises(EntityNotFoundException):
+            await use_case.execute(TestCaseQuery("IAG", test_case.identifier))
 
 
 class TestLifecycleTestCaseUseCases:
@@ -297,7 +322,7 @@ class TestLifecycleTestCaseUseCases:
         repository = InMemoryTestCaseRepository((test_case,))
         use_case = ActivateTestCaseUseCaseImpl(repository)
 
-        activated = await use_case.execute(ActivateTestCaseCommand(test_case.identifier))
+        activated = await use_case.execute(ActivateTestCaseCommand("IAG", test_case.identifier))
 
         assert activated.status is VersionStatus.ACTIVE
         assert await repository.find_by_id(test_case.identifier) == activated
@@ -307,9 +332,30 @@ class TestLifecycleTestCaseUseCases:
         repository = InMemoryTestCaseRepository((test_case,))
         use_case = DeprecateTestCaseUseCaseImpl(repository)
 
-        deprecated = await use_case.execute(DeprecateTestCaseCommand(test_case.identifier))
+        deprecated = await use_case.execute(DeprecateTestCaseCommand("IAG", test_case.identifier))
 
         assert deprecated.status is VersionStatus.DEPRECATED
+
+    @pytest.mark.parametrize(
+        ("use_case_class", "command_class"),
+        [
+            (ActivateTestCaseUseCaseImpl, ActivateTestCaseCommand),
+            (DeprecateTestCaseUseCaseImpl, DeprecateTestCaseCommand),
+        ],
+        ids=["activate", "deprecate"],
+    )
+    async def test_when_lifecycle_snapshot_belongs_to_another_project_expect_not_found_exception(
+        self, use_case_class, command_class
+    ):
+        test_case = _test_case(project_key="OTHER")
+        repository = InMemoryTestCaseRepository((test_case,))
+        use_case = use_case_class(repository)
+        request = command_class("IAG", test_case.identifier)
+
+        with pytest.raises(EntityNotFoundException):
+            await use_case.execute(request)
+
+        assert await repository.find_by_id(test_case.identifier) == test_case
 
 
 class TestListTestCaseUseCases:
