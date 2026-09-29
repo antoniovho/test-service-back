@@ -9,6 +9,10 @@ class DomainError(Enum):
     ENTITY_NOT_FOUND = ("ENTITY_NOT_FOUND", "Entity not found")
     PROJECT_ALREADY_EXISTS = ("PROJECT_ALREADY_EXISTS", "Project already exists")
     PROJECT_ALREADY_DELETED = ("PROJECT_ALREADY_DELETED", "Project is already deleted")
+    TEST_CASE_VERSION_ALREADY_EXISTS = (
+        "TEST_CASE_VERSION_ALREADY_EXISTS",
+        "Test case version already exists",
+    )
     INVALID_PROJECT_DELETION = ("INVALID_PROJECT_DELETION", "Invalid project deletion metadata")
     PRECONDITION_PROJECT_MISMATCH = (
         "PRECONDITION_PROJECT_MISMATCH",

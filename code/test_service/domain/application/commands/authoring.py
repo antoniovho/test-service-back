@@ -56,7 +56,6 @@ class CreateTestCaseVersionCommand:
     Args:
         source_id: UUID of the snapshot version selected as the version's parent.
         project_key: Owning project key.
-        test_key: Stable logical test case key.
         name: Human-readable name.
         summary: Concise scenario summary.
         objective: Expected scenario outcome.
@@ -73,7 +72,6 @@ class CreateTestCaseVersionCommand:
 
     source_id: UUID
     project_key: str
-    test_key: str
     name: str
     summary: str
     objective: str
