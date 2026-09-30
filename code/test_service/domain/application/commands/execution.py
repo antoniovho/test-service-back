@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
+from test_service.domain.model.execution.environment import ConfigurationValue
 from test_service.domain.model.execution.execution import TriggerType
 
 
@@ -25,7 +26,7 @@ class CreateEnvironmentCommand:
     requested_by: str
     requested_at: datetime
     description: str | None = None
-    configuration: dict[str, object] | None = None
+    configuration: dict[str, ConfigurationValue] | None = None
 
 
 @dataclass(frozen=True, slots=True)

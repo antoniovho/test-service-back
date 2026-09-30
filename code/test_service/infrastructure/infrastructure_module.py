@@ -3,6 +3,9 @@
 from opyoid import Module  # type: ignore
 
 from test_service.config import PostgresDatabaseSettings
+from test_service.domain.ports.output.persistence.environments.environment_persistence_port import (  # noqa: E501
+    EnvironmentPersistencePort,
+)
 from test_service.domain.ports.output.persistence.preconditions.precondition_persistence_port import (  # noqa: E501
     PreconditionPersistencePort,
 )
@@ -49,6 +52,12 @@ from .adapters.output.composition.test_sets.persistence.repositories.test_set_re
 from .adapters.output.composition.test_sets.persistence.test_set_persistence_adapter import (
     TestSetPersistenceAdapter,
 )
+from .adapters.output.execution.environments.environment_persistence_adapter import (
+    EnvironmentPersistenceAdapter,
+)
+from .adapters.output.execution.environments.persistence.repositories.environment_repository import (  # noqa: E501
+    EnvironmentRepository,
+)
 from .adapters.output.projects.persistence.project_persistence_adapter import (
     ProjectPersistenceAdapter,
 )
@@ -84,6 +93,14 @@ class AuthoringModule(Module):
         self.bind(TestPlanPersistencePort, to_class=TestPlanPersistenceAdapter)
 
 
+class ExecutionModule(Module):
+    """Bind persistence adapters required by execution environments."""
+
+    def configure(self) -> None:
+        self.bind(EnvironmentRepository)
+        self.bind(EnvironmentPersistencePort, to_class=EnvironmentPersistenceAdapter)
+
+
 class InfrastructureModule(Module):
     """Master module for outbound infrastructure adapters."""
 
@@ -91,3 +108,4 @@ class InfrastructureModule(Module):
         self.install(DatabaseModule)
         self.install(ProjectModule)
         self.install(AuthoringModule)
+        self.install(ExecutionModule)

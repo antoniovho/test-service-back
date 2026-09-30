@@ -95,6 +95,21 @@ from test_service.domain.application.use_cases.composition.test_sets.list_test_s
 from test_service.domain.application.use_cases.composition.test_sets.list_test_sets_use_case import (  # noqa: E501
     ListTestSetsUseCaseImpl,
 )
+from test_service.domain.application.use_cases.execution.environments.activate_environment_use_case import (  # noqa: E501
+    ActivateEnvironmentUseCaseImpl,
+)
+from test_service.domain.application.use_cases.execution.environments.create_environment_use_case import (  # noqa: E501
+    CreateEnvironmentUseCaseImpl,
+)
+from test_service.domain.application.use_cases.execution.environments.deactivate_environment_use_case import (  # noqa: E501
+    DeactivateEnvironmentUseCaseImpl,
+)
+from test_service.domain.application.use_cases.execution.environments.get_environment_use_case import (  # noqa: E501
+    GetEnvironmentUseCaseImpl,
+)
+from test_service.domain.application.use_cases.execution.environments.list_environments_use_case import (  # noqa: E501
+    ListEnvironmentsUseCaseImpl,
+)
 from test_service.domain.application.use_cases.projects.create_project_use_case import (
     CreateProjectUseCaseImpl,
 )
@@ -191,6 +206,21 @@ from test_service.domain.ports.input.use_cases.composition.test_sets.list_test_s
 from test_service.domain.ports.input.use_cases.composition.test_sets.list_test_sets_use_case import (  # noqa: E501
     ListTestSetsUseCase,
 )
+from test_service.domain.ports.input.use_cases.execution.environments.activate_environment_use_case import (  # noqa: E501
+    ActivateEnvironmentUseCase,
+)
+from test_service.domain.ports.input.use_cases.execution.environments.create_environment_use_case import (  # noqa: E501
+    CreateEnvironmentUseCase,
+)
+from test_service.domain.ports.input.use_cases.execution.environments.deactivate_environment_use_case import (  # noqa: E501
+    DeactivateEnvironmentUseCase,
+)
+from test_service.domain.ports.input.use_cases.execution.environments.get_environment_use_case import (  # noqa: E501
+    GetEnvironmentUseCase,
+)
+from test_service.domain.ports.input.use_cases.execution.environments.list_environments_use_case import (  # noqa: E501
+    ListEnvironmentsUseCase,
+)
 from test_service.domain.ports.input.use_cases.projects.create_project_use_case import (
     CreateProjectUseCase,
 )
@@ -270,6 +300,17 @@ class TestPlansModule(Module):
         self.bind(ListTestPlanVersionsUseCase, to_class=ListTestPlanVersionsUseCaseImpl)
 
 
+class EnvironmentsModule(Module):
+    """Binds execution environment use case ports to their implementations."""
+
+    def configure(self) -> None:
+        self.bind(CreateEnvironmentUseCase, to_class=CreateEnvironmentUseCaseImpl)
+        self.bind(GetEnvironmentUseCase, to_class=GetEnvironmentUseCaseImpl)
+        self.bind(ListEnvironmentsUseCase, to_class=ListEnvironmentsUseCaseImpl)
+        self.bind(ActivateEnvironmentUseCase, to_class=ActivateEnvironmentUseCaseImpl)
+        self.bind(DeactivateEnvironmentUseCase, to_class=DeactivateEnvironmentUseCaseImpl)
+
+
 class DomainModule(Module):
     """Domain modules available in the runnable application composition."""
 
@@ -279,3 +320,4 @@ class DomainModule(Module):
         self.install(PreconditionsModule)
         self.install(TestSetsModule)
         self.install(TestPlansModule)
+        self.install(EnvironmentsModule)
