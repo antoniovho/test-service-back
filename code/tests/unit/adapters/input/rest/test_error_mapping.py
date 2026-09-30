@@ -8,6 +8,9 @@ from test_service.domain.model.exceptions.domain_exception import DomainExceptio
 from test_service.domain.model.exceptions.entity_not_found_exception import (
     EntityNotFoundException,
 )
+from test_service.domain.model.exceptions.environment_already_exists_exception import (
+    EnvironmentAlreadyExistsException,
+)
 from test_service.domain.model.exceptions.invalid_action_exception import InvalidActionException
 from test_service.domain.model.exceptions.invalid_artifact_storage_exception import (
     InvalidArtifactStorageException,
@@ -180,6 +183,7 @@ class TestExceptionStatusMap:
             TestSetAlreadyExistsException: HTTPStatus.CONFLICT,
             TestPlanAlreadyExistsException: HTTPStatus.CONFLICT,
             PreconditionAlreadyExistsException: HTTPStatus.CONFLICT,
+            EnvironmentAlreadyExistsException: HTTPStatus.CONFLICT,
             PreconditionProjectMismatchException: HTTPStatus.UNPROCESSABLE_ENTITY,
             InvalidActionException: HTTPStatus.UNPROCESSABLE_ENTITY,
             InvalidDefinitionException: HTTPStatus.UNPROCESSABLE_ENTITY,

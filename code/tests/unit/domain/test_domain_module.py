@@ -67,6 +67,9 @@ from test_service.domain.ports.input.use_cases.projects.get_project_use_case imp
 from test_service.domain.ports.input.use_cases.projects.list_projects_use_case import (
     ListProjectsUseCase,
 )
+from test_service.domain.ports.output.persistence.environments.environment_persistence_port import (  # noqa: E501
+    EnvironmentPersistencePort,
+)
 from test_service.domain.ports.output.persistence.preconditions.precondition_persistence_port import (  # noqa: E501
     PreconditionPersistencePort,
 )
@@ -148,6 +151,20 @@ class _FakeTestPlanRepository:
         raise NotImplementedError
 
 
+class _FakeEnvironmentRepository:
+    async def save(self, environment):
+        return environment
+
+    async def find_by_id(self, identifier):
+        return None
+
+    async def find_by_key(self, environment_key):
+        return None
+
+    async def find_page(self, pagination):
+        raise NotImplementedError
+
+
 class TestDomainModule:
     def test_when_injecting_project_use_cases_expect_bound_implementations(self):
         injector = Injector(
@@ -158,6 +175,7 @@ class TestDomainModule:
                 InstanceBinding(PreconditionPersistencePort, _FakePreconditionRepository()),
                 InstanceBinding(TestSetPersistencePort, _FakeTestSetRepository()),
                 InstanceBinding(TestPlanPersistencePort, _FakeTestPlanRepository()),
+                InstanceBinding(EnvironmentPersistencePort, _FakeEnvironmentRepository()),
             ],
         )
 
