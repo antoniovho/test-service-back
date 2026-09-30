@@ -1,12 +1,18 @@
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from test_service.domain.commons.pagination import PaginationParams, SortOrder
 from test_service.domain.model.viewer.records import ViewerType
+from test_service.infrastructure.adapters.output.commons.persistence.postgres.postgres_session_provider import (  # noqa: E501
+    PostgresSessionProvider,
+)
 from test_service.infrastructure.adapters.output.viewer.persistence.dtos.viewer_dtos import (
     DriftEventDTO,
     ViewerSyncRecordDTO,
@@ -16,13 +22,13 @@ from test_service.infrastructure.adapters.output.viewer.persistence.repositories
 )
 
 
-class _SessionProvider:
+class _SessionProvider(PostgresSessionProvider):
     def __init__(self, session: MagicMock) -> None:
         self._session = session
 
     @asynccontextmanager
-    async def session(self):
-        yield self._session
+    async def session(self) -> AsyncGenerator[AsyncSession]:
+        yield cast(AsyncSession, self._session)
 
 
 def _sync_dto() -> ViewerSyncRecordDTO:
