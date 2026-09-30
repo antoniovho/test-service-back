@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
@@ -9,11 +9,15 @@ from test_service_server.models.viewer_type import ViewerType as ApiViewerType
 
 from test_service.domain.commons.pagination import Page
 from test_service.domain.model.viewer.records import (
+    DriftEvent,
+    DriftType,
+    NotificationStatus,
     SyncStatus,
     ViewerEntityType,
     ViewerSyncRecord,
     ViewerType,
 )
+from test_service.infrastructure.adapters.input.rest.viewer import viewer_integration_controller
 from test_service.infrastructure.adapters.input.rest.viewer.viewer_integration_controller import (
     ViewerIntegrationController,
 )
@@ -37,6 +41,90 @@ def _controller() -> ViewerIntegrationController:
 
 
 class TestViewerRest:
+    def test_when_creating_controller_expect_all_use_cases_injected(self, monkeypatch) -> None:
+        injector = SimpleNamespace(inject=MagicMock(side_effect=[object() for _ in range(7)]))
+        monkeypatch.setattr(viewer_integration_controller, "get_injector", lambda: injector)
+
+        controller = ViewerIntegrationController()
+
+        assert injector.inject.call_count == 7
+        assert controller._publish is not None
+        assert controller._list_project_drift is not None
+
+    async def test_when_checking_drift_expect_project_name_in_response(self) -> None:
+        record = ViewerSyncRecord(
+            identifier=uuid4(),
+            project_key="IAG",
+            entity_type=ViewerEntityType.TEST_CASE,
+            entity_key="LOGIN",
+            projected_version_id=uuid4(),
+            viewer_type=ViewerType.XRAY,
+            external_entity_key="LOGIN",
+            sync_status=SyncStatus.SYNCED,
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        )
+        event = DriftEvent(
+            identifier=uuid4(),
+            project_key="IAG",
+            sync_record_id=record.identifier,
+            projected_version_id=record.projected_version_id,
+            detected_at=datetime(2026, 1, 2, tzinfo=UTC),
+            drift_type=DriftType.MISSING,
+            notification_status=NotificationStatus.PENDING,
+        )
+        controller = _controller()
+        controller._check_drift.execute = AsyncMock(return_value=(event,))
+
+        response = await controller.check_viewer_drift(
+            "IAG", ViewerOperationRequest(viewerType="XRAY")
+        )
+
+        assert response.data[0].project.name == "AI Gateway"
+        assert controller._check_drift.execute.await_args.args[0].viewer_type is ViewerType.XRAY
+
+    async def test_when_listing_viewer_data_expect_project_names_resolved_once_per_project(
+        self,
+    ) -> None:
+        record = ViewerSyncRecord(
+            identifier=uuid4(),
+            project_key="IAG",
+            entity_type=ViewerEntityType.TEST_CASE,
+            entity_key="LOGIN",
+            projected_version_id=uuid4(),
+            viewer_type=ViewerType.XRAY,
+            external_entity_key="LOGIN",
+            sync_status=SyncStatus.SYNCED,
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        )
+        event = DriftEvent(
+            identifier=uuid4(),
+            project_key="IAG",
+            sync_record_id=record.identifier,
+            projected_version_id=record.projected_version_id,
+            detected_at=datetime(2026, 1, 2, tzinfo=UTC),
+            drift_type=DriftType.MISSING,
+            notification_status=NotificationStatus.PENDING,
+        )
+        controller = _controller()
+        controller._list_sync.execute = AsyncMock(return_value=Page((record,), 1))
+        controller._list_project_sync.execute = AsyncMock(return_value=Page((record,), 1))
+        controller._list_drift.execute = AsyncMock(return_value=Page((event,), 1))
+        controller._list_project_drift.execute = AsyncMock(return_value=Page((event,), 1))
+
+        sync = await controller.list_viewer_sync_records(None, 0, 20, None, None)
+        project_sync = await controller.list_project_viewer_sync_records(
+            "IAG", None, 0, 20, None, None
+        )
+        drift = await controller.list_viewer_drift_events(None, 0, 20, None, None)
+        project_drift = await controller.list_project_viewer_drift_events(
+            "IAG", None, 0, 20, None, None
+        )
+
+        assert sync.data[0].project.name == "AI Gateway"
+        assert project_sync.data[0].project.name == "AI Gateway"
+        assert drift.data[0].project.name == "AI Gateway"
+        assert project_drift.data[0].project.name == "AI Gateway"
+
     async def test_when_publishing_viewer_projection_expect_project_name_in_response(self) -> None:
         record = ViewerSyncRecord(
             identifier=uuid4(),
