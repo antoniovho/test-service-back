@@ -24,8 +24,20 @@ from test_service.domain.application.use_cases.authoring.test_cases.list_test_ca
 from test_service.domain.application.use_cases.execution.executions.cancel_execution_use_case import (  # noqa: E501
     CancelExecutionUseCaseImpl,
 )
+from test_service.domain.application.use_cases.execution.executions.get_execution_result_use_case import (  # noqa: E501
+    GetExecutionResultUseCaseImpl,
+)
 from test_service.domain.application.use_cases.execution.executions.get_execution_use_case import (  # noqa: E501
     GetExecutionUseCaseImpl,
+)
+from test_service.domain.application.use_cases.execution.executions.list_execution_result_actions_use_case import (  # noqa: E501
+    ListExecutionResultActionsUseCaseImpl,
+)
+from test_service.domain.application.use_cases.execution.executions.list_execution_result_artifacts_use_case import (  # noqa: E501
+    ListExecutionResultArtifactsUseCaseImpl,
+)
+from test_service.domain.application.use_cases.execution.executions.list_execution_results_use_case import (  # noqa: E501
+    ListExecutionResultsUseCaseImpl,
 )
 from test_service.domain.application.use_cases.execution.executions.list_executions_use_case import (  # noqa: E501
     ListExecutionsUseCaseImpl,
@@ -70,8 +82,20 @@ from test_service.domain.ports.input.use_cases.authoring.test_cases.list_test_ca
 from test_service.domain.ports.input.use_cases.execution.executions.cancel_execution_use_case import (  # noqa: E501
     CancelExecutionUseCase,
 )
+from test_service.domain.ports.input.use_cases.execution.executions.get_execution_result_use_case import (  # noqa: E501
+    GetExecutionResultUseCase,
+)
 from test_service.domain.ports.input.use_cases.execution.executions.get_execution_use_case import (  # noqa: E501
     GetExecutionUseCase,
+)
+from test_service.domain.ports.input.use_cases.execution.executions.list_execution_result_actions_use_case import (  # noqa: E501
+    ListExecutionResultActionsUseCase,
+)
+from test_service.domain.ports.input.use_cases.execution.executions.list_execution_result_artifacts_use_case import (  # noqa: E501
+    ListExecutionResultArtifactsUseCase,
+)
+from test_service.domain.ports.input.use_cases.execution.executions.list_execution_results_use_case import (  # noqa: E501
+    ListExecutionResultsUseCase,
 )
 from test_service.domain.ports.input.use_cases.execution.executions.list_executions_use_case import (  # noqa: E501
     ListExecutionsUseCase,
@@ -96,6 +120,9 @@ from test_service.domain.ports.output.persistence.environments.environment_persi
 )
 from test_service.domain.ports.output.persistence.executions.execution_persistence_port import (  # noqa: E501
     ExecutionPersistencePort,
+)
+from test_service.domain.ports.output.persistence.executions.execution_results_persistence_port import (  # noqa: E501
+    ExecutionResultsPersistencePort,
 )
 from test_service.domain.ports.output.persistence.preconditions.precondition_persistence_port import (  # noqa: E501
     PreconditionPersistencePort,
@@ -203,6 +230,20 @@ class _FakeExecutionRepository:
         raise NotImplementedError
 
 
+class _FakeExecutionResultsRepository:
+    async def find_result(self, identifier):
+        return None
+
+    async def find_results_page(self, execution_id, pagination):
+        raise NotImplementedError
+
+    async def find_actions_page(self, test_result_id, pagination):
+        raise NotImplementedError
+
+    async def find_artifacts_page(self, test_result_id, pagination):
+        raise NotImplementedError
+
+
 class TestDomainModule:
     def test_when_injecting_project_use_cases_expect_bound_implementations(self):
         injector = Injector(
@@ -215,6 +256,7 @@ class TestDomainModule:
                 InstanceBinding(TestPlanPersistencePort, _FakeTestPlanRepository()),
                 InstanceBinding(EnvironmentPersistencePort, _FakeEnvironmentRepository()),
                 InstanceBinding(ExecutionPersistencePort, _FakeExecutionRepository()),
+                InstanceBinding(ExecutionResultsPersistencePort, _FakeExecutionResultsRepository()),
             ],
         )
 
@@ -252,6 +294,7 @@ class TestDomainModule:
                 InstanceBinding(TestPlanPersistencePort, _FakeTestPlanRepository()),
                 InstanceBinding(EnvironmentPersistencePort, _FakeEnvironmentRepository()),
                 InstanceBinding(ExecutionPersistencePort, _FakeExecutionRepository()),
+                InstanceBinding(ExecutionResultsPersistencePort, _FakeExecutionResultsRepository()),
             ],
         )
 
@@ -259,3 +302,15 @@ class TestDomainModule:
         assert isinstance(injector.inject(GetExecutionUseCase), GetExecutionUseCaseImpl)
         assert isinstance(injector.inject(ListExecutionsUseCase), ListExecutionsUseCaseImpl)
         assert isinstance(injector.inject(CancelExecutionUseCase), CancelExecutionUseCaseImpl)
+        assert isinstance(
+            injector.inject(ListExecutionResultsUseCase), ListExecutionResultsUseCaseImpl
+        )
+        assert isinstance(injector.inject(GetExecutionResultUseCase), GetExecutionResultUseCaseImpl)
+        assert isinstance(
+            injector.inject(ListExecutionResultActionsUseCase),
+            ListExecutionResultActionsUseCaseImpl,
+        )
+        assert isinstance(
+            injector.inject(ListExecutionResultArtifactsUseCase),
+            ListExecutionResultArtifactsUseCaseImpl,
+        )

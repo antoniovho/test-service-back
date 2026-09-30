@@ -14,7 +14,7 @@ from test_service.domain.application.queries.authoring import (
     TestCaseQuery,
     TestCaseVersionsQuery,
 )
-from test_service.domain.application.services.precondition_references import (
+from test_service.domain.application.services.precondition_reference_resolver import (
     PreconditionReferenceResolver,
 )
 from test_service.domain.application.use_cases.authoring.test_cases.activate_test_case_use_case import (  # noqa: E501

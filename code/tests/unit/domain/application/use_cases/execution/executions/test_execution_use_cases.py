@@ -9,6 +9,9 @@ from test_service.domain.application.commands.execution import (
     ScheduleExecutionCommand,
 )
 from test_service.domain.application.queries.execution import ExecutionQuery, ListExecutionsQuery
+from test_service.domain.application.services.execution_access_resolver import (
+    ExecutionAccessResolver,
+)
 from test_service.domain.application.use_cases.execution.executions.cancel_execution_use_case import (  # noqa: E501
     CancelExecutionUseCaseImpl,
 )
@@ -165,14 +168,16 @@ class TestExecutionUseCases:
         execution = _execution()
         query = ExecutionQuery("IAG", execution.identifier)
 
-        result = await GetExecutionUseCaseImpl(_ExecutionRepository(execution)).execute(query)
+        result = await GetExecutionUseCaseImpl(
+            ExecutionAccessResolver(_ExecutionRepository(execution))
+        ).execute(query)
 
         assert result == execution
 
     async def test_when_execution_is_foreign_expect_not_found(self):
         execution = _execution("ZAR")
         query = ExecutionQuery("IAG", execution.identifier)
-        use_case = GetExecutionUseCaseImpl(_ExecutionRepository(execution))
+        use_case = GetExecutionUseCaseImpl(ExecutionAccessResolver(_ExecutionRepository(execution)))
 
         with pytest.raises(EntityNotFoundException):
             await use_case.execute(query)

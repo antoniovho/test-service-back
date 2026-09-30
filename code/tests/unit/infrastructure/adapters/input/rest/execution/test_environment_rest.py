@@ -160,6 +160,7 @@ class TestEnvironmentRest:
     def test_when_execution_controller_is_constructed_expect_feature_controllers(self, monkeypatch):
         environment_feature = MagicMock()
         execution_feature = MagicMock()
+        execution_results_feature = MagicMock()
         monkeypatch.setattr(
             "test_service.infrastructure.adapters.input.rest.execution.execution_controller."
             "EnvironmentsRestController",
@@ -170,8 +171,14 @@ class TestEnvironmentRest:
             "ExecutionsRestController",
             lambda: execution_feature,
         )
+        monkeypatch.setattr(
+            "test_service.infrastructure.adapters.input.rest.execution.execution_controller."
+            "ExecutionResultsRestController",
+            lambda: execution_results_feature,
+        )
 
         controller = ExecutionController()
 
         assert controller._environments is environment_feature
         assert controller._executions is execution_feature
+        assert controller._execution_results is execution_results_feature

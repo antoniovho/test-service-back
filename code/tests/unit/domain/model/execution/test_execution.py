@@ -143,6 +143,7 @@ class TestActionResultImmutability:
             action_id="login",
             action_type="HTTP_REQUEST",
             status=ResultStatus.PASSED,
+            created_at=CREATED_AT,
             expected=expected,
         )
 
