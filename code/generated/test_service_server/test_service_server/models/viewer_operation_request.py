@@ -23,21 +23,18 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Any, ClassVar, Dict, List
-from typing_extensions import Annotated
-from test_service_server.models.pagination import Pagination
-from test_service_server.models.test_case import TestCase
+from test_service_server.models.viewer_type import ViewerType
 try:
     from typing import Self
 except ImportError:
     from typing_extensions import Self
 
-class TestCaseListResponse(BaseModel):
+class ViewerOperationRequest(BaseModel):
     """
-    Paginated collection of test case versions.
+    Selects the external viewer targeted by a Viewer command.
     """ # noqa: E501
-    data: Annotated[List[TestCase], Field(max_length=100)] = Field(description="Test case versions in the current page.")
-    pagination: Pagination
-    __properties: ClassVar[List[str]] = ["data", "pagination"]
+    viewer_type: ViewerType = Field(alias="viewerType")
+    __properties: ClassVar[List[str]] = ["viewerType"]
 
     model_config = {
         "populate_by_name": True,
@@ -57,7 +54,7 @@ class TestCaseListResponse(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Self:
-        """Create an instance of TestCaseListResponse from a JSON string"""
+        """Create an instance of ViewerOperationRequest from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -76,21 +73,11 @@ class TestCaseListResponse(BaseModel):
             },
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of each item in data (list)
-        _items = []
-        if self.data:
-            for _item in self.data:
-                if _item:
-                    _items.append(_item.to_dict())
-            _dict['data'] = _items
-        # override the default output from pydantic by calling `to_dict()` of pagination
-        if self.pagination:
-            _dict['pagination'] = self.pagination.to_dict()
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Dict) -> Self:
-        """Create an instance of TestCaseListResponse from a dict"""
+        """Create an instance of ViewerOperationRequest from a dict"""
         if obj is None:
             return None
 
@@ -98,8 +85,7 @@ class TestCaseListResponse(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "data": [TestCase.from_dict(_item) for _item in obj.get("data")] if obj.get("data") is not None else None,
-            "pagination": Pagination.from_dict(obj.get("pagination")) if obj.get("pagination") is not None else None
+            "viewerType": obj.get("viewerType")
         })
         return _obj
 

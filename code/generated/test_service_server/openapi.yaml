@@ -7,7 +7,7 @@ info:
     \ executing validated plans, and publishing read-only projections to an external\
     \ testing viewer."
   title: Test Service
-  version: 0.1.6
+  version: 0.2.0
 servers:
 - description: Local development server
   url: http://localhost:8080
@@ -6081,6 +6081,13 @@ paths:
         schema:
           $ref: "#/components/schemas/ProjectKey"
         style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ViewerOperationRequest"
+        description: External viewer that receives the project projection.
+        required: true
       responses:
         "202":
           content:
@@ -6193,6 +6200,13 @@ paths:
         schema:
           $ref: "#/components/schemas/ProjectKey"
         style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ViewerOperationRequest"
+        description: External viewer whose project projection is checked for drift.
+        required: true
       responses:
         "202":
           content:
@@ -6305,6 +6319,16 @@ paths:
         schema:
           $ref: "#/components/schemas/ProjectKey"
         style: simple
+      - description: Optional external viewer integration used to filter the result
+          set.
+        example: XRAY
+        explode: true
+        in: query
+        name: viewerType
+        required: false
+        schema:
+          $ref: "#/components/schemas/ViewerType"
+        style: form
       - description: Number of records to skip before returning results.
         explode: true
         in: query
@@ -6456,6 +6480,16 @@ paths:
         schema:
           $ref: "#/components/schemas/ProjectKey"
         style: simple
+      - description: Optional external viewer integration used to filter the result
+          set.
+        example: XRAY
+        explode: true
+        in: query
+        name: viewerType
+        required: false
+        schema:
+          $ref: "#/components/schemas/ViewerType"
+        style: form
       - description: Number of records to skip before returning results.
         explode: true
         in: query
@@ -6599,6 +6633,16 @@ paths:
         records.
       operationId: listViewerSyncRecords
       parameters:
+      - description: Optional external viewer integration used to filter the result
+          set.
+        example: XRAY
+        explode: true
+        in: query
+        name: viewerType
+        required: false
+        schema:
+          $ref: "#/components/schemas/ViewerType"
+        style: form
       - description: Number of records to skip before returning results.
         explode: true
         in: query
@@ -6742,6 +6786,16 @@ paths:
         states.
       operationId: listViewerDriftEvents
       parameters:
+      - description: Optional external viewer integration used to filter the result
+          set.
+        example: XRAY
+        explode: true
+        in: query
+        name: viewerType
+        required: false
+        schema:
+          $ref: "#/components/schemas/ViewerType"
+        style: form
       - description: Number of records to skip before returning results.
         explode: true
         in: query
@@ -7102,6 +7156,17 @@ components:
         - createdAt
         example: createdAt
         type: string
+      style: form
+    ViewerType:
+      description: Optional external viewer integration used to filter the result
+        set.
+      example: XRAY
+      explode: true
+      in: query
+      name: viewerType
+      required: false
+      schema:
+        $ref: "#/components/schemas/ViewerType"
       style: form
     ViewerSyncRecordSortBy:
       description: Field used to sort the result set.
@@ -9537,6 +9602,25 @@ components:
       - pagination
       title: TestResultArtifactListResponse
       type: object
+    ViewerType:
+      description: Type of supported external viewer integration.
+      enum:
+      - XRAY
+      example: XRAY
+      title: ViewerType
+      type: string
+    ViewerOperationRequest:
+      additionalProperties: false
+      description: Selects the external viewer targeted by a Viewer command.
+      example:
+        viewerType: XRAY
+      properties:
+        viewerType:
+          $ref: "#/components/schemas/ViewerType"
+      required:
+      - viewerType
+      title: ViewerOperationRequest
+      type: object
     ViewerSyncRecord:
       additionalProperties: false
       description: |
@@ -9575,12 +9659,10 @@ components:
             UUID of the immutable domain version currently projected to the external viewer.
           title: projectedVersionId
         viewerType:
+          allOf:
+          - $ref: "#/components/schemas/ViewerType"
           description: Type of external viewer containing the projection.
-          enum:
-          - XRAY
-          example: XRAY
           title: viewerType
-          type: string
         externalEntityKey:
           description: |
             Stable identifier of the projected entity in the external viewer. Publishing a new domain version updates the same external entity instead of creating a new one.

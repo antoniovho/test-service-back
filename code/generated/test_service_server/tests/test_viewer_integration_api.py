@@ -9,7 +9,9 @@ from typing_extensions import Annotated  # noqa: F401
 from test_service_server.models.drift_event_list_response import DriftEventListResponse  # noqa: F401
 from test_service_server.models.error_details import ErrorDetails  # noqa: F401
 from test_service_server.models.sort_order import SortOrder  # noqa: F401
+from test_service_server.models.viewer_operation_request import ViewerOperationRequest  # noqa: F401
 from test_service_server.models.viewer_sync_record_list_response import ViewerSyncRecordListResponse  # noqa: F401
+from test_service_server.models.viewer_type import ViewerType  # noqa: F401
 
 
 def test_publish_viewer_projection(client: TestClient):
@@ -17,6 +19,7 @@ def test_publish_viewer_projection(client: TestClient):
 
     Publish canonical data to the external viewer
     """
+    viewer_operation_request = test_service_server.ViewerOperationRequest()
 
     headers = {
         "Authorization": "Bearer special-key",
@@ -26,6 +29,7 @@ def test_publish_viewer_projection(client: TestClient):
     #    "POST",
     #    "/v1/projects/{projectKey}/viewer/publications".format(projectKey='project_key_example'),
     #    headers=headers,
+    #    json=viewer_operation_request,
     #)
 
     # uncomment below to assert the status code of the HTTP response
@@ -37,6 +41,7 @@ def test_check_viewer_drift(client: TestClient):
 
     Detect changes made in the external viewer
     """
+    viewer_operation_request = test_service_server.ViewerOperationRequest()
 
     headers = {
         "Authorization": "Bearer special-key",
@@ -46,6 +51,7 @@ def test_check_viewer_drift(client: TestClient):
     #    "POST",
     #    "/v1/projects/{projectKey}/viewer/drift-checks".format(projectKey='project_key_example'),
     #    headers=headers,
+    #    json=viewer_operation_request,
     #)
 
     # uncomment below to assert the status code of the HTTP response
@@ -57,7 +63,7 @@ def test_list_project_viewer_sync_records(client: TestClient):
 
     List outbound synchronization records for a project
     """
-    params = [("offset", 0),     ("limit", 20),     ("sort_by", 'createdAt'),     ("order", 'ASC')]
+    params = [("viewer_type", test_service_server.ViewerType()),     ("offset", 0),     ("limit", 20),     ("sort_by", 'createdAt'),     ("order", 'ASC')]
     headers = {
         "Authorization": "Bearer special-key",
     }
@@ -78,7 +84,7 @@ def test_list_project_viewer_drift_events(client: TestClient):
 
     List detected viewer drift events for a project
     """
-    params = [("offset", 0),     ("limit", 20),     ("sort_by", 'detectedAt'),     ("order", 'ASC')]
+    params = [("viewer_type", test_service_server.ViewerType()),     ("offset", 0),     ("limit", 20),     ("sort_by", 'detectedAt'),     ("order", 'ASC')]
     headers = {
         "Authorization": "Bearer special-key",
     }
@@ -99,7 +105,7 @@ def test_list_viewer_sync_records(client: TestClient):
 
     List outbound synchronization records
     """
-    params = [("offset", 0),     ("limit", 20),     ("sort_by", 'createdAt'),     ("order", 'ASC')]
+    params = [("viewer_type", test_service_server.ViewerType()),     ("offset", 0),     ("limit", 20),     ("sort_by", 'createdAt'),     ("order", 'ASC')]
     headers = {
         "Authorization": "Bearer special-key",
     }
@@ -120,7 +126,7 @@ def test_list_viewer_drift_events(client: TestClient):
 
     List detected viewer drift events
     """
-    params = [("offset", 0),     ("limit", 20),     ("sort_by", 'detectedAt'),     ("order", 'ASC')]
+    params = [("viewer_type", test_service_server.ViewerType()),     ("offset", 0),     ("limit", 20),     ("sort_by", 'detectedAt'),     ("order", 'ASC')]
     headers = {
         "Authorization": "Bearer special-key",
     }

@@ -27,20 +27,19 @@ except ImportError:
     from typing_extensions import Self
 
 
-class SortOrder(str, Enum):
+class ViewerType(str, Enum):
     """
-    Sort direction for ordered collection results.
+    Type of supported external viewer integration.
     """
 
     """
     allowed enum values
     """
-    ASC = 'ASC'
-    DESC = 'DESC'
+    XRAY = 'XRAY'
 
     @classmethod
     def from_json(cls, json_str: str) -> Self:
-        """Create an instance of SortOrder from a JSON string"""
+        """Create an instance of ViewerType from a JSON string"""
         return cls(json.loads(json_str))
 
 

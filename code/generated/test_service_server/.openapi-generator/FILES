@@ -64,8 +64,10 @@ test_service_server/models/test_result_list_response.py
 test_service_server/models/test_set.py
 test_service_server/models/test_set_list_response.py
 test_service_server/models/test_set_version_list_response.py
+test_service_server/models/viewer_operation_request.py
 test_service_server/models/viewer_sync_record.py
 test_service_server/models/viewer_sync_record_list_response.py
+test_service_server/models/viewer_type.py
 test_service_server/security_api.py
 tests/conftest.py
 tests/test_authoring_api.py

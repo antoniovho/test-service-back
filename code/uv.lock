@@ -1586,6 +1586,7 @@ source = { editable = "." }
 dependencies = [
     { name = "asyncpg" },
     { name = "fastapi" },
+    { name = "httpx" },
     { name = "opyoid" },
     { name = "pydantic-settings" },
     { name = "pyjwt", extra = ["crypto"] },
@@ -1609,6 +1610,7 @@ dev = [
 requires-dist = [
     { name = "asyncpg", specifier = ">=0.30,<1.0" },
     { name = "fastapi", specifier = ">=0.115,<1.0" },
+    { name = "httpx", specifier = ">=0.28,<1.0" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.28,<1.0" },
     { name = "openapi-contract-toolkit", marker = "extra == 'dev'", url = "https://github.com/antoniovho/openapi-contract-toolkit/releases/download/v0.1.0/openapi_contract_toolkit-0.1.0-py3-none-any.whl" },
     { name = "opyoid", specifier = ">=4.0.0" },
