@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from types import SimpleNamespace
 from uuid import UUID, uuid4
 
 import pytest
@@ -12,6 +13,7 @@ from test_service.domain.application.queries.composition import (
     ListTestSetsQuery,
     TestSetQuery,
 )
+from test_service.domain.application.services.project_resolver import ProjectResolver
 from test_service.domain.application.services.test_case_snapshot_resolver import (
     TestCaseSnapshotResolver,
 )
@@ -39,6 +41,7 @@ from test_service.domain.model.exceptions.test_set_already_exists_exception impo
     TestSetAlreadyExistsException,
 )
 from test_service.domain.model.lifecycle import VersionStatus
+from test_service.domain.model.projects.project import ProjectStatus
 
 
 class _TestSetRepository:
@@ -165,12 +168,22 @@ def _command(item: UUID) -> CreateTestSetCommand:
     )
 
 
+def _project_resolver() -> ProjectResolver:
+    return ProjectResolver(
+        SimpleNamespace(
+            find_by_key=lambda key: _async_result(SimpleNamespace(status=ProjectStatus.ACTIVE))
+        )
+    )
+
+
 class TestTestSetUseCases:
     async def test_when_creating_valid_set_expect_first_draft_persisted(self):
         test_case = _test_case()
         repository = _TestSetRepository()
         use_case = CreateTestSetUseCaseImpl(
-            repository, TestCaseSnapshotResolver(_TestCaseRepository(test_case))
+            repository,
+            TestCaseSnapshotResolver(_TestCaseRepository(test_case)),
+            _project_resolver(),
         )
 
         result = await use_case.execute(_command(test_case.identifier))
@@ -194,6 +207,7 @@ class TestTestSetUseCases:
         use_case = CreateTestSetUseCaseImpl(
             _TestSetRepository((existing,)),
             TestCaseSnapshotResolver(_TestCaseRepository(test_case)),
+            _project_resolver(),
         )
         command = _command(test_case.identifier)
 
@@ -265,9 +279,13 @@ class TestTestSetUseCases:
         activated = await ActivateTestSetUseCaseImpl(repository).execute(
             ActivateTestSetCommand("IAG", snapshot.identifier)
         )
-        page = await ListTestSetsUseCaseImpl(repository).execute(
+        page = await ListTestSetsUseCaseImpl(repository, _project_resolver()).execute(
             ListTestSetsQuery("IAG", PaginationParams())
         )
 
         assert activated.status is VersionStatus.ACTIVE
         assert page.items == (activated,)
+
+
+async def _async_result(value):
+    return value
