@@ -273,6 +273,7 @@ class ActionResult:
         action_id: Definition-local action identifier.
         action_type: Resolved action type.
         status: Outcome state.
+        created_at: Action-result creation timestamp.
         expected: Optional expected small structured value.
         actual: Optional actual small structured value.
         output: Optional action-produced small structured value.
@@ -288,6 +289,7 @@ class ActionResult:
     action_id: str
     action_type: str
     status: ResultStatus
+    created_at: datetime
     expected: Mapping[str, object] | None = None
     actual: Mapping[str, object] | None = None
     output: Mapping[str, object] | None = None

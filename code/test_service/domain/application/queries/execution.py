@@ -59,10 +59,12 @@ class ListExecutionResultsQuery:
     """Request to list results belonging to an execution.
 
     Args:
+        project_key: Owning project key.
         execution_id: UUID of the owning execution.
         pagination: Page and ordering parameters.
     """
 
+    project_key: str
     execution_id: UUID
     pagination: PaginationParams
 
@@ -72,10 +74,12 @@ class ExecutionResultQuery:
     """Request to retrieve one result belonging to an execution.
 
     Args:
+        project_key: Owning project key.
         execution_id: UUID of the owning execution.
         test_result_id: UUID of the requested test result.
     """
 
+    project_key: str
     execution_id: UUID
     test_result_id: UUID
 
@@ -85,11 +89,13 @@ class ListExecutionResultActionsQuery:
     """Request to list action results belonging to one test result.
 
     Args:
+        project_key: Owning project key.
         execution_id: UUID of the owning execution.
         test_result_id: UUID of the owning test result.
         pagination: Page and ordering parameters.
     """
 
+    project_key: str
     execution_id: UUID
     test_result_id: UUID
     pagination: PaginationParams
@@ -100,11 +106,13 @@ class ListExecutionResultArtifactsQuery:
     """Request to list artifacts belonging to one test result.
 
     Args:
+        project_key: Owning project key.
         execution_id: UUID of the owning execution.
         test_result_id: UUID of the owning test result.
         pagination: Page and ordering parameters.
     """
 
+    project_key: str
     execution_id: UUID
     test_result_id: UUID
     pagination: PaginationParams
