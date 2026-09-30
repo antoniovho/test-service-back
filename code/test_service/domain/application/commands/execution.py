@@ -60,6 +60,7 @@ class ScheduleExecutionCommand:
     """Request to schedule an execution of exact snapshots.
 
     Args:
+        project_key: Owning project key.
         test_plan_id: UUID of the active test plan snapshot.
         environment_id: UUID of the active environment.
         trigger_type: Source of the execution request.
@@ -67,6 +68,7 @@ class ScheduleExecutionCommand:
         triggered_by: Optional initiating identity.
     """
 
+    project_key: str
     test_plan_id: UUID
     environment_id: UUID
     trigger_type: TriggerType
@@ -79,7 +81,9 @@ class CancelExecutionCommand:
     """Request to cancel an execution that has not reached a terminal state.
 
     Args:
+        project_key: Owning project key.
         identifier: UUID of the execution.
     """
 
+    project_key: str
     identifier: UUID

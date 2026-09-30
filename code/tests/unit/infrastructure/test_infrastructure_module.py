@@ -11,11 +11,17 @@ from test_service.domain.ports.input.use_cases.projects.create_project_use_case 
 from test_service.domain.ports.output.persistence.environments.environment_persistence_port import (  # noqa: E501
     EnvironmentPersistencePort,
 )
+from test_service.domain.ports.output.persistence.executions.execution_persistence_port import (  # noqa: E501
+    ExecutionPersistencePort,
+)
 from test_service.domain.ports.output.persistence.projects.project_persistence_port import (
     ProjectPersistencePort,
 )
 from test_service.infrastructure.adapters.output.execution.environments.environment_persistence_adapter import (  # noqa: E501
     EnvironmentPersistenceAdapter,
+)
+from test_service.infrastructure.adapters.output.execution.executions.execution_persistence_adapter import (  # noqa: E501
+    ExecutionPersistenceAdapter,
 )
 from test_service.infrastructure.adapters.output.projects.persistence.project_persistence_adapter import (  # noqa: E501
     ProjectPersistenceAdapter,
@@ -54,3 +60,13 @@ class TestInfrastructureModule:
         persistence_port = injector.inject(EnvironmentPersistencePort)
 
         assert isinstance(persistence_port, EnvironmentPersistenceAdapter)
+
+    def test_when_infrastructure_is_installed_expect_execution_port_resolves(
+        self,
+        postgres_settings_env: None,
+    ) -> None:
+        injector = Injector([DomainModule, InfrastructureModule])
+
+        persistence_port = injector.inject(ExecutionPersistencePort)
+
+        assert isinstance(persistence_port, ExecutionPersistenceAdapter)

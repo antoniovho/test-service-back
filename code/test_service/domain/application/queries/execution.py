@@ -22,9 +22,11 @@ class ExecutionQuery:
     """Request to retrieve an Execution by UUID.
 
     Args:
+        project_key: Owning project key.
         identifier: UUID of the requested Execution.
     """
 
+    project_key: str
     identifier: UUID
 
 

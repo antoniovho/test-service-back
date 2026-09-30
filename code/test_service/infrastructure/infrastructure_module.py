@@ -6,6 +6,9 @@ from test_service.config import PostgresDatabaseSettings
 from test_service.domain.ports.output.persistence.environments.environment_persistence_port import (  # noqa: E501
     EnvironmentPersistencePort,
 )
+from test_service.domain.ports.output.persistence.executions.execution_persistence_port import (  # noqa: E501
+    ExecutionPersistencePort,
+)
 from test_service.domain.ports.output.persistence.preconditions.precondition_persistence_port import (  # noqa: E501
     PreconditionPersistencePort,
 )
@@ -58,6 +61,12 @@ from .adapters.output.execution.environments.environment_persistence_adapter imp
 from .adapters.output.execution.environments.persistence.repositories.environment_repository import (  # noqa: E501
     EnvironmentRepository,
 )
+from .adapters.output.execution.executions.execution_persistence_adapter import (
+    ExecutionPersistenceAdapter,
+)
+from .adapters.output.execution.executions.persistence.repositories.execution_repository import (  # noqa: E501
+    ExecutionRepository,
+)
 from .adapters.output.projects.persistence.project_persistence_adapter import (
     ProjectPersistenceAdapter,
 )
@@ -94,11 +103,13 @@ class AuthoringModule(Module):
 
 
 class ExecutionModule(Module):
-    """Bind persistence adapters required by execution environments."""
+    """Bind persistence adapters required by execution resources."""
 
     def configure(self) -> None:
         self.bind(EnvironmentRepository)
+        self.bind(ExecutionRepository)
         self.bind(EnvironmentPersistencePort, to_class=EnvironmentPersistenceAdapter)
+        self.bind(ExecutionPersistencePort, to_class=ExecutionPersistenceAdapter)
 
 
 class InfrastructureModule(Module):

@@ -21,6 +21,18 @@ from test_service.domain.application.use_cases.authoring.test_cases.list_test_ca
 from test_service.domain.application.use_cases.authoring.test_cases.list_test_cases_use_case import (  # noqa: E501
     ListTestCasesUseCaseImpl,
 )
+from test_service.domain.application.use_cases.execution.executions.cancel_execution_use_case import (  # noqa: E501
+    CancelExecutionUseCaseImpl,
+)
+from test_service.domain.application.use_cases.execution.executions.get_execution_use_case import (  # noqa: E501
+    GetExecutionUseCaseImpl,
+)
+from test_service.domain.application.use_cases.execution.executions.list_executions_use_case import (  # noqa: E501
+    ListExecutionsUseCaseImpl,
+)
+from test_service.domain.application.use_cases.execution.executions.schedule_execution_use_case import (  # noqa: E501
+    ScheduleExecutionUseCaseImpl,
+)
 from test_service.domain.application.use_cases.projects.create_project_use_case import (
     CreateProjectUseCaseImpl,
 )
@@ -33,7 +45,7 @@ from test_service.domain.application.use_cases.projects.get_project_use_case imp
 from test_service.domain.application.use_cases.projects.list_projects_use_case import (
     ListProjectsUseCaseImpl,
 )
-from test_service.domain.domain_module import DomainModule, TestCasesModule
+from test_service.domain.domain_module import DomainModule, ExecutionsModule, TestCasesModule
 from test_service.domain.ports.input.use_cases.authoring.test_cases.activate_test_case_use_case import (  # noqa: E501
     ActivateTestCaseUseCase,
 )
@@ -55,6 +67,18 @@ from test_service.domain.ports.input.use_cases.authoring.test_cases.list_test_ca
 from test_service.domain.ports.input.use_cases.authoring.test_cases.list_test_cases_use_case import (  # noqa: E501
     ListTestCasesUseCase,
 )
+from test_service.domain.ports.input.use_cases.execution.executions.cancel_execution_use_case import (  # noqa: E501
+    CancelExecutionUseCase,
+)
+from test_service.domain.ports.input.use_cases.execution.executions.get_execution_use_case import (  # noqa: E501
+    GetExecutionUseCase,
+)
+from test_service.domain.ports.input.use_cases.execution.executions.list_executions_use_case import (  # noqa: E501
+    ListExecutionsUseCase,
+)
+from test_service.domain.ports.input.use_cases.execution.executions.schedule_execution_use_case import (  # noqa: E501
+    ScheduleExecutionUseCase,
+)
 from test_service.domain.ports.input.use_cases.projects.create_project_use_case import (
     CreateProjectUseCase,
 )
@@ -69,6 +93,9 @@ from test_service.domain.ports.input.use_cases.projects.list_projects_use_case i
 )
 from test_service.domain.ports.output.persistence.environments.environment_persistence_port import (  # noqa: E501
     EnvironmentPersistencePort,
+)
+from test_service.domain.ports.output.persistence.executions.execution_persistence_port import (  # noqa: E501
+    ExecutionPersistencePort,
 )
 from test_service.domain.ports.output.persistence.preconditions.precondition_persistence_port import (  # noqa: E501
     PreconditionPersistencePort,
@@ -165,6 +192,17 @@ class _FakeEnvironmentRepository:
         raise NotImplementedError
 
 
+class _FakeExecutionRepository:
+    async def save_execution(self, execution):
+        return execution
+
+    async def find_execution(self, identifier):
+        return None
+
+    async def find_page(self, project_key, pagination):
+        raise NotImplementedError
+
+
 class TestDomainModule:
     def test_when_injecting_project_use_cases_expect_bound_implementations(self):
         injector = Injector(
@@ -176,6 +214,7 @@ class TestDomainModule:
                 InstanceBinding(TestSetPersistencePort, _FakeTestSetRepository()),
                 InstanceBinding(TestPlanPersistencePort, _FakeTestPlanRepository()),
                 InstanceBinding(EnvironmentPersistencePort, _FakeEnvironmentRepository()),
+                InstanceBinding(ExecutionPersistencePort, _FakeExecutionRepository()),
             ],
         )
 
@@ -204,3 +243,19 @@ class TestDomainModule:
         assert isinstance(
             injector.inject(ListTestCaseVersionsUseCase), ListTestCaseVersionsUseCaseImpl
         )
+
+    def test_when_injecting_execution_use_cases_expect_bound_implementations(self):
+        injector = Injector(
+            [ExecutionsModule],
+            bindings=[
+                InstanceBinding(ProjectPersistencePort, _FakeProjectRepository()),
+                InstanceBinding(TestPlanPersistencePort, _FakeTestPlanRepository()),
+                InstanceBinding(EnvironmentPersistencePort, _FakeEnvironmentRepository()),
+                InstanceBinding(ExecutionPersistencePort, _FakeExecutionRepository()),
+            ],
+        )
+
+        assert isinstance(injector.inject(ScheduleExecutionUseCase), ScheduleExecutionUseCaseImpl)
+        assert isinstance(injector.inject(GetExecutionUseCase), GetExecutionUseCaseImpl)
+        assert isinstance(injector.inject(ListExecutionsUseCase), ListExecutionsUseCaseImpl)
+        assert isinstance(injector.inject(CancelExecutionUseCase), CancelExecutionUseCaseImpl)
