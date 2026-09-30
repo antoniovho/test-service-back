@@ -6,9 +6,7 @@ from test_service.domain.application.queries.viewer import (
     ListViewerDriftEventsQuery,
     ListViewerSyncRecordsQuery,
 )
-from test_service.domain.application.services.viewer_projection_service import (
-    ViewerProjectionService,
-)
+from test_service.domain.application.services.project_resolver import ProjectResolver
 from test_service.domain.commons.pagination import Page
 from test_service.domain.model.viewer.records import DriftEvent, ViewerSyncRecord
 from test_service.domain.ports.input.use_cases.viewer.list_project_viewer_drift_events_use_case import (  # noqa: E501
@@ -44,13 +42,13 @@ class ListProjectViewerSyncRecordsUseCaseImpl(ListProjectViewerSyncRecordsUseCas
     """List synchronization records for one existing project."""
 
     def __init__(
-        self, projection_service: ViewerProjectionService, viewer_repository: ViewerPersistencePort
+        self, project_resolver: ProjectResolver, viewer_repository: ViewerPersistencePort
     ) -> None:
-        self._projection_service = projection_service
+        self._project_resolver = project_resolver
         self._viewer_repository = viewer_repository
 
     async def execute(self, request: ListProjectViewerSyncRecordsQuery) -> Page[ViewerSyncRecord]:
-        await self._projection_service.ensure_project(request.project_key)
+        await self._project_resolver.resolve(request.project_key)
         return await self._viewer_repository.find_sync_records_page_by_project(
             request.project_key, request.pagination, request.viewer_type
         )
@@ -72,13 +70,13 @@ class ListProjectViewerDriftEventsUseCaseImpl(ListProjectViewerDriftEventsUseCas
     """List drift events for one existing project."""
 
     def __init__(
-        self, projection_service: ViewerProjectionService, viewer_repository: ViewerPersistencePort
+        self, project_resolver: ProjectResolver, viewer_repository: ViewerPersistencePort
     ) -> None:
-        self._projection_service = projection_service
+        self._project_resolver = project_resolver
         self._viewer_repository = viewer_repository
 
     async def execute(self, request: ListProjectViewerDriftEventsQuery) -> Page[DriftEvent]:
-        await self._projection_service.ensure_project(request.project_key)
+        await self._project_resolver.resolve(request.project_key)
         return await self._viewer_repository.find_drift_events_page_by_project(
             request.project_key, request.pagination, request.viewer_type
         )

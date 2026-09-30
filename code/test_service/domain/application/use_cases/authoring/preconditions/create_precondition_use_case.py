@@ -3,6 +3,7 @@
 from uuid import uuid4
 
 from test_service.domain.application.commands.authoring import CreatePreconditionCommand
+from test_service.domain.application.services.project_resolver import ProjectResolver
 from test_service.domain.model.authoring.precondition import Precondition
 from test_service.domain.model.exceptions.precondition_already_exists_exception import (
     PreconditionAlreadyExistsException,
@@ -18,11 +19,17 @@ from test_service.domain.ports.output.persistence.preconditions.precondition_per
 class CreatePreconditionUseCaseImpl(CreatePreconditionUseCase):
     """Creates the first draft snapshot of a Precondition."""
 
-    def __init__(self, precondition_repository: PreconditionPersistencePort) -> None:
+    def __init__(
+        self,
+        precondition_repository: PreconditionPersistencePort,
+        project_resolver: ProjectResolver,
+    ) -> None:
         self._precondition_repository = precondition_repository
+        self._project_resolver = project_resolver
 
     async def execute(self, request: CreatePreconditionCommand) -> Precondition:
         """Create and persist version one of a Precondition."""
+        await self._project_resolver.resolve_active(request.project_key)
         latest_version = await self._precondition_repository.find_latest_version(
             request.project_key, request.precondition_key
         )

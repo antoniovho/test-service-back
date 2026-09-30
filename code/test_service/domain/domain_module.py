@@ -11,6 +11,7 @@ from test_service.domain.application.services.execution_result_access_resolver i
 from test_service.domain.application.services.precondition_reference_resolver import (
     PreconditionReferenceResolver,
 )
+from test_service.domain.application.services.project_resolver import ProjectResolver
 from test_service.domain.application.services.test_case_snapshot_resolver import (
     TestCaseSnapshotResolver,
 )
@@ -435,6 +436,7 @@ class DomainModule(Module):
     """Domain modules available in the runnable application composition."""
 
     def configure(self) -> None:
+        self.bind(ProjectResolver)
         self.install(ProjectsModule)
         self.install(TestCasesModule)
         self.install(PreconditionsModule)

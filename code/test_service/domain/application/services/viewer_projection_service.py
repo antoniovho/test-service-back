@@ -4,8 +4,8 @@ from dataclasses import replace
 from datetime import UTC, datetime
 from uuid import uuid4
 
+from test_service.domain.application.services.project_resolver import ProjectResolver
 from test_service.domain.commons.pagination import MAX_PAGE_LIMIT, PaginationParams
-from test_service.domain.model.exceptions.entity_not_found_exception import EntityNotFoundException
 from test_service.domain.model.lifecycle import VersionStatus
 from test_service.domain.model.viewer.records import (
     SyncStatus,
@@ -15,9 +15,6 @@ from test_service.domain.model.viewer.records import (
 )
 from test_service.domain.ports.output.persistence.preconditions.precondition_persistence_port import (  # noqa: E501
     PreconditionPersistencePort,
-)
-from test_service.domain.ports.output.persistence.projects.project_persistence_port import (
-    ProjectPersistencePort,
 )
 from test_service.domain.ports.output.persistence.test_cases.test_case_persistence_port import (  # noqa: E501
     TestCasePersistencePort,
@@ -42,7 +39,7 @@ class ViewerProjectionService:
 
     def __init__(
         self,
-        project_repository: ProjectPersistencePort,
+        project_resolver: ProjectResolver,
         test_case_repository: TestCasePersistencePort,
         precondition_repository: PreconditionPersistencePort,
         test_set_repository: TestSetPersistencePort,
@@ -51,7 +48,7 @@ class ViewerProjectionService:
         viewer_publisher: ViewerPublisherPort,
         viewer_drift_detector: ViewerDriftDetectorPort,
     ) -> None:
-        self._project_repository = project_repository
+        self._project_resolver = project_resolver
         self._test_case_repository = test_case_repository
         self._precondition_repository = precondition_repository
         self._test_set_repository = test_set_repository
@@ -64,7 +61,7 @@ class ViewerProjectionService:
         self, project_key: str, viewer_type: ViewerType
     ) -> tuple[ViewerSyncRecord, ...]:
         """Queue projections for every active snapshot in an existing project."""
-        await self.ensure_project(project_key)
+        await self._project_resolver.resolve(project_key)
         records: list[ViewerSyncRecord] = []
         for entity_type, entity_key, identifier in await self._active_snapshots(project_key):
             record = ViewerSyncRecord(
@@ -94,7 +91,7 @@ class ViewerProjectionService:
 
     async def check_drift(self, project_key: str, viewer_type: ViewerType):
         """Check the selected external Viewer for drift in its project projections."""
-        await self.ensure_project(project_key)
+        await self._project_resolver.resolve(project_key)
         offset = 0
         while True:
             pagination = PaginationParams(offset=offset, limit=MAX_PAGE_LIMIT)
@@ -115,11 +112,6 @@ class ViewerProjectionService:
             offset += len(page.items)
             if offset >= page.total:
                 return ()
-
-    async def ensure_project(self, project_key: str) -> None:
-        """Raise a not-found error when the owning project does not exist."""
-        if await self._project_repository.find_by_key(project_key) is None:
-            raise EntityNotFoundException("project", project_key)
 
     async def _active_snapshots(self, project_key: str):
         test_cases = await self._all_active(self._test_case_repository, project_key)
