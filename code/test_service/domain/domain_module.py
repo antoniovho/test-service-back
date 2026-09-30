@@ -17,6 +17,9 @@ from test_service.domain.application.services.test_case_snapshot_resolver import
 from test_service.domain.application.services.test_set_snapshot_resolver import (
     TestSetSnapshotResolver,
 )
+from test_service.domain.application.services.viewer_projection_service import (
+    ViewerProjectionService,
+)
 from test_service.domain.application.use_cases.authoring.preconditions.activate_precondition_use_case import (  # noqa: E501
     ActivatePreconditionUseCaseImpl,
 )
@@ -151,6 +154,18 @@ from test_service.domain.application.use_cases.projects.get_project_use_case imp
 )
 from test_service.domain.application.use_cases.projects.list_projects_use_case import (
     ListProjectsUseCaseImpl,
+)
+from test_service.domain.application.use_cases.viewer.check_viewer_drift_use_case import (
+    CheckViewerDriftUseCaseImpl,
+)
+from test_service.domain.application.use_cases.viewer.publish_viewer_projection_use_case import (
+    PublishViewerProjectionUseCaseImpl,
+)
+from test_service.domain.application.use_cases.viewer.viewer_query_use_cases import (
+    ListProjectViewerDriftEventsUseCaseImpl,
+    ListProjectViewerSyncRecordsUseCaseImpl,
+    ListViewerDriftEventsUseCaseImpl,
+    ListViewerSyncRecordsUseCaseImpl,
 )
 from test_service.domain.ports.input.use_cases.authoring.preconditions.activate_precondition_use_case import (  # noqa: E501
     ActivatePreconditionUseCase,
@@ -287,6 +302,24 @@ from test_service.domain.ports.input.use_cases.projects.get_project_use_case imp
 from test_service.domain.ports.input.use_cases.projects.list_projects_use_case import (
     ListProjectsUseCase,
 )
+from test_service.domain.ports.input.use_cases.viewer.check_viewer_drift_use_case import (
+    CheckViewerDriftUseCase,
+)
+from test_service.domain.ports.input.use_cases.viewer.list_project_viewer_drift_events_use_case import (  # noqa: E501
+    ListProjectViewerDriftEventsUseCase,
+)
+from test_service.domain.ports.input.use_cases.viewer.list_project_viewer_sync_records_use_case import (  # noqa: E501
+    ListProjectViewerSyncRecordsUseCase,
+)
+from test_service.domain.ports.input.use_cases.viewer.list_viewer_drift_events_use_case import (
+    ListViewerDriftEventsUseCase,
+)
+from test_service.domain.ports.input.use_cases.viewer.list_viewer_sync_records_use_case import (
+    ListViewerSyncRecordsUseCase,
+)
+from test_service.domain.ports.input.use_cases.viewer.publish_viewer_projection_use_case import (
+    PublishViewerProjectionUseCase,
+)
 
 
 class ProjectsModule(Module):
@@ -383,6 +416,21 @@ class ExecutionsModule(Module):
         )
 
 
+class ViewerModule(Module):
+    def configure(self) -> None:
+        self.bind(ViewerProjectionService)
+        self.bind(PublishViewerProjectionUseCase, to_class=PublishViewerProjectionUseCaseImpl)
+        self.bind(CheckViewerDriftUseCase, to_class=CheckViewerDriftUseCaseImpl)
+        self.bind(ListViewerSyncRecordsUseCase, to_class=ListViewerSyncRecordsUseCaseImpl)
+        self.bind(
+            ListProjectViewerSyncRecordsUseCase, to_class=ListProjectViewerSyncRecordsUseCaseImpl
+        )
+        self.bind(ListViewerDriftEventsUseCase, to_class=ListViewerDriftEventsUseCaseImpl)
+        self.bind(
+            ListProjectViewerDriftEventsUseCase, to_class=ListProjectViewerDriftEventsUseCaseImpl
+        )
+
+
 class DomainModule(Module):
     """Domain modules available in the runnable application composition."""
 
@@ -394,3 +442,4 @@ class DomainModule(Module):
         self.install(TestPlansModule)
         self.install(EnvironmentsModule)
         self.install(ExecutionsModule)
+        self.install(ViewerModule)
