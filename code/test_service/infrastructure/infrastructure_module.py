@@ -88,7 +88,7 @@ from .adapters.output.projects.persistence.project_persistence_adapter import (
 )
 from .adapters.output.projects.persistence.repositories.project_repository import ProjectRepository
 from .adapters.output.viewer.persistence.repositories.viewer_repository import ViewerRepository
-from .adapters.output.viewer.viewer_persistence_adapter import ViewerPersistenceAdapter
+from .adapters.output.viewer.persistence.viewer_persistence_adapter import ViewerPersistenceAdapter
 from .adapters.output.viewer.xray_viewer_adapter import XrayViewerAdapter
 
 
