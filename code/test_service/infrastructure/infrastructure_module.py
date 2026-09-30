@@ -9,6 +9,9 @@ from test_service.domain.ports.output.persistence.environments.environment_persi
 from test_service.domain.ports.output.persistence.executions.execution_persistence_port import (  # noqa: E501
     ExecutionPersistencePort,
 )
+from test_service.domain.ports.output.persistence.executions.execution_results_persistence_port import (  # noqa: E501
+    ExecutionResultsPersistencePort,
+)
 from test_service.domain.ports.output.persistence.preconditions.precondition_persistence_port import (  # noqa: E501
     PreconditionPersistencePort,
 )
@@ -64,8 +67,14 @@ from .adapters.output.execution.environments.persistence.repositories.environmen
 from .adapters.output.execution.executions.execution_persistence_adapter import (
     ExecutionPersistenceAdapter,
 )
+from .adapters.output.execution.executions.execution_results_persistence_adapter import (  # noqa: E501
+    ExecutionResultsPersistenceAdapter,
+)
 from .adapters.output.execution.executions.persistence.repositories.execution_repository import (  # noqa: E501
     ExecutionRepository,
+)
+from .adapters.output.execution.executions.persistence.repositories.execution_results_repository import (  # noqa: E501
+    ExecutionResultsRepository,
 )
 from .adapters.output.projects.persistence.project_persistence_adapter import (
     ProjectPersistenceAdapter,
@@ -108,8 +117,10 @@ class ExecutionModule(Module):
     def configure(self) -> None:
         self.bind(EnvironmentRepository)
         self.bind(ExecutionRepository)
+        self.bind(ExecutionResultsRepository)
         self.bind(EnvironmentPersistencePort, to_class=EnvironmentPersistenceAdapter)
         self.bind(ExecutionPersistencePort, to_class=ExecutionPersistenceAdapter)
+        self.bind(ExecutionResultsPersistencePort, to_class=ExecutionResultsPersistenceAdapter)
 
 
 class InfrastructureModule(Module):
