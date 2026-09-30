@@ -26,35 +26,43 @@ from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from typing_extensions import Annotated
 from uuid import UUID
-from test_service_server.models.definition import Definition
 from test_service_server.models.project_reference import ProjectReference
+from test_service_server.models.viewer_type import ViewerType
 try:
     from typing import Self
 except ImportError:
     from typing_extensions import Self
 
-class Precondition(BaseModel):
+class ViewerOperation(BaseModel):
     """
-    Immutable version of a validation precondition.
+    Public, asynchronous request to publish a project projection or check it for drift. This resource exposes only safe operation progress and aggregate counters; provider payloads, projection fingerprints, external identifiers, and internal errors are never exposed here. 
     """ # noqa: E501
     id: UUID = Field(description="Universally unique identifier.", json_schema_extra={"examples": ["550e8400-e29b-41d4-a716-446655440000"]})
     project: ProjectReference
-    precondition_key: Annotated[str, Field(min_length=1, strict=True, max_length=100)] = Field(description="Stable business key of the precondition.", alias="preconditionKey", json_schema_extra={"examples": ["customer-is-authenticated"]})
-    version: Annotated[int, Field(strict=True, ge=1)] = Field(description="Monotonically increasing version number.", json_schema_extra={"examples": [1]})
-    name: Annotated[str, Field(min_length=1, strict=True, max_length=255)] = Field(description="Human-readable precondition name.", json_schema_extra={"examples": ["Customer is authenticated"]})
-    description: StrictStr = Field(description="Behavior validated before execution.", json_schema_extra={"examples": ["Checks that the customer session is valid"]})
-    validation_definition: Definition = Field(alias="validationDefinition")
-    status: StrictStr = Field(description="Lifecycle status of this version.", json_schema_extra={"examples": ["ACTIVE"]})
-    created_at: datetime = Field(description="Creation timestamp in UTC.", alias="createdAt", json_schema_extra={"examples": ["2026-01-15T10:30:00Z"]})
-    created_by: Annotated[str, Field(min_length=1, strict=True, max_length=255)] = Field(description="Identity that created the version.", alias="createdBy", json_schema_extra={"examples": ["user@example.com"]})
-    metadata: Optional[Dict[str, Any]] = Field(default=None, description="Additional domain metadata.", json_schema_extra={"examples": [{"team": "payments"}]})
-    __properties: ClassVar[List[str]] = ["id", "project", "preconditionKey", "version", "name", "description", "validationDefinition", "status", "createdAt", "createdBy", "metadata"]
+    viewer_type: ViewerType = Field(alias="viewerType")
+    operation_type: StrictStr = Field(alias="operationType")
+    status: StrictStr
+    created_at: datetime = Field(alias="createdAt")
+    started_at: Optional[datetime] = Field(default=None, alias="startedAt")
+    finished_at: Optional[datetime] = Field(default=None, alias="finishedAt")
+    total_items: Optional[Annotated[int, Field(strict=True, ge=0)]] = Field(default=None, alias="totalItems")
+    succeeded_items: Optional[Annotated[int, Field(strict=True, ge=0)]] = Field(default=None, alias="succeededItems")
+    failed_items: Optional[Annotated[int, Field(strict=True, ge=0)]] = Field(default=None, alias="failedItems")
+    error: Optional[Annotated[str, Field(strict=True, max_length=1000)]] = Field(default=None, description="Safe functional error summary, when available.")
+    __properties: ClassVar[List[str]] = ["id", "project", "viewerType", "operationType", "status", "createdAt", "startedAt", "finishedAt", "totalItems", "succeededItems", "failedItems", "error"]
+
+    @field_validator('operation_type')
+    def operation_type_validate_enum(cls, value):
+        """Validates the enum"""
+        if value not in ('PUBLICATION', 'DRIFT_CHECK',):
+            raise ValueError("must be one of enum values ('PUBLICATION', 'DRIFT_CHECK')")
+        return value
 
     @field_validator('status')
     def status_validate_enum(cls, value):
         """Validates the enum"""
-        if value not in ('DRAFT', 'ACTIVE', 'DEPRECATED',):
-            raise ValueError("must be one of enum values ('DRAFT', 'ACTIVE', 'DEPRECATED')")
+        if value not in ('PENDING', 'RUNNING', 'SUCCEEDED', 'PARTIALLY_SUCCEEDED', 'FAILED',):
+            raise ValueError("must be one of enum values ('PENDING', 'RUNNING', 'SUCCEEDED', 'PARTIALLY_SUCCEEDED', 'FAILED')")
         return value
 
     model_config = {
@@ -75,7 +83,7 @@ class Precondition(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Self:
-        """Create an instance of Precondition from a JSON string"""
+        """Create an instance of ViewerOperation from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -97,14 +105,11 @@ class Precondition(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of project
         if self.project:
             _dict['project'] = self.project.to_dict()
-        # override the default output from pydantic by calling `to_dict()` of validation_definition
-        if self.validation_definition:
-            _dict['validationDefinition'] = self.validation_definition.to_dict()
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Dict) -> Self:
-        """Create an instance of Precondition from a dict"""
+        """Create an instance of ViewerOperation from a dict"""
         if obj is None:
             return None
 
@@ -114,15 +119,16 @@ class Precondition(BaseModel):
         _obj = cls.model_validate({
             "id": obj.get("id"),
             "project": ProjectReference.from_dict(obj.get("project")) if obj.get("project") is not None else None,
-            "preconditionKey": obj.get("preconditionKey"),
-            "version": obj.get("version"),
-            "name": obj.get("name"),
-            "description": obj.get("description"),
-            "validationDefinition": Definition.from_dict(obj.get("validationDefinition")) if obj.get("validationDefinition") is not None else None,
+            "viewerType": obj.get("viewerType"),
+            "operationType": obj.get("operationType"),
             "status": obj.get("status"),
             "createdAt": obj.get("createdAt"),
-            "createdBy": obj.get("createdBy"),
-            "metadata": obj.get("metadata")
+            "startedAt": obj.get("startedAt"),
+            "finishedAt": obj.get("finishedAt"),
+            "totalItems": obj.get("totalItems"),
+            "succeededItems": obj.get("succeededItems"),
+            "failedItems": obj.get("failedItems"),
+            "error": obj.get("error")
         })
         return _obj
 
