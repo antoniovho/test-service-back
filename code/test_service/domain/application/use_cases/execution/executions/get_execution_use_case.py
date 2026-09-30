@@ -1,0 +1,27 @@
+"""Use case implementation: get execution."""
+
+from test_service.domain.application.queries.execution import ExecutionQuery
+from test_service.domain.model.exceptions.entity_not_found_exception import EntityNotFoundException
+from test_service.domain.model.execution.execution import Execution
+from test_service.domain.ports.input.use_cases.execution.executions.get_execution_use_case import (
+    GetExecutionUseCase,
+)
+from test_service.domain.ports.output.persistence.executions.execution_persistence_port import (  # noqa: E501
+    ExecutionPersistencePort,
+)
+
+
+class GetExecutionUseCaseImpl(GetExecutionUseCase):
+    """Retrieves one execution only within its owning project."""
+
+    def __init__(self, execution_repository: ExecutionPersistencePort) -> None:
+        self._execution_repository = execution_repository
+
+    async def execute(self, request: ExecutionQuery) -> Execution:
+        """Return an execution if it belongs to the requested project."""
+        execution = await self._execution_repository.find_execution(request.identifier)
+        if execution is None or execution.project_key != request.project_key:
+            raise EntityNotFoundException(
+                "execution", str(request.identifier), f"project '{request.project_key}'"
+            )
+        return execution

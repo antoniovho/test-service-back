@@ -110,6 +110,18 @@ from test_service.domain.application.use_cases.execution.environments.get_enviro
 from test_service.domain.application.use_cases.execution.environments.list_environments_use_case import (  # noqa: E501
     ListEnvironmentsUseCaseImpl,
 )
+from test_service.domain.application.use_cases.execution.executions.cancel_execution_use_case import (  # noqa: E501
+    CancelExecutionUseCaseImpl,
+)
+from test_service.domain.application.use_cases.execution.executions.get_execution_use_case import (  # noqa: E501
+    GetExecutionUseCaseImpl,
+)
+from test_service.domain.application.use_cases.execution.executions.list_executions_use_case import (  # noqa: E501
+    ListExecutionsUseCaseImpl,
+)
+from test_service.domain.application.use_cases.execution.executions.schedule_execution_use_case import (  # noqa: E501
+    ScheduleExecutionUseCaseImpl,
+)
 from test_service.domain.application.use_cases.projects.create_project_use_case import (
     CreateProjectUseCaseImpl,
 )
@@ -221,6 +233,18 @@ from test_service.domain.ports.input.use_cases.execution.environments.get_enviro
 from test_service.domain.ports.input.use_cases.execution.environments.list_environments_use_case import (  # noqa: E501
     ListEnvironmentsUseCase,
 )
+from test_service.domain.ports.input.use_cases.execution.executions.cancel_execution_use_case import (  # noqa: E501
+    CancelExecutionUseCase,
+)
+from test_service.domain.ports.input.use_cases.execution.executions.get_execution_use_case import (  # noqa: E501
+    GetExecutionUseCase,
+)
+from test_service.domain.ports.input.use_cases.execution.executions.list_executions_use_case import (  # noqa: E501
+    ListExecutionsUseCase,
+)
+from test_service.domain.ports.input.use_cases.execution.executions.schedule_execution_use_case import (  # noqa: E501
+    ScheduleExecutionUseCase,
+)
 from test_service.domain.ports.input.use_cases.projects.create_project_use_case import (
     CreateProjectUseCase,
 )
@@ -311,6 +335,16 @@ class EnvironmentsModule(Module):
         self.bind(DeactivateEnvironmentUseCase, to_class=DeactivateEnvironmentUseCaseImpl)
 
 
+class ExecutionsModule(Module):
+    """Binds Test Plan execution use case ports to their implementations."""
+
+    def configure(self) -> None:
+        self.bind(ScheduleExecutionUseCase, to_class=ScheduleExecutionUseCaseImpl)
+        self.bind(GetExecutionUseCase, to_class=GetExecutionUseCaseImpl)
+        self.bind(ListExecutionsUseCase, to_class=ListExecutionsUseCaseImpl)
+        self.bind(CancelExecutionUseCase, to_class=CancelExecutionUseCaseImpl)
+
+
 class DomainModule(Module):
     """Domain modules available in the runnable application composition."""
 
@@ -321,3 +355,4 @@ class DomainModule(Module):
         self.install(TestSetsModule)
         self.install(TestPlansModule)
         self.install(EnvironmentsModule)
+        self.install(ExecutionsModule)
