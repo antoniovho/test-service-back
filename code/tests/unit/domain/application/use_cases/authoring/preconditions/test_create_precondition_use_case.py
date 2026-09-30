@@ -1,9 +1,11 @@
 from datetime import UTC, datetime
+from types import SimpleNamespace
 from uuid import UUID
 
 import pytest
 
 from test_service.domain.application.commands.authoring import CreatePreconditionCommand
+from test_service.domain.application.services.project_resolver import ProjectResolver
 from test_service.domain.application.use_cases.authoring.preconditions.create_precondition_use_case import (  # noqa: E501
     CreatePreconditionUseCaseImpl,
 )
@@ -12,6 +14,7 @@ from test_service.domain.model.authoring.precondition import Precondition
 from test_service.domain.model.exceptions.precondition_already_exists_exception import (  # noqa: E501
     PreconditionAlreadyExistsException,
 )
+from test_service.domain.model.projects.project import ProjectStatus
 
 
 def _definition() -> Definition:
@@ -34,6 +37,14 @@ def _command() -> CreatePreconditionCommand:
     )
 
 
+def _project_resolver() -> ProjectResolver:
+    return ProjectResolver(
+        SimpleNamespace(
+            find_by_key=lambda key: _async_result(SimpleNamespace(status=ProjectStatus.ACTIVE))
+        )
+    )
+
+
 class _Repository:
     def __init__(self, latest_version: int | None) -> None:
         self._latest_version = latest_version
@@ -53,7 +64,7 @@ class _Repository:
 class TestCreatePreconditionUseCaseImpl:
     async def test_when_precondition_key_is_new_expect_first_draft_persisted(self):
         repository = _Repository(None)
-        use_case = CreatePreconditionUseCaseImpl(repository)
+        use_case = CreatePreconditionUseCaseImpl(repository, _project_resolver())
 
         precondition = await use_case.execute(_command())
 
@@ -61,7 +72,7 @@ class TestCreatePreconditionUseCaseImpl:
         assert repository.saved == precondition
 
     async def test_when_precondition_key_exists_expect_conflict_with_version_endpoint(self):
-        use_case = CreatePreconditionUseCaseImpl(_Repository(1))
+        use_case = CreatePreconditionUseCaseImpl(_Repository(1), _project_resolver())
         request = _command()
 
         with pytest.raises(PreconditionAlreadyExistsException) as exception:
@@ -72,3 +83,7 @@ class TestCreatePreconditionUseCaseImpl:
             "/v1/projects/IAG/preconditions/{preconditionId}/versions"
             in exception.value.error_description
         )
+
+
+async def _async_result(value):
+    return value

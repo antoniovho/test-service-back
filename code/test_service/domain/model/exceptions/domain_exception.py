@@ -21,7 +21,6 @@ class DomainException(Exception):
         error_description: str | None = None,
         provider_name: str | None = None,
     ) -> None:
-
         self.error_description = error_description or error.message
         super().__init__(self.error_description)
 

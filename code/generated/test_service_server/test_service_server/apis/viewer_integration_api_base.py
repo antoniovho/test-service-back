@@ -8,7 +8,9 @@ from typing_extensions import Annotated
 from test_service_server.models.drift_event_list_response import DriftEventListResponse
 from test_service_server.models.error_details import ErrorDetails
 from test_service_server.models.sort_order import SortOrder
+from test_service_server.models.viewer_operation_request import ViewerOperationRequest
 from test_service_server.models.viewer_sync_record_list_response import ViewerSyncRecordListResponse
+from test_service_server.models.viewer_type import ViewerType
 from test_service_server.security_api import get_token_bearerAuth
 
 class BaseViewerIntegrationApi:
@@ -20,6 +22,7 @@ class BaseViewerIntegrationApi:
     async def publish_viewer_projection(
         self,
         projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
+        viewer_operation_request: Annotated[ViewerOperationRequest, Field(description="External viewer that receives the project projection.")],
     ) -> ViewerSyncRecordListResponse:
         """Publishes the current ACTIVE version of every test case, precondition, test set, and test plan in the project to the configured external viewer. """
         ...
@@ -28,6 +31,7 @@ class BaseViewerIntegrationApi:
     async def check_viewer_drift(
         self,
         projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
+        viewer_operation_request: Annotated[ViewerOperationRequest, Field(description="External viewer whose project projection is checked for drift.")],
     ) -> DriftEventListResponse:
         """Checks the external viewer for drift across every ACTIVE test case, precondition, test set, and test plan version in the project, without importing remote data into the domain. """
         ...
@@ -36,6 +40,7 @@ class BaseViewerIntegrationApi:
     async def list_project_viewer_sync_records(
         self,
         projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
+        viewer_type: Annotated[Optional[ViewerType], Field(description="Optional external viewer integration used to filter the result set.")],
         offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")],
         limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")],
         sort_by: Annotated[Optional[StrictStr], Field(description="Field used to sort the result set.")],
@@ -48,6 +53,7 @@ class BaseViewerIntegrationApi:
     async def list_project_viewer_drift_events(
         self,
         projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
+        viewer_type: Annotated[Optional[ViewerType], Field(description="Optional external viewer integration used to filter the result set.")],
         offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")],
         limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")],
         sort_by: Annotated[Optional[StrictStr], Field(description="Field used to sort the result set.")],
@@ -59,6 +65,7 @@ class BaseViewerIntegrationApi:
 
     async def list_viewer_sync_records(
         self,
+        viewer_type: Annotated[Optional[ViewerType], Field(description="Optional external viewer integration used to filter the result set.")],
         offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")],
         limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")],
         sort_by: Annotated[Optional[StrictStr], Field(description="Field used to sort the result set.")],
@@ -70,6 +77,7 @@ class BaseViewerIntegrationApi:
 
     async def list_viewer_drift_events(
         self,
+        viewer_type: Annotated[Optional[ViewerType], Field(description="Optional external viewer integration used to filter the result set.")],
         offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")],
         limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")],
         sort_by: Annotated[Optional[StrictStr], Field(description="Field used to sort the result set.")],

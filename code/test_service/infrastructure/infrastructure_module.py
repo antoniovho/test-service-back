@@ -2,7 +2,7 @@
 
 from opyoid import Module  # type: ignore
 
-from test_service.config import PostgresDatabaseSettings
+from test_service.config import PostgresDatabaseSettings, XraySettings
 from test_service.domain.ports.output.persistence.environments.environment_persistence_port import (  # noqa: E501
     EnvironmentPersistencePort,
 )
@@ -27,6 +27,13 @@ from test_service.domain.ports.output.persistence.test_plans.test_plan_persisten
 from test_service.domain.ports.output.persistence.test_sets.test_set_persistence_port import (
     TestSetPersistencePort,
 )
+from test_service.domain.ports.output.persistence.viewer.viewer_persistence_port import (
+    ViewerPersistencePort,
+)
+from test_service.domain.ports.output.viewer.viewer_drift_detector_port import (
+    ViewerDriftDetectorPort,
+)
+from test_service.domain.ports.output.viewer.viewer_publisher_port import ViewerPublisherPort
 from test_service.infrastructure.adapters.output.commons.persistence.postgres.postgres_database_configuration import (  # noqa: E501
     PostgresDatabaseConfiguration,
 )
@@ -80,6 +87,9 @@ from .adapters.output.projects.persistence.project_persistence_adapter import (
     ProjectPersistenceAdapter,
 )
 from .adapters.output.projects.persistence.repositories.project_repository import ProjectRepository
+from .adapters.output.viewer.persistence.repositories.viewer_repository import ViewerRepository
+from .adapters.output.viewer.persistence.viewer_persistence_adapter import ViewerPersistenceAdapter
+from .adapters.output.viewer.xray_viewer_adapter import XrayViewerAdapter
 
 
 class DatabaseModule(Module):
@@ -123,6 +133,15 @@ class ExecutionModule(Module):
         self.bind(ExecutionResultsPersistencePort, to_class=ExecutionResultsPersistenceAdapter)
 
 
+class ViewerModule(Module):
+    def configure(self) -> None:
+        self.bind(ViewerRepository)
+        self.bind(XraySettings, to_instance=XraySettings())
+        self.bind(ViewerPublisherPort, to_class=XrayViewerAdapter)
+        self.bind(ViewerDriftDetectorPort, to_class=XrayViewerAdapter)
+        self.bind(ViewerPersistencePort, to_class=ViewerPersistenceAdapter)
+
+
 class InfrastructureModule(Module):
     """Master module for outbound infrastructure adapters."""
 
@@ -131,3 +150,4 @@ class InfrastructureModule(Module):
         self.install(ProjectModule)
         self.install(AuthoringModule)
         self.install(ExecutionModule)
+        self.install(ViewerModule)

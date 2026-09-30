@@ -3,6 +3,7 @@
 from uuid import uuid4
 
 from test_service.domain.application.commands.execution import ScheduleExecutionCommand
+from test_service.domain.application.services.project_resolver import ProjectResolver
 from test_service.domain.model.exceptions.entity_not_found_exception import EntityNotFoundException
 from test_service.domain.model.exceptions.invalid_environment_transition_exception import (
     InvalidEnvironmentTransitionException,
@@ -22,9 +23,6 @@ from test_service.domain.ports.output.persistence.environments.environment_persi
 from test_service.domain.ports.output.persistence.executions.execution_persistence_port import (  # noqa: E501
     ExecutionPersistencePort,
 )
-from test_service.domain.ports.output.persistence.projects.project_persistence_port import (
-    ProjectPersistencePort,
-)
 from test_service.domain.ports.output.persistence.test_plans.test_plan_persistence_port import (
     TestPlanPersistencePort,
 )
@@ -36,20 +34,18 @@ class ScheduleExecutionUseCaseImpl(ScheduleExecutionUseCase):
     def __init__(
         self,
         execution_repository: ExecutionPersistencePort,
-        project_repository: ProjectPersistencePort,
+        project_resolver: ProjectResolver,
         test_plan_repository: TestPlanPersistencePort,
         environment_repository: EnvironmentPersistencePort,
     ) -> None:
         self._execution_repository = execution_repository
-        self._project_repository = project_repository
+        self._project_resolver = project_resolver
         self._test_plan_repository = test_plan_repository
         self._environment_repository = environment_repository
 
     async def execute(self, request: ScheduleExecutionCommand) -> Execution:
         """Accept an execution when its project, active plan, and environment are valid."""
-        project = await self._project_repository.find_by_key(request.project_key)
-        if project is None:
-            raise EntityNotFoundException("project", request.project_key)
+        await self._project_resolver.resolve_active(request.project_key)
         test_plan = await self._test_plan_repository.find_by_id(request.test_plan_id)
         if test_plan is None or test_plan.project_key != request.project_key:
             raise EntityNotFoundException(

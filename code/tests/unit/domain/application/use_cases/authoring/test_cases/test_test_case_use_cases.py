@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from types import SimpleNamespace
 from uuid import UUID, uuid4
 
 import pytest
@@ -17,6 +18,7 @@ from test_service.domain.application.queries.authoring import (
 from test_service.domain.application.services.precondition_reference_resolver import (
     PreconditionReferenceResolver,
 )
+from test_service.domain.application.services.project_resolver import ProjectResolver
 from test_service.domain.application.use_cases.authoring.test_cases.activate_test_case_use_case import (  # noqa: E501
     ActivateTestCaseUseCaseImpl,
 )
@@ -54,6 +56,7 @@ from test_service.domain.model.exceptions.test_case_already_exists_exception imp
     TestCaseAlreadyExistsException,
 )
 from test_service.domain.model.lifecycle import VersionStatus
+from test_service.domain.model.projects.project import ProjectStatus
 
 
 class InMemoryTestCaseRepository:
@@ -206,12 +209,18 @@ def _create_version_command(source_id: UUID) -> CreateTestCaseVersionCommand:
     )
 
 
+def _project_resolver(
+    project: object | None = SimpleNamespace(status=ProjectStatus.ACTIVE),
+) -> ProjectResolver:
+    return ProjectResolver(SimpleNamespace(find_by_key=lambda key: _async_result(project)))
+
+
 class TestCreateTestCaseUseCaseImpl:
     async def test_when_command_is_valid_expect_first_draft_with_resolved_preconditions(self):
         precondition = _precondition()
         repository = InMemoryTestCaseRepository()
         resolver = PreconditionReferenceResolver(InMemoryPreconditionRepository((precondition,)))
-        use_case = CreateTestCaseUseCaseImpl(repository, resolver)
+        use_case = CreateTestCaseUseCaseImpl(repository, resolver, _project_resolver())
         request = _create_command(preconditions=(precondition.identifier,))
 
         test_case = await use_case.execute(request)
@@ -225,7 +234,7 @@ class TestCreateTestCaseUseCaseImpl:
         existing = _test_case()
         repository = InMemoryTestCaseRepository((existing,))
         resolver = PreconditionReferenceResolver(InMemoryPreconditionRepository())
-        use_case = CreateTestCaseUseCaseImpl(repository, resolver)
+        use_case = CreateTestCaseUseCaseImpl(repository, resolver, _project_resolver())
         request = _create_command()
 
         with pytest.raises(TestCaseAlreadyExistsException) as exception:
@@ -235,6 +244,17 @@ class TestCreateTestCaseUseCaseImpl:
         assert (
             "/v1/projects/IAG/test-cases/{testCaseId}/versions" in exception.value.error_description
         )
+
+    async def test_when_project_does_not_exist_expect_not_found_without_persisting(self):
+        repository = InMemoryTestCaseRepository()
+        resolver = PreconditionReferenceResolver(InMemoryPreconditionRepository())
+        use_case = CreateTestCaseUseCaseImpl(repository, resolver, _project_resolver(None))
+        request = _create_command()
+
+        with pytest.raises(EntityNotFoundException):
+            await use_case.execute(request)
+
+        assert await repository.find_latest_version("IAG", "IAG-001") is None
 
 
 class TestCreateTestCaseVersionUseCaseImpl:
@@ -363,7 +383,7 @@ class TestListTestCaseUseCases:
         test_case = _test_case()
         other_project_case = _test_case(project_key="OTHER")
         use_case = ListTestCasesUseCaseImpl(
-            InMemoryTestCaseRepository((test_case, other_project_case))
+            InMemoryTestCaseRepository((test_case, other_project_case)), _project_resolver()
         )
 
         page = await use_case.execute(ListTestCasesQuery("IAG", PaginationParams()))
@@ -376,10 +396,14 @@ class TestListTestCaseUseCases:
         second = _test_case(identifier=uuid4(), version=2)
         other_key = _test_case(identifier=uuid4(), test_key="IAG-002")
         use_case = ListTestCaseVersionsUseCaseImpl(
-            InMemoryTestCaseRepository((first, second, other_key))
+            InMemoryTestCaseRepository((first, second, other_key)), _project_resolver()
         )
 
         page = await use_case.execute(TestCaseVersionsQuery("IAG", "IAG-001", PaginationParams()))
 
         assert page.items == (first, second)
         assert page.total == 2
+
+
+async def _async_result(value):
+    return value

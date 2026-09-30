@@ -12,6 +12,7 @@ from test_service.domain.application.queries.execution import ExecutionQuery, Li
 from test_service.domain.application.services.execution_access_resolver import (
     ExecutionAccessResolver,
 )
+from test_service.domain.application.services.project_resolver import ProjectResolver
 from test_service.domain.application.use_cases.execution.executions.cancel_execution_use_case import (  # noqa: E501
     CancelExecutionUseCaseImpl,
 )
@@ -36,6 +37,7 @@ from test_service.domain.model.exceptions.invalid_test_plan_exception import (
 from test_service.domain.model.execution.environment import Environment, EnvironmentStatus
 from test_service.domain.model.execution.execution import Execution, ExecutionStatus, TriggerType
 from test_service.domain.model.lifecycle import VersionStatus
+from test_service.domain.model.projects.project import ProjectStatus
 
 
 def _execution(project_key: str = "IAG") -> Execution:
@@ -98,7 +100,7 @@ class TestExecutionUseCases:
         execution_repository = _ExecutionRepository()
         use_case = ScheduleExecutionUseCaseImpl(
             execution_repository,
-            SimpleNamespace(find_by_key=lambda key: _async_result(SimpleNamespace())),
+            _project_resolver(SimpleNamespace()),
             SimpleNamespace(find_by_id=lambda identifier: _async_result(test_plan)),
             SimpleNamespace(find_by_id=lambda identifier: _async_result(environment)),
         )
@@ -156,7 +158,7 @@ class TestExecutionUseCases:
         )
         use_case = ScheduleExecutionUseCaseImpl(
             _ExecutionRepository(),
-            SimpleNamespace(find_by_key=lambda key: _async_result(project)),
+            _project_resolver(project),
             SimpleNamespace(find_by_id=lambda identifier: _async_result(plan)),
             SimpleNamespace(find_by_id=lambda identifier: _async_result(environment)),
         )
@@ -187,7 +189,7 @@ class TestExecutionUseCases:
         query = ListExecutionsQuery("IAG", PaginationParams())
         use_case = ListExecutionsUseCaseImpl(
             _ExecutionRepository(execution),
-            SimpleNamespace(find_by_key=lambda key: _async_result(SimpleNamespace())),
+            _project_resolver(SimpleNamespace()),
         )
 
         page = await use_case.execute(query)
@@ -196,9 +198,7 @@ class TestExecutionUseCases:
 
     async def test_when_project_is_missing_expect_execution_list_not_found(self):
         query = ListExecutionsQuery("IAG", PaginationParams())
-        use_case = ListExecutionsUseCaseImpl(
-            _ExecutionRepository(), SimpleNamespace(find_by_key=lambda key: _async_result(None))
-        )
+        use_case = ListExecutionsUseCaseImpl(_ExecutionRepository(), _project_resolver(None))
 
         with pytest.raises(EntityNotFoundException):
             await use_case.execute(query)
@@ -224,3 +224,8 @@ class TestExecutionUseCases:
 
 async def _async_result(value):
     return value
+
+
+def _project_resolver(project) -> ProjectResolver:
+    resolved_project = None if project is None else SimpleNamespace(status=ProjectStatus.ACTIVE)
+    return ProjectResolver(SimpleNamespace(find_by_key=lambda key: _async_result(resolved_project)))

@@ -3,6 +3,7 @@
 from uuid import uuid4
 
 from test_service.domain.application.commands.composition import CreateTestPlanCommand
+from test_service.domain.application.services.project_resolver import ProjectResolver
 from test_service.domain.application.services.test_case_snapshot_resolver import (
     TestCaseSnapshotResolver,
 )
@@ -29,13 +30,16 @@ class CreateTestPlanUseCaseImpl(CreateTestPlanUseCase):
         test_plan_repository: TestPlanPersistencePort,
         test_set_snapshot_resolver: TestSetSnapshotResolver,
         test_case_snapshot_resolver: TestCaseSnapshotResolver,
+        project_resolver: ProjectResolver,
     ) -> None:
         self._test_plan_repository = test_plan_repository
         self._test_set_snapshot_resolver = test_set_snapshot_resolver
         self._test_case_snapshot_resolver = test_case_snapshot_resolver
+        self._project_resolver = project_resolver
 
     async def execute(self, request: CreateTestPlanCommand) -> TestPlan:
         """Create and persist version one of a Test Plan."""
+        await self._project_resolver.resolve_active(request.project_key)
         latest_version = await self._test_plan_repository.find_latest_version(
             request.project_key, request.plan_key
         )

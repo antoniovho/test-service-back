@@ -2,6 +2,8 @@
 
 from dataclasses import dataclass
 
+from test_service.domain.model.viewer.records import ViewerType
+
 
 @dataclass(frozen=True, slots=True)
 class PublishViewerProjectionCommand:
@@ -9,9 +11,11 @@ class PublishViewerProjectionCommand:
 
     Args:
         project_key: Owning project key.
+        viewer_type: External Viewer targeted by the publication.
     """
 
     project_key: str
+    viewer_type: ViewerType
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,6 +24,8 @@ class CheckViewerDriftCommand:
 
     Args:
         project_key: Owning project key.
+        viewer_type: External Viewer targeted by the drift check.
     """
 
     project_key: str
+    viewer_type: ViewerType

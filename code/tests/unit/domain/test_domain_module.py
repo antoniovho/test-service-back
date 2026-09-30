@@ -1,5 +1,6 @@
 from opyoid import Injector, InstanceBinding
 
+from test_service.domain.application.services.project_resolver import ProjectResolver
 from test_service.domain.application.use_cases.authoring.test_cases.activate_test_case_use_case import (  # noqa: E501
     ActivateTestCaseUseCaseImpl,
 )
@@ -139,6 +140,13 @@ from test_service.domain.ports.output.persistence.test_plans.test_plan_persisten
 from test_service.domain.ports.output.persistence.test_sets.test_set_persistence_port import (
     TestSetPersistencePort,
 )
+from test_service.domain.ports.output.persistence.viewer.viewer_persistence_port import (
+    ViewerPersistencePort,
+)
+from test_service.domain.ports.output.viewer.viewer_drift_detector_port import (
+    ViewerDriftDetectorPort,
+)
+from test_service.domain.ports.output.viewer.viewer_publisher_port import ViewerPublisherPort
 
 
 class _FakeProjectRepository:
@@ -244,6 +252,36 @@ class _FakeExecutionResultsRepository:
         raise NotImplementedError
 
 
+class _FakeViewerRepository:
+    async def save_sync_record(self, record):
+        return record
+
+    async def save_drift_event(self, event):
+        return event
+
+    async def find_sync_records_page(self, pagination, viewer_type=None):
+        raise NotImplementedError
+
+    async def find_sync_records_page_by_project(self, project_key, pagination, viewer_type=None):
+        raise NotImplementedError
+
+    async def find_drift_events_page(self, pagination, viewer_type=None):
+        raise NotImplementedError
+
+    async def find_drift_events_page_by_project(self, project_key, pagination, viewer_type=None):
+        raise NotImplementedError
+
+
+class _FakeViewerPublisher:
+    async def publish(self, record):
+        return None
+
+
+class _FakeViewerDriftDetector:
+    async def check_drift(self, record):
+        return None
+
+
 class TestDomainModule:
     def test_when_injecting_project_use_cases_expect_bound_implementations(self):
         injector = Injector(
@@ -257,6 +295,9 @@ class TestDomainModule:
                 InstanceBinding(EnvironmentPersistencePort, _FakeEnvironmentRepository()),
                 InstanceBinding(ExecutionPersistencePort, _FakeExecutionRepository()),
                 InstanceBinding(ExecutionResultsPersistencePort, _FakeExecutionResultsRepository()),
+                InstanceBinding(ViewerPersistencePort, _FakeViewerRepository()),
+                InstanceBinding(ViewerPublisherPort, _FakeViewerPublisher()),
+                InstanceBinding(ViewerDriftDetectorPort, _FakeViewerDriftDetector()),
             ],
         )
 
@@ -271,6 +312,7 @@ class TestDomainModule:
             bindings=[
                 InstanceBinding(TestCasePersistencePort, _FakeTestCaseRepository()),
                 InstanceBinding(PreconditionPersistencePort, _FakePreconditionRepository()),
+                InstanceBinding(ProjectResolver, ProjectResolver(_FakeProjectRepository())),
             ],
         )
 
@@ -291,6 +333,7 @@ class TestDomainModule:
             [ExecutionsModule],
             bindings=[
                 InstanceBinding(ProjectPersistencePort, _FakeProjectRepository()),
+                InstanceBinding(ProjectResolver, ProjectResolver(_FakeProjectRepository())),
                 InstanceBinding(TestPlanPersistencePort, _FakeTestPlanRepository()),
                 InstanceBinding(EnvironmentPersistencePort, _FakeEnvironmentRepository()),
                 InstanceBinding(ExecutionPersistencePort, _FakeExecutionRepository()),

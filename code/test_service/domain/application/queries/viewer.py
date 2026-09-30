@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 
 from test_service.domain.commons.pagination import PaginationParams
+from test_service.domain.model.viewer.records import ViewerType
 
 
 @dataclass(frozen=True, slots=True)
@@ -11,9 +12,11 @@ class ListViewerSyncRecordsQuery:
 
     Args:
         pagination: Page and ordering parameters.
+        viewer_type: Optional external Viewer filter.
     """
 
     pagination: PaginationParams
+    viewer_type: ViewerType | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,10 +26,12 @@ class ListProjectViewerSyncRecordsQuery:
     Args:
         project_key: Owning project key.
         pagination: Page and ordering parameters.
+        viewer_type: Optional external Viewer filter.
     """
 
     project_key: str
     pagination: PaginationParams
+    viewer_type: ViewerType | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,9 +40,11 @@ class ListViewerDriftEventsQuery:
 
     Args:
         pagination: Page and ordering parameters.
+        viewer_type: Optional external Viewer filter.
     """
 
     pagination: PaginationParams
+    viewer_type: ViewerType | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,7 +54,9 @@ class ListProjectViewerDriftEventsQuery:
     Args:
         project_key: Owning project key.
         pagination: Page and ordering parameters.
+        viewer_type: Optional external Viewer filter.
     """
 
     project_key: str
     pagination: PaginationParams
+    viewer_type: ViewerType | None = None

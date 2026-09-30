@@ -20,6 +20,7 @@ from test_service.domain.ports.output.persistence.executions.execution_results_p
 from test_service.domain.ports.output.persistence.projects.project_persistence_port import (
     ProjectPersistencePort,
 )
+from test_service.domain.ports.output.viewer.viewer_publisher_port import ViewerPublisherPort
 from test_service.infrastructure.adapters.output.execution.environments.environment_persistence_adapter import (  # noqa: E501
     EnvironmentPersistenceAdapter,
 )
@@ -32,6 +33,7 @@ from test_service.infrastructure.adapters.output.execution.executions.execution_
 from test_service.infrastructure.adapters.output.projects.persistence.project_persistence_adapter import (  # noqa: E501
     ProjectPersistenceAdapter,
 )
+from test_service.infrastructure.adapters.output.viewer.xray_viewer_adapter import XrayViewerAdapter
 from test_service.infrastructure.infrastructure_module import InfrastructureModule
 
 
@@ -42,6 +44,10 @@ def postgres_settings_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("DATABASE_NAME", "test_db")
     monkeypatch.setenv("DATABASE_USER", "test_user")
     monkeypatch.setenv("DATABASE_PASSWORD", "test_password")
+    monkeypatch.setenv("XRAY_CLIENT_ID", "test-client")
+    monkeypatch.setenv("XRAY_CLIENT_SECRET", "test-secret")
+    monkeypatch.setenv("XRAY_PROJECTION_URL", "https://xray.example.test/projections")
+    monkeypatch.setenv("XRAY_DRIFT_CHECK_URL", "https://xray.example.test/drift")
 
 
 class TestInfrastructureModule:
@@ -86,3 +92,13 @@ class TestInfrastructureModule:
         persistence_port = injector.inject(ExecutionResultsPersistencePort)
 
         assert isinstance(persistence_port, ExecutionResultsPersistenceAdapter)
+
+    def test_when_infrastructure_is_installed_expect_xray_publisher_resolves(
+        self,
+        postgres_settings_env: None,
+    ) -> None:
+        injector = Injector([DomainModule, InfrastructureModule])
+
+        publisher = injector.inject(ViewerPublisherPort)
+
+        assert isinstance(publisher, XrayViewerAdapter)

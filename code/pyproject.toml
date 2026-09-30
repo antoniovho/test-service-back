@@ -7,6 +7,7 @@ requires-python = ">=3.12"
 dependencies = [
   "asyncpg>=0.30,<1.0",
   "fastapi>=0.115,<1.0",
+  "httpx>=0.28,<1.0",
   "opyoid>=4.0.0",
   "pydantic-settings>=2.7,<3.0",
   "pyjwt[crypto]>=2.15.0",
@@ -31,11 +32,11 @@ generator-command = "npx --yes @openapitools/openapi-generator-cli@2.41.0"
 generator-version = "7.25.0"
 
 [tool.openapi-contracts.contracts.test-service]
-version = "0.1.6"
+version = "0.2.0"
 repository = "antoniovho/app-devtools"
 tag = "test-service-api-v{version}"
 artifact = "test-service-api-{version}.yml"
-sha256 = "a3ec4e7a3a89e84ef6a4c17f2e1aa639486a2dd9b4ceffc7c3bf4eb2b9a21308"
+sha256 = "cf8228440dbc67307944b246d11c8d8d3accbb97f58376d92ebfe5f33b390d09"
 output = "contracts/open_api/test-service-api.yml"
 
 [tool.openapi-contracts.generators.rest.server.test-service-server]

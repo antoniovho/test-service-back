@@ -29,7 +29,9 @@ from typing_extensions import Annotated
 from test_service_server.models.drift_event_list_response import DriftEventListResponse
 from test_service_server.models.error_details import ErrorDetails
 from test_service_server.models.sort_order import SortOrder
+from test_service_server.models.viewer_operation_request import ViewerOperationRequest
 from test_service_server.models.viewer_sync_record_list_response import ViewerSyncRecordListResponse
+from test_service_server.models.viewer_type import ViewerType
 from test_service_server.security_api import get_token_bearerAuth
 
 router = APIRouter()
@@ -59,6 +61,8 @@ for _, name, _ in pkgutil.iter_modules(ns_pkg.__path__, ns_pkg.__name__ + "."):
 async def publish_viewer_projection(
     projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
 ,
+    viewer_operation_request: Annotated[ViewerOperationRequest, Field(description="External viewer that receives the project projection.")] = Body(..., description="External viewer that receives the project projection.")
+,
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
@@ -66,7 +70,7 @@ async def publish_viewer_projection(
     """Publishes the current ACTIVE version of every test case, precondition, test set, and test plan in the project to the configured external viewer. """
     if not BaseViewerIntegrationApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseViewerIntegrationApi.subclasses[0]().publish_viewer_projection(projectKey)
+    return await BaseViewerIntegrationApi.subclasses[0]().publish_viewer_projection(projectKey, viewer_operation_request)
 
 
 @router.post(
@@ -89,6 +93,8 @@ async def publish_viewer_projection(
 async def check_viewer_drift(
     projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
 ,
+    viewer_operation_request: Annotated[ViewerOperationRequest, Field(description="External viewer whose project projection is checked for drift.")] = Body(..., description="External viewer whose project projection is checked for drift.")
+,
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
@@ -96,7 +102,7 @@ async def check_viewer_drift(
     """Checks the external viewer for drift across every ACTIVE test case, precondition, test set, and test plan version in the project, without importing remote data into the domain. """
     if not BaseViewerIntegrationApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseViewerIntegrationApi.subclasses[0]().check_viewer_drift(projectKey)
+    return await BaseViewerIntegrationApi.subclasses[0]().check_viewer_drift(projectKey, viewer_operation_request)
 
 
 @router.get(
@@ -119,6 +125,8 @@ async def check_viewer_drift(
 async def list_project_viewer_sync_records(
     projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
 ,
+    viewer_type: Annotated[Optional[ViewerType], Field(description="Optional external viewer integration used to filter the result set.")] = Query(None, description="Optional external viewer integration used to filter the result set.", alias="viewerType", examples=["XRAY"])
+,
     offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
 ,
     limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
@@ -134,7 +142,7 @@ async def list_project_viewer_sync_records(
     """Returns a paginated list of canonical-to-viewer synchronization records for one project."""
     if not BaseViewerIntegrationApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseViewerIntegrationApi.subclasses[0]().list_project_viewer_sync_records(projectKey, offset, limit, sort_by, order)
+    return await BaseViewerIntegrationApi.subclasses[0]().list_project_viewer_sync_records(projectKey, viewer_type, offset, limit, sort_by, order)
 
 
 @router.get(
@@ -157,6 +165,8 @@ async def list_project_viewer_sync_records(
 async def list_project_viewer_drift_events(
     projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
 ,
+    viewer_type: Annotated[Optional[ViewerType], Field(description="Optional external viewer integration used to filter the result set.")] = Query(None, description="Optional external viewer integration used to filter the result set.", alias="viewerType", examples=["XRAY"])
+,
     offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
 ,
     limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
@@ -172,7 +182,7 @@ async def list_project_viewer_drift_events(
     """Returns a paginated list of detected viewer changes and notification states for one project."""
     if not BaseViewerIntegrationApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseViewerIntegrationApi.subclasses[0]().list_project_viewer_drift_events(projectKey, offset, limit, sort_by, order)
+    return await BaseViewerIntegrationApi.subclasses[0]().list_project_viewer_drift_events(projectKey, viewer_type, offset, limit, sort_by, order)
 
 
 @router.get(
@@ -193,6 +203,8 @@ async def list_project_viewer_drift_events(
     response_model_by_alias=True,
 )
 async def list_viewer_sync_records(
+    viewer_type: Annotated[Optional[ViewerType], Field(description="Optional external viewer integration used to filter the result set.")] = Query(None, description="Optional external viewer integration used to filter the result set.", alias="viewerType", examples=["XRAY"])
+,
     offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
 ,
     limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
@@ -208,7 +220,7 @@ async def list_viewer_sync_records(
     """Returns a paginated list of canonical-to-viewer synchronization records."""
     if not BaseViewerIntegrationApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseViewerIntegrationApi.subclasses[0]().list_viewer_sync_records(offset, limit, sort_by, order)
+    return await BaseViewerIntegrationApi.subclasses[0]().list_viewer_sync_records(viewer_type, offset, limit, sort_by, order)
 
 
 @router.get(
@@ -229,6 +241,8 @@ async def list_viewer_sync_records(
     response_model_by_alias=True,
 )
 async def list_viewer_drift_events(
+    viewer_type: Annotated[Optional[ViewerType], Field(description="Optional external viewer integration used to filter the result set.")] = Query(None, description="Optional external viewer integration used to filter the result set.", alias="viewerType", examples=["XRAY"])
+,
     offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
 ,
     limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
@@ -244,4 +258,4 @@ async def list_viewer_drift_events(
     """Returns a paginated list of detected viewer changes and notification states."""
     if not BaseViewerIntegrationApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseViewerIntegrationApi.subclasses[0]().list_viewer_drift_events(offset, limit, sort_by, order)
+    return await BaseViewerIntegrationApi.subclasses[0]().list_viewer_drift_events(viewer_type, offset, limit, sort_by, order)

@@ -8,6 +8,7 @@ from test_service.domain.application.commands.projects import (
     DeleteProjectCommand,
 )
 from test_service.domain.application.queries.projects import GetProjectQuery, ListProjectsQuery
+from test_service.domain.application.services.project_resolver import ProjectResolver
 from test_service.domain.application.use_cases.projects.create_project_use_case import (
     CreateProjectUseCaseImpl,
 )
@@ -111,14 +112,14 @@ class TestCreateProjectUseCaseImpl:
 class TestGetProjectUseCaseImpl:
     async def test_when_project_exists_expect_project_returned(self):
         project = _project()
-        use_case = GetProjectUseCaseImpl(InMemoryProjectRepository((project,)))
+        use_case = GetProjectUseCaseImpl(ProjectResolver(InMemoryProjectRepository((project,))))
 
         result = await use_case.execute(GetProjectQuery(key=project.key))
 
         assert result == project
 
     async def test_when_project_does_not_exist_expect_not_found_exception(self):
-        use_case = GetProjectUseCaseImpl(InMemoryProjectRepository())
+        use_case = GetProjectUseCaseImpl(ProjectResolver(InMemoryProjectRepository()))
         request = GetProjectQuery(key="UNKNOWN")
 
         with pytest.raises(EntityNotFoundException) as exception:
@@ -131,7 +132,7 @@ class TestDeleteProjectUseCaseImpl:
     async def test_when_project_exists_expect_project_marked_deleted(self):
         project = _project()
         repository = InMemoryProjectRepository((project,))
-        use_case = DeleteProjectUseCaseImpl(repository)
+        use_case = DeleteProjectUseCaseImpl(repository, ProjectResolver(repository))
         requested_at = datetime(2026, 2, 1, tzinfo=UTC)
 
         deleted_project = await use_case.execute(
@@ -146,7 +147,8 @@ class TestDeleteProjectUseCaseImpl:
         assert (await repository.find_by_key(project.key)) == deleted_project
 
     async def test_when_project_does_not_exist_expect_not_found_exception(self):
-        use_case = DeleteProjectUseCaseImpl(InMemoryProjectRepository())
+        repository = InMemoryProjectRepository()
+        use_case = DeleteProjectUseCaseImpl(repository, ProjectResolver(repository))
         request = DeleteProjectCommand(
             key=str(uuid4()),
             requested_by="admin@example.com",
@@ -162,7 +164,8 @@ class TestDeleteProjectUseCaseImpl:
         project = _project().delete(
             deleted_at=datetime(2026, 1, 1, tzinfo=UTC), deleted_by="admin@example.com"
         )
-        use_case = DeleteProjectUseCaseImpl(InMemoryProjectRepository((project,)))
+        repository = InMemoryProjectRepository((project,))
+        use_case = DeleteProjectUseCaseImpl(repository, ProjectResolver(repository))
         request = DeleteProjectCommand(
             key=project.key,
             requested_by="admin@example.com",

@@ -6,6 +6,7 @@ from test_service.domain.application.commands.authoring import CreateTestCaseCom
 from test_service.domain.application.services.precondition_reference_resolver import (
     PreconditionReferenceResolver,
 )
+from test_service.domain.application.services.project_resolver import ProjectResolver
 from test_service.domain.model.authoring.test_case import TestCase
 from test_service.domain.model.exceptions.test_case_already_exists_exception import (
     TestCaseAlreadyExistsException,
@@ -25,12 +26,15 @@ class CreateTestCaseUseCaseImpl(CreateTestCaseUseCase):
         self,
         test_case_repository: TestCasePersistencePort,
         precondition_reference_resolver: PreconditionReferenceResolver,
+        project_resolver: ProjectResolver,
     ) -> None:
         self._test_case_repository = test_case_repository
         self._precondition_reference_resolver = precondition_reference_resolver
+        self._project_resolver = project_resolver
 
     async def execute(self, request: CreateTestCaseCommand) -> TestCase:
         """Create and persist version one of a Test Case."""
+        await self._project_resolver.resolve_active(request.project_key)
         latest_version = await self._test_case_repository.find_latest_version(
             request.project_key, request.test_key
         )

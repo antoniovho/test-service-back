@@ -3,6 +3,7 @@
 from uuid import uuid4
 
 from test_service.domain.application.commands.composition import CreateTestSetCommand
+from test_service.domain.application.services.project_resolver import ProjectResolver
 from test_service.domain.application.services.test_case_snapshot_resolver import (
     TestCaseSnapshotResolver,
 )
@@ -25,12 +26,15 @@ class CreateTestSetUseCaseImpl(CreateTestSetUseCase):
         self,
         test_set_repository: TestSetPersistencePort,
         test_case_snapshot_resolver: TestCaseSnapshotResolver,
+        project_resolver: ProjectResolver,
     ) -> None:
         self._test_set_repository = test_set_repository
         self._test_case_snapshot_resolver = test_case_snapshot_resolver
+        self._project_resolver = project_resolver
 
     async def execute(self, request: CreateTestSetCommand) -> TestSet:
         """Create and persist version one of a Test Set."""
+        await self._project_resolver.resolve_active(request.project_key)
         latest_version = await self._test_set_repository.find_latest_version(
             request.project_key, request.set_key
         )
