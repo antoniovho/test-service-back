@@ -3,7 +3,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from test_service.domain.application.services.precondition_references import (
+from test_service.domain.application.services.precondition_reference_resolver import (
     PreconditionReferenceResolver,
 )
 from test_service.domain.model.authoring.definition import Action, Definition

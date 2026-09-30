@@ -2,7 +2,13 @@
 
 from opyoid import Module  # type: ignore
 
-from test_service.domain.application.services.precondition_references import (
+from test_service.domain.application.services.execution_access_resolver import (
+    ExecutionAccessResolver,
+)
+from test_service.domain.application.services.execution_result_access_resolver import (
+    ExecutionResultAccessResolver,
+)
+from test_service.domain.application.services.precondition_reference_resolver import (
     PreconditionReferenceResolver,
 )
 from test_service.domain.application.services.test_case_snapshot_resolver import (
@@ -113,8 +119,20 @@ from test_service.domain.application.use_cases.execution.environments.list_envir
 from test_service.domain.application.use_cases.execution.executions.cancel_execution_use_case import (  # noqa: E501
     CancelExecutionUseCaseImpl,
 )
+from test_service.domain.application.use_cases.execution.executions.get_execution_result_use_case import (  # noqa: E501
+    GetExecutionResultUseCaseImpl,
+)
 from test_service.domain.application.use_cases.execution.executions.get_execution_use_case import (  # noqa: E501
     GetExecutionUseCaseImpl,
+)
+from test_service.domain.application.use_cases.execution.executions.list_execution_result_actions_use_case import (  # noqa: E501
+    ListExecutionResultActionsUseCaseImpl,
+)
+from test_service.domain.application.use_cases.execution.executions.list_execution_result_artifacts_use_case import (  # noqa: E501
+    ListExecutionResultArtifactsUseCaseImpl,
+)
+from test_service.domain.application.use_cases.execution.executions.list_execution_results_use_case import (  # noqa: E501
+    ListExecutionResultsUseCaseImpl,
 )
 from test_service.domain.application.use_cases.execution.executions.list_executions_use_case import (  # noqa: E501
     ListExecutionsUseCaseImpl,
@@ -236,8 +254,20 @@ from test_service.domain.ports.input.use_cases.execution.environments.list_envir
 from test_service.domain.ports.input.use_cases.execution.executions.cancel_execution_use_case import (  # noqa: E501
     CancelExecutionUseCase,
 )
+from test_service.domain.ports.input.use_cases.execution.executions.get_execution_result_use_case import (  # noqa: E501
+    GetExecutionResultUseCase,
+)
 from test_service.domain.ports.input.use_cases.execution.executions.get_execution_use_case import (  # noqa: E501
     GetExecutionUseCase,
+)
+from test_service.domain.ports.input.use_cases.execution.executions.list_execution_result_actions_use_case import (  # noqa: E501
+    ListExecutionResultActionsUseCase,
+)
+from test_service.domain.ports.input.use_cases.execution.executions.list_execution_result_artifacts_use_case import (  # noqa: E501
+    ListExecutionResultArtifactsUseCase,
+)
+from test_service.domain.ports.input.use_cases.execution.executions.list_execution_results_use_case import (  # noqa: E501
+    ListExecutionResultsUseCase,
 )
 from test_service.domain.ports.input.use_cases.execution.executions.list_executions_use_case import (  # noqa: E501
     ListExecutionsUseCase,
@@ -339,10 +369,18 @@ class ExecutionsModule(Module):
     """Binds Test Plan execution use case ports to their implementations."""
 
     def configure(self) -> None:
+        self.bind(ExecutionAccessResolver)
+        self.bind(ExecutionResultAccessResolver)
         self.bind(ScheduleExecutionUseCase, to_class=ScheduleExecutionUseCaseImpl)
         self.bind(GetExecutionUseCase, to_class=GetExecutionUseCaseImpl)
         self.bind(ListExecutionsUseCase, to_class=ListExecutionsUseCaseImpl)
         self.bind(CancelExecutionUseCase, to_class=CancelExecutionUseCaseImpl)
+        self.bind(ListExecutionResultsUseCase, to_class=ListExecutionResultsUseCaseImpl)
+        self.bind(GetExecutionResultUseCase, to_class=GetExecutionResultUseCaseImpl)
+        self.bind(ListExecutionResultActionsUseCase, to_class=ListExecutionResultActionsUseCaseImpl)
+        self.bind(
+            ListExecutionResultArtifactsUseCase, to_class=ListExecutionResultArtifactsUseCaseImpl
+        )
 
 
 class DomainModule(Module):
