@@ -60,3 +60,26 @@ class PostgresDatabaseSettings(BaseSettings):
             port=self.port,
             database=self.name,
         )
+
+
+class XraySettings(BaseSettings):
+    """Xray Cloud integration settings loaded from ``.env``.
+
+    The projection and drift URLs deliberately remain configurable because the
+    concrete Xray workflow is tenant-specific. Credentials are never logged or
+    exposed through REST responses.
+    """
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        env_prefix="XRAY_",
+        extra="ignore",
+    )
+
+    client_id: str
+    client_secret: SecretStr
+    auth_url: str = "https://xray.cloud.getxray.app/api/v2/authenticate"
+    projection_url: str
+    drift_check_url: str
+    timeout_seconds: float = 10.0

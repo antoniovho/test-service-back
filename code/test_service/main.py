@@ -6,6 +6,7 @@ from test_service_server.apis.authoring_api import router as authoring_api_route
 from test_service_server.apis.composition_api import router as composition_api_router
 from test_service_server.apis.execution_api import router as execution_api_router
 from test_service_server.apis.projects_api import router as projects_api_router
+from test_service_server.apis.viewer_integration_api import router as viewer_integration_api_router
 
 from test_service.bootstrap.container import get_injector
 from test_service.infrastructure.adapters.input.rest.authoring import (
@@ -27,6 +28,9 @@ from test_service.infrastructure.adapters.input.rest.projects import (
 )
 from test_service.infrastructure.adapters.input.rest.security.identity_middleware import (
     IdentityMiddleware,
+)
+from test_service.infrastructure.adapters.input.rest.viewer import (
+    viewer_integration_controller,  # noqa: F401
 )
 from test_service.infrastructure.adapters.output.commons.persistence.postgres.postgres_database_configuration import (  # noqa: E501
     PostgresDatabaseConfiguration,
@@ -54,6 +58,7 @@ def create_app() -> FastAPI:
     app.include_router(authoring_api_router)
     app.include_router(composition_api_router)
     app.include_router(execution_api_router)
+    app.include_router(viewer_integration_api_router)
     return app
 
 
