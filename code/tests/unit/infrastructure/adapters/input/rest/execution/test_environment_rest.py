@@ -157,14 +157,21 @@ class TestEnvironmentRest:
         assert await controller.deactivate_environment(identifier, None) == "deactivate"
         assert await controller.list_environments(0, 10, "name", ApiSortOrder.ASC) == "list"
 
-    def test_when_execution_controller_is_constructed_expect_environment_feature(self, monkeypatch):
-        feature = MagicMock()
+    def test_when_execution_controller_is_constructed_expect_feature_controllers(self, monkeypatch):
+        environment_feature = MagicMock()
+        execution_feature = MagicMock()
         monkeypatch.setattr(
             "test_service.infrastructure.adapters.input.rest.execution.execution_controller."
             "EnvironmentsRestController",
-            lambda: feature,
+            lambda: environment_feature,
+        )
+        monkeypatch.setattr(
+            "test_service.infrastructure.adapters.input.rest.execution.execution_controller."
+            "ExecutionsRestController",
+            lambda: execution_feature,
         )
 
         controller = ExecutionController()
 
-        assert controller._environments is feature
+        assert controller._environments is environment_feature
+        assert controller._executions is execution_feature
