@@ -3,7 +3,7 @@
 from uuid import uuid4
 
 from test_service.domain.application.commands.authoring import CreateTestCaseVersionCommand
-from test_service.domain.application.services.precondition_references import (
+from test_service.domain.application.services.precondition_reference_resolver import (
     PreconditionReferenceResolver,
 )
 from test_service.domain.model.authoring.test_case import TestCase
