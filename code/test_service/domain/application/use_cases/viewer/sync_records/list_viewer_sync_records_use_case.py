@@ -3,7 +3,7 @@
 from test_service.domain.application.queries.viewer import ListViewerSyncRecordsQuery
 from test_service.domain.commons.pagination import Page
 from test_service.domain.model.viewer.records import ViewerSyncRecord
-from test_service.domain.ports.input.use_cases.viewer.list_viewer_sync_records_use_case import (
+from test_service.domain.ports.input.use_cases.viewer.sync_records.list_viewer_sync_records_use_case import (  # noqa: E501
     ListViewerSyncRecordsUseCase,
 )
 from test_service.domain.ports.output.persistence.viewer.viewer_persistence_port import (

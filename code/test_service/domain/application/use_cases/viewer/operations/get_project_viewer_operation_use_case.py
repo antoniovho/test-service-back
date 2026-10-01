@@ -5,7 +5,7 @@ from uuid import UUID
 from test_service.domain.application.services.project_resolver import ProjectResolver
 from test_service.domain.model.exceptions.entity_not_found_exception import EntityNotFoundException
 from test_service.domain.model.viewer.records import ViewerOperation
-from test_service.domain.ports.input.use_cases.viewer.viewer_operation_use_cases import (
+from test_service.domain.ports.input.use_cases.viewer.operations.get_project_viewer_operation_use_case import (  # noqa: E501
     GetProjectViewerOperationUseCase,
 )
 from test_service.domain.ports.output.persistence.viewer.viewer_persistence_port import (

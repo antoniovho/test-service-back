@@ -17,25 +17,29 @@ from test_service.domain.ports.input.use_cases.projects.get_project_use_case imp
 from test_service.domain.ports.input.use_cases.viewer.check_viewer_drift_use_case import (
     CheckViewerDriftUseCase,
 )
-from test_service.domain.ports.input.use_cases.viewer.list_project_viewer_drift_events_use_case import (  # noqa: E501
+from test_service.domain.ports.input.use_cases.viewer.drift.list_project_viewer_drift_events_use_case import (  # noqa: E501
     ListProjectViewerDriftEventsUseCase,
 )
-from test_service.domain.ports.input.use_cases.viewer.list_project_viewer_sync_records_use_case import (  # noqa: E501
-    ListProjectViewerSyncRecordsUseCase,
-)
-from test_service.domain.ports.input.use_cases.viewer.list_viewer_drift_events_use_case import (  # noqa: E501
+from test_service.domain.ports.input.use_cases.viewer.drift.list_viewer_drift_events_use_case import (  # noqa: E501
     ListViewerDriftEventsUseCase,
 )
-from test_service.domain.ports.input.use_cases.viewer.list_viewer_sync_records_use_case import (  # noqa: E501
-    ListViewerSyncRecordsUseCase,
+from test_service.domain.ports.input.use_cases.viewer.operations.get_project_viewer_operation_use_case import (  # noqa: E501
+    GetProjectViewerOperationUseCase,
+)
+from test_service.domain.ports.input.use_cases.viewer.operations.list_project_viewer_operations_use_case import (  # noqa: E501
+    ListProjectViewerOperationsUseCase,
+)
+from test_service.domain.ports.input.use_cases.viewer.operations.list_viewer_operations_use_case import (  # noqa: E501
+    ListViewerOperationsUseCase,
 )
 from test_service.domain.ports.input.use_cases.viewer.publish_viewer_projection_use_case import (  # noqa: E501
     PublishViewerProjectionUseCase,
 )
-from test_service.domain.ports.input.use_cases.viewer.viewer_operation_use_cases import (
-    GetProjectViewerOperationUseCase,
-    ListProjectViewerOperationsUseCase,
-    ListViewerOperationsUseCase,
+from test_service.domain.ports.input.use_cases.viewer.sync_records.list_project_viewer_sync_records_use_case import (  # noqa: E501
+    ListProjectViewerSyncRecordsUseCase,
+)
+from test_service.domain.ports.input.use_cases.viewer.sync_records.list_viewer_sync_records_use_case import (  # noqa: E501
+    ListViewerSyncRecordsUseCase,
 )
 from test_service.infrastructure.adapters.input.rest.viewer.viewer_mapper import ViewerMapper
 

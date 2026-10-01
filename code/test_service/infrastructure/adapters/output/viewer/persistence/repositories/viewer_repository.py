@@ -5,6 +5,7 @@ from uuid import UUID
 
 from sqlalchemy import asc, desc, func, or_, select
 
+from test_service.config import ViewerSettings
 from test_service.domain.commons.pagination import Page, PaginationParams, SortOrder
 from test_service.domain.model.viewer.records import ViewerType
 from test_service.infrastructure.adapters.output.commons.persistence.postgres.postgres_session_provider import (  # noqa: E501
@@ -38,8 +39,9 @@ class ViewerRepository:
         "notification_status": DriftEventDTO.notification_status,
     }
 
-    def __init__(self, session_provider: PostgresSessionProvider) -> None:
+    def __init__(self, session_provider: PostgresSessionProvider, settings: ViewerSettings) -> None:
         self._session_provider = session_provider
+        self._settings = settings
 
     async def save_operation(self, operation: ViewerOperationDTO) -> ViewerOperationDTO:
         async with self._session_provider.session() as session:
@@ -54,7 +56,9 @@ class ViewerRepository:
 
     async def claim_next_operation(self) -> ViewerOperationDTO | None:
         async with self._session_provider.session() as session:
-            stale_before = datetime.now(UTC) - timedelta(minutes=30)
+            stale_before = datetime.now(UTC) - timedelta(
+                seconds=self._settings.operation_recovery_timeout_seconds
+            )
             statement = (
                 select(ViewerOperationDTO)
                 .where(

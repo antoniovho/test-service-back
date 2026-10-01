@@ -3,7 +3,7 @@
 from test_service.domain.application.queries.viewer import ListViewerDriftEventsQuery
 from test_service.domain.commons.pagination import Page
 from test_service.domain.model.viewer.records import DriftEvent
-from test_service.domain.ports.input.use_cases.viewer.list_viewer_drift_events_use_case import (
+from test_service.domain.ports.input.use_cases.viewer.drift.list_viewer_drift_events_use_case import (  # noqa: E501
     ListViewerDriftEventsUseCase,
 )
 from test_service.domain.ports.output.persistence.viewer.viewer_persistence_port import (

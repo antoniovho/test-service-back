@@ -3,7 +3,7 @@
 from test_service.domain.application.queries.viewer import ListViewerOperationsQuery
 from test_service.domain.commons.pagination import Page
 from test_service.domain.model.viewer.records import ViewerOperation
-from test_service.domain.ports.input.use_cases.viewer.viewer_operation_use_cases import (
+from test_service.domain.ports.input.use_cases.viewer.operations.list_viewer_operations_use_case import (  # noqa: E501
     ListViewerOperationsUseCase,
 )
 from test_service.domain.ports.output.persistence.viewer.viewer_persistence_port import (
