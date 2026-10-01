@@ -3,8 +3,8 @@
 from uuid import uuid4
 
 from test_service.domain.application.commands.composition import CreateTestSetCommand
-from test_service.domain.application.services.project_resolver import ProjectResolver
-from test_service.domain.application.services.test_case_snapshot_resolver import (
+from test_service.domain.application.services.resolvers.project_resolver import ProjectResolver
+from test_service.domain.application.services.resolvers.test_case_snapshot_resolver import (
     TestCaseSnapshotResolver,
 )
 from test_service.domain.model.composition.test_set import TestSet

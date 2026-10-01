@@ -1,7 +1,7 @@
 """Use case implementation: get project."""
 
 from test_service.domain.application.queries.projects import GetProjectQuery
-from test_service.domain.application.services.project_resolver import ProjectResolver
+from test_service.domain.application.services.resolvers.project_resolver import ProjectResolver
 from test_service.domain.model.projects.project import Project
 from test_service.domain.ports.input.use_cases.projects.get_project_use_case import (
     GetProjectUseCase,
