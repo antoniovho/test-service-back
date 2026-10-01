@@ -1,5 +1,6 @@
+import asyncio
 from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI
 from test_service_server.apis.authoring_api import router as authoring_api_router
@@ -9,6 +10,12 @@ from test_service_server.apis.projects_api import router as projects_api_router
 from test_service_server.apis.viewer_integration_api import router as viewer_integration_api_router
 
 from test_service.bootstrap.container import get_injector
+from test_service.domain.application.services.viewer_projection_service import (
+    ViewerProjectionService,
+)
+from test_service.domain.ports.input.use_cases.execution.executions.process_next_execution_use_case import (  # noqa: E501
+    ProcessNextExecutionUseCase,
+)
 from test_service.infrastructure.adapters.input.rest.authoring import (
     authoring_controller,  # noqa: F401
 )
@@ -40,9 +47,37 @@ from test_service.infrastructure.adapters.output.commons.persistence.postgres.po
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
     """Release database connections when the application stops."""
-    yield
-    database_configuration = get_injector().inject(PostgresDatabaseConfiguration)
-    await database_configuration.dispose()
+    projection_service = get_injector().inject(ViewerProjectionService)
+    viewer_worker = asyncio.create_task(_process_viewer_operations(projection_service))
+    execution_processor = get_injector().inject(ProcessNextExecutionUseCase)
+    execution_task = asyncio.create_task(_process_executions(execution_processor))
+    try:
+        yield
+    finally:
+        viewer_worker.cancel()
+        execution_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await viewer_worker
+        with suppress(asyncio.CancelledError):
+            await execution_task
+        database_configuration = get_injector().inject(PostgresDatabaseConfiguration)
+        await database_configuration.dispose()
+
+
+async def _process_viewer_operations(service: ViewerProjectionService) -> None:
+    """Process persisted Viewer operations without retaining request state."""
+    while True:
+        operation = await service.process_next_operation()
+        if operation is None:
+            await asyncio.sleep(0.1)
+
+
+async def _process_executions(processor: ProcessNextExecutionUseCase) -> None:
+    """Claim and execute durable work without retaining HTTP request state."""
+    while True:
+        execution = await processor.execute(None)
+        if execution is None:
+            await asyncio.sleep(0.1)
 
 
 def create_app() -> FastAPI:
