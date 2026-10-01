@@ -7,6 +7,9 @@ from test_service.domain.model.viewer.records import (
     NotificationStatus,
     SyncStatus,
     ViewerEntityType,
+    ViewerOperation,
+    ViewerOperationStatus,
+    ViewerOperationType,
     ViewerSyncRecord,
     ViewerType,
 )
@@ -45,6 +48,23 @@ def _drift_event(sync_record: ViewerSyncRecord) -> DriftEvent:
     )
 
 
+def _operation() -> ViewerOperation:
+    return ViewerOperation(
+        identifier=uuid4(),
+        project_key="IAG",
+        viewer_type=ViewerType.XRAY,
+        operation_type=ViewerOperationType.PUBLICATION,
+        status=ViewerOperationStatus.PARTIALLY_SUCCEEDED,
+        created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        started_at=datetime(2026, 1, 1, 1, tzinfo=UTC),
+        finished_at=datetime(2026, 1, 1, 2, tzinfo=UTC),
+        total_items=3,
+        succeeded_items=2,
+        failed_items=1,
+        error="One projection could not be published.",
+    )
+
+
 class TestViewerPersistenceMapper:
     def test_when_mapping_sync_record_expect_persistence_round_trip(self) -> None:
         record = _sync_record()
@@ -63,3 +83,12 @@ class TestViewerPersistenceMapper:
         )
 
         assert restored == event
+
+    def test_when_mapping_operation_expect_persistence_round_trip(self) -> None:
+        operation = _operation()
+
+        restored = ViewerPersistenceMapper.operation_to_domain(
+            ViewerPersistenceMapper.operation_to_dto(operation)
+        )
+
+        assert restored == operation
