@@ -323,12 +323,25 @@ Consulta por proyecto:
 
 Consulta global:
 
+- `GET /v1/viewer/operations`
 - `GET /v1/viewer/sync-records`
 - `GET /v1/viewer/drift-events`
 
 Las solicitudes de publicación y comprobación de drift devuelven `202 Accepted`.
 
-Deben proporcionar un identificador de operación y permitir consultar su evolución mediante los registros correspondientes.
+Deben devolver un recurso `ViewerOperation` con identificador UUID y estado inicial `PENDING`.
+
+Consulta de operaciones:
+
+- `GET /v1/projects/{projectKey}/viewer/operations` — listar operaciones del proyecto.
+- `GET /v1/projects/{projectKey}/viewer/operations/{viewerOperationId}` — consultar una operación del proyecto.
+- `GET /v1/viewer/operations` — listar operaciones globales.
+
+`ViewerOperation` contiene únicamente información segura de progreso: `id`, `project`, `viewerType`, `operationType`, `status`, `createdAt`, `startedAt`, `finishedAt`, `totalItems`, `succeededItems`, `failedItems` y `error` seguro. `operationType` admite `PUBLICATION` y `DRIFT_CHECK`; `status` admite `PENDING`, `RUNNING`, `SUCCEEDED`, `PARTIALLY_SUCCEEDED` y `FAILED`.
+
+Los `ViewerSyncRecord` y `DriftEvent` son registros de auditoría detallada asociados a la operación, pero no sustituyen su estado. La API pública puede exponer la clave externa estable y visible de una entidad en Jira/Xray para facilitar su consulta y trazabilidad. No expone identificadores técnicos internos del proveedor, payloads remotos, huellas internas, secretos ni errores crudos de Jira/Xray.
+
+No se utiliza `Idempotency-Key`: una repetición HTTP puede crear una nueva operación de Viewer. Cada operación debe, aun así, reutilizar las correspondencias internas para no duplicar recursos externos.
 
 No se añadirán endpoints públicos adicionales sin una necesidad funcional explícita y su correspondiente definición OpenAPI.
 
@@ -547,13 +560,7 @@ Contiene:
 
 ### Alcance inicial
 
-Solo se admite:
-
-`AUTOMATED`
-
-No se implementarán Test Cases manuales ni flujos de ejecución manual.
-
-El contrato OpenAPI no debe aceptar `MANUAL` como valor válido en esta entrega.
+El contrato admite `AUTOMATED` y `MANUAL` como tipos de Test Case. En la V1 ambos se ejecutan mediante Tavern; `MANUAL` se conserva como distinción funcional preparada para una evolución posterior, no como un flujo de ejecución manual independiente.
 
 Las Preconditions referenciadas deben:
 
@@ -694,6 +701,7 @@ Implementa las siguientes estructuras persistentes o sus equivalentes tecnológi
 | `TEST_RESULT` | UUID, ejecución, Test Case, estado, tiempos | Pertenencia a ejecución |
 | `ACTION_RESULT` | UUID, Test Result, acción, estado, duración | Correlación y orden |
 | `TEST_RESULT_ARTIFACT` | UUID, resultado, tipo, ubicación, metadatos | Integridad y acceso |
+| `VIEWER_OPERATION` | UUID, proyecto, viewer, tipo, estado, progreso y tiempos | Trabajo asíncrono durable y reclamable |
 | `VIEWER_SYNC_RECORD` | UUID, proyecto, entidad, versión, viewer, estado, huella | Trazabilidad de publicación |
 | `DRIFT_EVENT` | UUID, registro de sincronización, diferencias, estado | Detección y auditoría |
 
@@ -1172,7 +1180,7 @@ Cada intento relevante de publicación debe quedar registrado.
 Atributos lógicos:
 
 - UUID.
-- Identificador de operación.
+- Identificador de operación que originó el intento.
 - Proyecto.
 - Tipo de entidad.
 - Clave funcional.
@@ -1194,6 +1202,10 @@ Estados:
 - `DRIFT_DETECTED`
 
 El sistema debe poder distinguir el historial de intentos del último estado publicado correctamente.
+
+### Separación de persistencia y API pública
+
+`ViewerSyncRecord` persistido puede contener correspondencias técnicas externas, huellas normalizadas y diagnóstico protegido necesarios para publicar y detectar drift. La representación pública puede incluir la clave externa estable y visible, cuando esté definida expresamente en OpenAPI; no incluye identificadores técnicos internos del proveedor. No se serializa una entidad persistida directamente como respuesta HTTP.
 
 ## 35. Detección de drift
 
@@ -1270,6 +1282,7 @@ Cuando la divergencia desaparezca y reaparezca, debe poder registrarse como una 
 
 Permite consultar:
 
+- Operaciones globales y por proyecto, con consulta individual por proyecto.
 - Registros globales de sincronización.
 - Registros por proyecto.
 - Eventos globales de drift.
@@ -1336,6 +1349,8 @@ Garantiza:
 - Consistencia de resultados.
 - Recuperación de trabajos interrumpidos.
 - Ausencia de duplicados en publicaciones.
+
+Las operaciones Viewer se persisten antes de su programación, se reclaman de forma exclusiva por un worker y se recuperan tras un reinicio. Las llamadas a Jira/Xray se realizan fuera de transacciones prolongadas.
 
 Las llamadas externas no deben mantener abiertas transacciones de persistencia prolongadas.
 
@@ -1433,6 +1448,7 @@ Implementa pruebas automatizadas para:
 ### Viewer
 
 - Publicación correcta.
+- Creación, ejecución, recuperación y consulta de `ViewerOperation`.
 - Publicación idempotente.
 - Publicación parcial.
 - Reintento de entidades fallidas.
@@ -1456,7 +1472,7 @@ La implementación debe demostrar que:
 4. No pueden crearse nuevas referencias a versiones no activas.
 5. Las referencias históricas se conservan.
 6. No pueden iniciarse ejecuciones con recursos requeridos no activos.
-7. Solo se admiten Test Cases automatizados.
+7. Se admiten Test Cases `AUTOMATED` y `MANUAL`; ambos utilizan Tavern en la V1.
 8. Tavern ejecuta pruebas HTTP compatibles.
 9. El adaptador Tavern soporta validación de SSE.
 10. Las acciones producen resultados correlacionados.

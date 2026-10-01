@@ -7,7 +7,7 @@ info:
     \ executing validated plans, and publishing read-only projections to an external\
     \ testing viewer."
   title: Test Service
-  version: 0.2.0
+  version: 0.3.0
 servers:
 - description: Local development server
   url: http://localhost:8080
@@ -5353,12 +5353,12 @@ paths:
           $ref: "#/components/schemas/UUID"
         style: simple
       responses:
-        "200":
+        "202":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Execution"
-          description: Cancelled
+          description: Cancellation accepted
         "400":
           content:
             application/problem+json:
@@ -6093,7 +6093,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ViewerSyncRecordListResponse"
+                $ref: "#/components/schemas/ViewerOperation"
           description: Publication accepted
         "400":
           content:
@@ -6212,7 +6212,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DriftEventListResponse"
+                $ref: "#/components/schemas/ViewerOperation"
           description: Drift check accepted
         "400":
           content:
@@ -6627,6 +6627,243 @@ paths:
       summary: List detected viewer drift events for a project
       tags:
       - Viewer Integration
+  /v1/projects/{projectKey}/viewer/operations:
+    get:
+      description: Returns a paginated list of asynchronous Viewer operations within
+        a specific project.
+      operationId: listProjectViewerOperations
+      parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
+      - description: Optional external viewer integration used to filter the result
+          set.
+        example: XRAY
+        explode: true
+        in: query
+        name: viewerType
+        required: false
+        schema:
+          $ref: "#/components/schemas/ViewerType"
+        style: form
+      - description: Number of records to skip before returning results.
+        explode: true
+        in: query
+        name: offset
+        required: false
+        schema:
+          $ref: "#/components/schemas/Offset"
+        style: form
+      - description: Maximum number of records returned in one page.
+        explode: true
+        in: query
+        name: limit
+        required: false
+        schema:
+          $ref: "#/components/schemas/Limit"
+        style: form
+      - description: Field used to sort asynchronous Viewer operations.
+        explode: true
+        in: query
+        name: sortBy
+        required: false
+        schema:
+          default: createdAt
+          enum:
+          - status
+          - operationType
+          - createdAt
+          - startedAt
+          - finishedAt
+          example: createdAt
+          type: string
+        style: form
+      - description: Sort direction.
+        explode: true
+        in: query
+        name: order
+        required: false
+        schema:
+          $ref: "#/components/schemas/SortOrder"
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ViewerOperationListResponse"
+          description: Viewer operations for the project
+        "400":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/bad-request
+                status: 400
+                title: Bad Request
+                detail: The request is invalid.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The request is invalid.
+        "401":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/unauthorized
+                status: 401
+                title: Unauthorized
+                detail: Authentication is required or the credentials are invalid.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: Authentication is required or failed.
+        "403":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/forbidden
+                status: 403
+                title: Forbidden
+                detail: The authenticated principal lacks the required permission.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The authenticated principal is not allowed to perform the operation.
+        "404":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/not-found
+                status: 404
+                title: Not Found
+                detail: The requested resource was not found.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The requested resource was not found.
+        "500":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/internal-server-error
+                status: 500
+                title: Internal Server Error
+                detail: An unexpected server error occurred.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: An unexpected server error occurred.
+        "503":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/service-unavailable
+                status: 503
+                title: Service Unavailable
+                detail: The service is temporarily unavailable.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The service is temporarily unavailable.
+      summary: List asynchronous Viewer operations for a project
+      tags:
+      - Viewer Integration
+  /v1/projects/{projectKey}/viewer/operations/{viewerOperationId}:
+    get:
+      description: Retrieves the details of a specific asynchronous Viewer operation
+        within a project.
+      operationId: getProjectViewerOperation
+      parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
+      - explode: false
+        in: path
+        name: viewerOperationId
+        required: true
+        schema:
+          $ref: "#/components/schemas/UUID"
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ViewerOperation"
+          description: Viewer operation
+        "400":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/bad-request
+                status: 400
+                title: Bad Request
+                detail: The request is invalid.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The request is invalid.
+        "401":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/unauthorized
+                status: 401
+                title: Unauthorized
+                detail: Authentication is required or the credentials are invalid.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: Authentication is required or failed.
+        "403":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/forbidden
+                status: 403
+                title: Forbidden
+                detail: The authenticated principal lacks the required permission.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The authenticated principal is not allowed to perform the operation.
+        "404":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/not-found
+                status: 404
+                title: Not Found
+                detail: The requested resource was not found.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The requested resource was not found.
+        "500":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/internal-server-error
+                status: 500
+                title: Internal Server Error
+                detail: An unexpected server error occurred.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: An unexpected server error occurred.
+        "503":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/service-unavailable
+                status: 503
+                title: Service Unavailable
+                detail: The service is temporarily unavailable.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The service is temporarily unavailable.
+      summary: Get an asynchronous Viewer operation
+      tags:
+      - Viewer Integration
   /v1/viewer/sync-records:
     get:
       description: Returns a paginated list of canonical-to-viewer synchronization
@@ -6933,6 +7170,126 @@ paths:
       summary: List detected viewer drift events
       tags:
       - Viewer Integration
+  /v1/viewer/operations:
+    get:
+      description: Returns a paginated list of asynchronous Viewer operations.
+      operationId: listViewerOperations
+      parameters:
+      - description: Optional external viewer integration used to filter the result
+          set.
+        example: XRAY
+        explode: true
+        in: query
+        name: viewerType
+        required: false
+        schema:
+          $ref: "#/components/schemas/ViewerType"
+        style: form
+      - description: Number of records to skip before returning results.
+        explode: true
+        in: query
+        name: offset
+        required: false
+        schema:
+          $ref: "#/components/schemas/Offset"
+        style: form
+      - description: Maximum number of records returned in one page.
+        explode: true
+        in: query
+        name: limit
+        required: false
+        schema:
+          $ref: "#/components/schemas/Limit"
+        style: form
+      - description: Field used to sort asynchronous Viewer operations.
+        explode: true
+        in: query
+        name: sortBy
+        required: false
+        schema:
+          default: createdAt
+          enum:
+          - status
+          - operationType
+          - createdAt
+          - startedAt
+          - finishedAt
+          example: createdAt
+          type: string
+        style: form
+      - description: Sort direction.
+        explode: true
+        in: query
+        name: order
+        required: false
+        schema:
+          $ref: "#/components/schemas/SortOrder"
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ViewerOperationListResponse"
+          description: Viewer operations
+        "400":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/bad-request
+                status: 400
+                title: Bad Request
+                detail: The request is invalid.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The request is invalid.
+        "401":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/unauthorized
+                status: 401
+                title: Unauthorized
+                detail: Authentication is required or the credentials are invalid.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: Authentication is required or failed.
+        "403":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/forbidden
+                status: 403
+                title: Forbidden
+                detail: The authenticated principal lacks the required permission.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The authenticated principal is not allowed to perform the operation.
+        "500":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/internal-server-error
+                status: 500
+                title: Internal Server Error
+                detail: An unexpected server error occurred.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: An unexpected server error occurred.
+        "503":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/service-unavailable
+                status: 503
+                title: Service Unavailable
+                detail: The service is temporarily unavailable.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The service is temporarily unavailable.
+      summary: List asynchronous Viewer operations
+      tags:
+      - Viewer Integration
 components:
   parameters:
     offset:
@@ -7198,6 +7555,23 @@ components:
         - notificationStatus
         - createdAt
         example: detectedAt
+        type: string
+      style: form
+    ViewerOperationSortBy:
+      description: Field used to sort asynchronous Viewer operations.
+      explode: true
+      in: query
+      name: sortBy
+      required: false
+      schema:
+        default: createdAt
+        enum:
+        - status
+        - operationType
+        - createdAt
+        - startedAt
+        - finishedAt
+        example: createdAt
         type: string
       style: form
   responses:
@@ -9621,6 +9995,89 @@ components:
       - viewerType
       title: ViewerOperationRequest
       type: object
+    ViewerOperation:
+      additionalProperties: false
+      description: |
+        Public, asynchronous request to publish a project projection or check it for drift. This resource exposes only safe operation progress and aggregate counters; provider payloads, projection fingerprints, external identifiers, and internal errors are never exposed here.
+      example:
+        id: 550e8400-e29b-41d4-a716-446655440000
+        project:
+          key: IAG
+          name: AI Gateway
+        viewerType: XRAY
+        operationType: PUBLICATION
+        status: PENDING
+        createdAt: 2000-01-23T04:56:07.000+00:00
+        startedAt: 2000-01-23T04:56:07.000+00:00
+        finishedAt: 2000-01-23T04:56:07.000+00:00
+        totalItems: 0
+        succeededItems: 0
+        failedItems: 0
+        error: error
+      properties:
+        id:
+          description: Universally unique identifier.
+          example: 550e8400-e29b-41d4-a716-446655440000
+          format: uuid
+          title: UUID
+          type: string
+        project:
+          $ref: "#/components/schemas/ProjectReference"
+        viewerType:
+          $ref: "#/components/schemas/ViewerType"
+        operationType:
+          enum:
+          - PUBLICATION
+          - DRIFT_CHECK
+          title: operationType
+          type: string
+        status:
+          enum:
+          - PENDING
+          - RUNNING
+          - SUCCEEDED
+          - PARTIALLY_SUCCEEDED
+          - FAILED
+          title: status
+          type: string
+        createdAt:
+          format: date-time
+          title: createdAt
+          type: string
+        startedAt:
+          format: date-time
+          title: startedAt
+          type: string
+        finishedAt:
+          format: date-time
+          title: finishedAt
+          type: string
+        totalItems:
+          minimum: 0
+          title: totalItems
+          type: integer
+        succeededItems:
+          minimum: 0
+          title: succeededItems
+          type: integer
+        failedItems:
+          minimum: 0
+          title: failedItems
+          type: integer
+        error:
+          description: "Safe functional error summary, when available."
+          maxLength: 1000
+          title: error
+          type: string
+      required:
+      - createdAt
+      - id
+      - operationType
+      - project
+      - status
+      - viewerType
+      title: ViewerOperation
+      type: object
     ViewerSyncRecord:
       additionalProperties: false
       description: |
@@ -9839,6 +10296,98 @@ components:
       - data
       - pagination
       title: DriftEventListResponse
+      type: object
+    ViewerOperationListResponse:
+      additionalProperties: false
+      example:
+        data:
+        - id: 550e8400-e29b-41d4-a716-446655440000
+          project:
+            key: IAG
+            name: AI Gateway
+          viewerType: XRAY
+          operationType: PUBLICATION
+          status: PENDING
+          createdAt: 2000-01-23T04:56:07.000+00:00
+          startedAt: 2000-01-23T04:56:07.000+00:00
+          finishedAt: 2000-01-23T04:56:07.000+00:00
+          totalItems: 0
+          succeededItems: 0
+          failedItems: 0
+          error: error
+        - id: 550e8400-e29b-41d4-a716-446655440000
+          project:
+            key: IAG
+            name: AI Gateway
+          viewerType: XRAY
+          operationType: PUBLICATION
+          status: PENDING
+          createdAt: 2000-01-23T04:56:07.000+00:00
+          startedAt: 2000-01-23T04:56:07.000+00:00
+          finishedAt: 2000-01-23T04:56:07.000+00:00
+          totalItems: 0
+          succeededItems: 0
+          failedItems: 0
+          error: error
+        - id: 550e8400-e29b-41d4-a716-446655440000
+          project:
+            key: IAG
+            name: AI Gateway
+          viewerType: XRAY
+          operationType: PUBLICATION
+          status: PENDING
+          createdAt: 2000-01-23T04:56:07.000+00:00
+          startedAt: 2000-01-23T04:56:07.000+00:00
+          finishedAt: 2000-01-23T04:56:07.000+00:00
+          totalItems: 0
+          succeededItems: 0
+          failedItems: 0
+          error: error
+        - id: 550e8400-e29b-41d4-a716-446655440000
+          project:
+            key: IAG
+            name: AI Gateway
+          viewerType: XRAY
+          operationType: PUBLICATION
+          status: PENDING
+          createdAt: 2000-01-23T04:56:07.000+00:00
+          startedAt: 2000-01-23T04:56:07.000+00:00
+          finishedAt: 2000-01-23T04:56:07.000+00:00
+          totalItems: 0
+          succeededItems: 0
+          failedItems: 0
+          error: error
+        - id: 550e8400-e29b-41d4-a716-446655440000
+          project:
+            key: IAG
+            name: AI Gateway
+          viewerType: XRAY
+          operationType: PUBLICATION
+          status: PENDING
+          createdAt: 2000-01-23T04:56:07.000+00:00
+          startedAt: 2000-01-23T04:56:07.000+00:00
+          finishedAt: 2000-01-23T04:56:07.000+00:00
+          totalItems: 0
+          succeededItems: 0
+          failedItems: 0
+          error: error
+        pagination:
+          offset: 0
+          limit: 60
+          total: 125
+      properties:
+        data:
+          items:
+            $ref: "#/components/schemas/ViewerOperation"
+          maxItems: 100
+          title: data
+          type: array
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+      required:
+      - data
+      - pagination
+      title: ViewerOperationListResponse
       type: object
   securitySchemes:
     bearerAuth:

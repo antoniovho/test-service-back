@@ -35,6 +35,23 @@ class ViewerType(StrEnum):
     XRAY = "XRAY"
 
 
+class ViewerOperationType(StrEnum):
+    """Kinds of asynchronous Viewer work."""
+
+    PUBLICATION = "PUBLICATION"
+    DRIFT_CHECK = "DRIFT_CHECK"
+
+
+class ViewerOperationStatus(StrEnum):
+    """Lifecycle states for an asynchronous Viewer operation."""
+
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
+    SUCCEEDED = "SUCCEEDED"
+    PARTIALLY_SUCCEEDED = "PARTIALLY_SUCCEEDED"
+    FAILED = "FAILED"
+
+
 class SyncStatus(StrEnum):
     """Lifecycle state of a Viewer projection.
 
@@ -65,6 +82,18 @@ class DriftType(StrEnum):
     MISSING = "MISSING"
 
 
+@dataclass(frozen=True, slots=True)
+class DriftObservation:
+    """Normalized difference detected in an external Viewer projection."""
+
+    drift_type: DriftType
+    details: Mapping[str, object] | None = None
+
+    def __post_init__(self) -> None:
+        """Freeze normalized, safe difference details."""
+        object.__setattr__(self, "details", freeze_mapping(self.details))
+
+
 class NotificationStatus(StrEnum):
     """Lifecycle of a drift notification.
 
@@ -93,6 +122,7 @@ class ViewerSyncRecord:
         external_entity_key: Stable external viewer key.
         sync_status: Current synchronization status.
         created_at: Record creation timestamp.
+        operation_id: UUID of the Viewer operation that created this record.
         external_entity_id: Optional technical external identifier.
         last_synced_at: Optional successful synchronization timestamp.
         last_checked_at: Optional drift check timestamp.
@@ -107,9 +137,32 @@ class ViewerSyncRecord:
     external_entity_key: str
     sync_status: SyncStatus
     created_at: datetime
+    operation_id: UUID | None = None
     external_entity_id: str | None = None
     last_synced_at: datetime | None = None
     last_checked_at: datetime | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ViewerOperation:
+    """Durable asynchronous publication or drift-check request.
+
+    Provider identifiers, provider payloads, and internal failure details are
+    deliberately not part of this aggregate's public projection.
+    """
+
+    identifier: UUID
+    project_key: str
+    viewer_type: ViewerType
+    operation_type: ViewerOperationType
+    status: ViewerOperationStatus
+    created_at: datetime
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    total_items: int | None = None
+    succeeded_items: int | None = None
+    failed_items: int | None = None
+    error: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

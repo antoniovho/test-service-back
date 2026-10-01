@@ -2,7 +2,7 @@
 
 from opyoid import Module  # type: ignore
 
-from test_service.config import PostgresDatabaseSettings, XraySettings
+from test_service.config import JiraSettings, PostgresDatabaseSettings, ViewerSettings, XraySettings
 from test_service.domain.ports.output.persistence.environments.environment_persistence_port import (  # noqa: E501
     EnvironmentPersistencePort,
 )
@@ -105,6 +105,7 @@ class ProjectModule(Module):
     def configure(self) -> None:
         self.bind(ProjectRepository)
         self.bind(ProjectPersistencePort, to_class=ProjectPersistenceAdapter)
+        self.bind(JiraSettings, to_instance=JiraSettings())
 
 
 class AuthoringModule(Module):
@@ -136,6 +137,7 @@ class ExecutionModule(Module):
 class ViewerModule(Module):
     def configure(self) -> None:
         self.bind(ViewerRepository)
+        self.bind(ViewerSettings, to_instance=ViewerSettings())
         self.bind(XraySettings, to_instance=XraySettings())
         self.bind(ViewerPublisherPort, to_class=XrayViewerAdapter)
         self.bind(ViewerDriftDetectorPort, to_class=XrayViewerAdapter)

@@ -1,0 +1,23 @@
+"""Use case implementation: list Viewer drift events."""
+
+from test_service.domain.application.queries.viewer import ListViewerDriftEventsQuery
+from test_service.domain.commons.pagination import Page
+from test_service.domain.model.viewer.records import DriftEvent
+from test_service.domain.ports.input.use_cases.viewer.drift.list_viewer_drift_events_use_case import (  # noqa: E501
+    ListViewerDriftEventsUseCase,
+)
+from test_service.domain.ports.output.persistence.viewer.viewer_persistence_port import (
+    ViewerPersistencePort,
+)
+
+
+class ListViewerDriftEventsUseCaseImpl(ListViewerDriftEventsUseCase):
+    """List drift events across all projects."""
+
+    def __init__(self, viewer_repository: ViewerPersistencePort) -> None:
+        self._viewer_repository = viewer_repository
+
+    async def execute(self, request: ListViewerDriftEventsQuery) -> Page[DriftEvent]:
+        return await self._viewer_repository.find_drift_events_page(
+            request.pagination, request.viewer_type
+        )

@@ -8,8 +8,14 @@ from test_service.domain.application.services.project_resolver import ProjectRes
 from test_service.domain.commons.pagination import MAX_PAGE_LIMIT, PaginationParams
 from test_service.domain.model.lifecycle import VersionStatus
 from test_service.domain.model.viewer.records import (
+    DriftEvent,
+    DriftObservation,
+    NotificationStatus,
     SyncStatus,
     ViewerEntityType,
+    ViewerOperation,
+    ViewerOperationStatus,
+    ViewerOperationType,
     ViewerSyncRecord,
     ViewerType,
 )
@@ -57,23 +63,74 @@ class ViewerProjectionService:
         self._viewer_publisher = viewer_publisher
         self._viewer_drift_detector = viewer_drift_detector
 
-    async def publish(
+    async def request_publication(
         self, project_key: str, viewer_type: ViewerType
-    ) -> tuple[ViewerSyncRecord, ...]:
-        """Queue projections for every active snapshot in an existing project."""
-        await self._project_resolver.resolve(project_key)
-        records: list[ViewerSyncRecord] = []
-        for entity_type, entity_key, identifier in await self._active_snapshots(project_key):
-            record = ViewerSyncRecord(
+    ) -> ViewerOperation:
+        """Persist a publication request for asynchronous processing."""
+        return await self._request_operation(
+            project_key, viewer_type, ViewerOperationType.PUBLICATION
+        )
+
+    async def request_drift_check(
+        self, project_key: str, viewer_type: ViewerType
+    ) -> ViewerOperation:
+        """Persist a drift-check request for asynchronous processing."""
+        return await self._request_operation(
+            project_key, viewer_type, ViewerOperationType.DRIFT_CHECK
+        )
+
+    async def process_next_operation(self) -> ViewerOperation | None:
+        """Claim and process one pending Viewer operation."""
+        operation = await self._viewer_repository.claim_next_operation()
+        if operation is None:
+            return None
+        try:
+            if operation.operation_type is ViewerOperationType.PUBLICATION:
+                return await self._publish(operation)
+            return await self._check_drift(operation)
+        except Exception:
+            return await self._viewer_repository.save_operation(
+                replace(
+                    operation,
+                    status=ViewerOperationStatus.FAILED,
+                    finished_at=datetime.now(UTC),
+                    error="Viewer operation could not be completed.",
+                )
+            )
+
+    async def _request_operation(
+        self,
+        project_key: str,
+        viewer_type: ViewerType,
+        operation_type: ViewerOperationType,
+    ) -> ViewerOperation:
+        await self._project_resolver.resolve_active(project_key)
+        return await self._viewer_repository.save_operation(
+            ViewerOperation(
                 identifier=uuid4(),
                 project_key=project_key,
+                viewer_type=viewer_type,
+                operation_type=operation_type,
+                status=ViewerOperationStatus.PENDING,
+                created_at=datetime.now(UTC),
+            )
+        )
+
+    async def _publish(self, operation: ViewerOperation) -> ViewerOperation:
+        records: list[ViewerSyncRecord] = []
+        snapshots = await self._active_snapshots(operation.project_key)
+        for entity_type, entity_key, identifier in snapshots:
+            record = ViewerSyncRecord(
+                identifier=uuid4(),
+                project_key=operation.project_key,
                 entity_type=entity_type,
                 entity_key=entity_key,
                 projected_version_id=identifier,
-                viewer_type=viewer_type,
+                viewer_type=operation.viewer_type,
                 external_entity_key=entity_key,
                 sync_status=SyncStatus.PENDING,
                 created_at=datetime.now(UTC),
+                operation_id=operation.identifier,
             )
             persisted_record = await self._viewer_repository.save_sync_record(record)
             try:
@@ -87,31 +144,93 @@ class ViewerProjectionService:
                     last_synced_at=datetime.now(UTC),
                 )
             records.append(await self._viewer_repository.save_sync_record(persisted_record))
-        return tuple(records)
+        succeeded = sum(record.sync_status is SyncStatus.SYNCED for record in records)
+        failed = len(records) - succeeded
+        return await self._viewer_repository.save_operation(
+            replace(
+                operation,
+                status=self._completion_status(len(records), succeeded),
+                finished_at=datetime.now(UTC),
+                total_items=len(records),
+                succeeded_items=succeeded,
+                failed_items=failed,
+                error="Some Viewer projections could not be published." if failed else None,
+            )
+        )
 
-    async def check_drift(self, project_key: str, viewer_type: ViewerType):
+    async def _check_drift(self, operation: ViewerOperation) -> ViewerOperation:
         """Check the selected external Viewer for drift in its project projections."""
-        await self._project_resolver.resolve(project_key)
         offset = 0
+        checked = 0
+        failed = 0
         while True:
             pagination = PaginationParams(offset=offset, limit=MAX_PAGE_LIMIT)
             page = await self._viewer_repository.find_sync_records_page_by_project(
-                project_key, pagination, viewer_type
+                operation.project_key, pagination, operation.viewer_type
             )
             for record in page.items:
                 try:
-                    await self._viewer_drift_detector.check_drift(record)
+                    observation = await self._viewer_drift_detector.check_drift(record)
                 except Exception:
+                    failed += 1
                     await self._viewer_repository.save_sync_record(
                         replace(record, sync_status=SyncStatus.ERROR)
                     )
                 else:
+                    checked += 1
+                    await self._persist_drift_observation(record, observation)
                     await self._viewer_repository.save_sync_record(
-                        replace(record, last_checked_at=datetime.now(UTC))
+                        replace(
+                            record,
+                            sync_status=(
+                                SyncStatus.DRIFT_DETECTED
+                                if observation is not None
+                                else SyncStatus.SYNCED
+                            ),
+                            last_checked_at=datetime.now(UTC),
+                        )
                     )
             offset += len(page.items)
             if offset >= page.total:
-                return ()
+                return await self._viewer_repository.save_operation(
+                    replace(
+                        operation,
+                        status=self._completion_status(page.total, checked),
+                        finished_at=datetime.now(UTC),
+                        total_items=page.total,
+                        succeeded_items=checked,
+                        failed_items=failed,
+                        error="Some Viewer drift checks could not be completed."
+                        if failed
+                        else None,
+                    )
+                )
+
+    @staticmethod
+    def _completion_status(total: int, succeeded: int) -> ViewerOperationStatus:
+        if succeeded == total:
+            return ViewerOperationStatus.SUCCEEDED
+        if succeeded == 0:
+            return ViewerOperationStatus.FAILED
+        return ViewerOperationStatus.PARTIALLY_SUCCEEDED
+
+    async def _persist_drift_observation(
+        self, record: ViewerSyncRecord, observation: DriftObservation | None
+    ) -> None:
+        if observation is None or record.sync_status is SyncStatus.DRIFT_DETECTED:
+            return
+        await self._viewer_repository.save_drift_event(
+            DriftEvent(
+                identifier=uuid4(),
+                project_key=record.project_key,
+                sync_record_id=record.identifier,
+                projected_version_id=record.projected_version_id,
+                detected_at=datetime.now(UTC),
+                drift_type=observation.drift_type,
+                notification_status=NotificationStatus.PENDING,
+                details=observation.details,
+            )
+        )
 
     async def _active_snapshots(self, project_key: str):
         test_cases = await self._all_active(self._test_case_repository, project_key)

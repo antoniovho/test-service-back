@@ -48,6 +48,9 @@ def postgres_settings_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("XRAY_CLIENT_SECRET", "test-secret")
     monkeypatch.setenv("XRAY_PROJECTION_URL", "https://xray.example.test/projections")
     monkeypatch.setenv("XRAY_DRIFT_CHECK_URL", "https://xray.example.test/drift")
+    monkeypatch.setenv("JIRA_BASE_URL", "https://jira.example.test")
+    monkeypatch.setenv("JIRA_USER_EMAIL", "test@example.test")
+    monkeypatch.setenv("JIRA_API_TOKEN", "test-token")
 
 
 class TestInfrastructureModule:

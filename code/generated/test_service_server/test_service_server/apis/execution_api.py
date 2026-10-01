@@ -314,7 +314,7 @@ async def get_execution(
 @router.post(
     "/v1/projects/{projectKey}/executions/{executionId}/cancellations",
     responses={
-        200: {"model": Execution, "description": "Cancelled"},
+        202: {"model": Execution, "description": "Cancellation accepted"},
         400: {"model": ErrorDetails, "description": "The request is invalid."},
         401: {"model": ErrorDetails, "description": "Authentication is required or failed."},
         403: {"model": ErrorDetails, "description": "The authenticated principal is not allowed to perform the operation."},

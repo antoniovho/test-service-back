@@ -1,7 +1,11 @@
 """SQLAlchemy repository for Viewer synchronization state."""
 
-from sqlalchemy import asc, desc, func, select
+from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
+from sqlalchemy import asc, desc, func, or_, select
+
+from test_service.config import ViewerSettings
 from test_service.domain.commons.pagination import Page, PaginationParams, SortOrder
 from test_service.domain.model.viewer.records import ViewerType
 from test_service.infrastructure.adapters.output.commons.persistence.postgres.postgres_session_provider import (  # noqa: E501
@@ -9,11 +13,18 @@ from test_service.infrastructure.adapters.output.commons.persistence.postgres.po
 )
 from test_service.infrastructure.adapters.output.viewer.persistence.dtos.viewer_dtos import (
     DriftEventDTO,
+    ViewerOperationDTO,
     ViewerSyncRecordDTO,
 )
 
 
 class ViewerRepository:
+    _OPERATION_SORT_COLUMNS = {
+        "created_at": ViewerOperationDTO.created_at,
+        "started_at": ViewerOperationDTO.started_at,
+        "finished_at": ViewerOperationDTO.finished_at,
+        "status": ViewerOperationDTO.status,
+    }
     _SYNC_SORT_COLUMNS = {
         "created_at": ViewerSyncRecordDTO.created_at,
         "last_synced_at": ViewerSyncRecordDTO.last_synced_at,
@@ -28,8 +39,60 @@ class ViewerRepository:
         "notification_status": DriftEventDTO.notification_status,
     }
 
-    def __init__(self, session_provider: PostgresSessionProvider) -> None:
+    def __init__(self, session_provider: PostgresSessionProvider, settings: ViewerSettings) -> None:
         self._session_provider = session_provider
+        self._settings = settings
+
+    async def save_operation(self, operation: ViewerOperationDTO) -> ViewerOperationDTO:
+        async with self._session_provider.session() as session:
+            persisted = await session.merge(operation)
+            await session.commit()
+            await session.refresh(persisted)
+            return persisted
+
+    async def get_operation(self, operation_id: UUID) -> ViewerOperationDTO | None:
+        async with self._session_provider.session() as session:
+            return await session.get(ViewerOperationDTO, operation_id)
+
+    async def claim_next_operation(self) -> ViewerOperationDTO | None:
+        async with self._session_provider.session() as session:
+            stale_before = datetime.now(UTC) - timedelta(
+                seconds=self._settings.operation_recovery_timeout_seconds
+            )
+            statement = (
+                select(ViewerOperationDTO)
+                .where(
+                    or_(
+                        ViewerOperationDTO.status == "PENDING",
+                        (ViewerOperationDTO.status == "RUNNING")
+                        & (ViewerOperationDTO.started_at < stale_before),
+                    )
+                )
+                .order_by(asc(ViewerOperationDTO.created_at), asc(ViewerOperationDTO.id))
+                .with_for_update(skip_locked=True)
+                .limit(1)
+            )
+            operation = (await session.execute(statement)).scalar_one_or_none()
+            if operation is None:
+                return None
+            operation.status = "RUNNING"
+            operation.started_at = datetime.now(UTC)
+            await session.commit()
+            await session.refresh(operation)
+            return operation
+
+    async def find_operations_page(
+        self, pagination: PaginationParams, viewer_type: ViewerType | None = None
+    ) -> Page[ViewerOperationDTO]:
+        return await self._find_operations_page(pagination, viewer_type=viewer_type)
+
+    async def find_operations_page_by_project(
+        self,
+        project_key: str,
+        pagination: PaginationParams,
+        viewer_type: ViewerType | None = None,
+    ) -> Page[ViewerOperationDTO]:
+        return await self._find_operations_page(pagination, project_key, viewer_type)
 
     async def save_sync_record(self, record: ViewerSyncRecordDTO) -> ViewerSyncRecordDTO:
         async with self._session_provider.session() as session:
@@ -60,6 +123,21 @@ class ViewerRepository:
         self, pagination: PaginationParams, viewer_type: ViewerType | None = None
     ) -> Page[ViewerSyncRecordDTO]:
         return await self._find_sync_records_page(pagination, viewer_type=viewer_type)
+
+    async def _find_operations_page(
+        self,
+        pagination: PaginationParams,
+        project_key: str | None = None,
+        viewer_type: ViewerType | None = None,
+    ) -> Page[ViewerOperationDTO]:
+        conditions = []
+        if project_key is not None:
+            conditions.append(ViewerOperationDTO.project_key == project_key)
+        if viewer_type is not None:
+            conditions.append(ViewerOperationDTO.viewer_type == viewer_type.value)
+        return await self._find_page(
+            ViewerOperationDTO, pagination, self._OPERATION_SORT_COLUMNS, conditions
+        )
 
     async def find_sync_records_page_by_project(
         self,
