@@ -2,20 +2,23 @@
 
 from opyoid import Module  # type: ignore
 
-from test_service.domain.application.services.execution_access_resolver import (
+from test_service.domain.application.services.execution.definition_compiler import (
+    DefinitionCompiler,
+)
+from test_service.domain.application.services.resolvers.execution_access_resolver import (
     ExecutionAccessResolver,
 )
-from test_service.domain.application.services.execution_result_access_resolver import (
+from test_service.domain.application.services.resolvers.execution_result_access_resolver import (
     ExecutionResultAccessResolver,
 )
-from test_service.domain.application.services.precondition_reference_resolver import (
+from test_service.domain.application.services.resolvers.precondition_reference_resolver import (
     PreconditionReferenceResolver,
 )
-from test_service.domain.application.services.project_resolver import ProjectResolver
-from test_service.domain.application.services.test_case_snapshot_resolver import (
+from test_service.domain.application.services.resolvers.project_resolver import ProjectResolver
+from test_service.domain.application.services.resolvers.test_case_snapshot_resolver import (
     TestCaseSnapshotResolver,
 )
-from test_service.domain.application.services.test_set_snapshot_resolver import (
+from test_service.domain.application.services.resolvers.test_set_snapshot_resolver import (
     TestSetSnapshotResolver,
 )
 from test_service.domain.application.services.viewer_projection_service import (
@@ -140,6 +143,9 @@ from test_service.domain.application.use_cases.execution.executions.list_executi
 )
 from test_service.domain.application.use_cases.execution.executions.list_executions_use_case import (  # noqa: E501
     ListExecutionsUseCaseImpl,
+)
+from test_service.domain.application.use_cases.execution.executions.process_next_execution_use_case import (  # noqa: E501
+    ProcessNextExecutionUseCaseImpl,
 )
 from test_service.domain.application.use_cases.execution.executions.schedule_execution_use_case import (  # noqa: E501
     ScheduleExecutionUseCaseImpl,
@@ -303,6 +309,9 @@ from test_service.domain.ports.input.use_cases.execution.executions.list_executi
 from test_service.domain.ports.input.use_cases.execution.executions.list_executions_use_case import (  # noqa: E501
     ListExecutionsUseCase,
 )
+from test_service.domain.ports.input.use_cases.execution.executions.process_next_execution_use_case import (  # noqa: E501
+    ProcessNextExecutionUseCase,
+)
 from test_service.domain.ports.input.use_cases.execution.executions.schedule_execution_use_case import (  # noqa: E501
     ScheduleExecutionUseCase,
 )
@@ -427,11 +436,13 @@ class ExecutionsModule(Module):
     """Binds Test Plan execution use case ports to their implementations."""
 
     def configure(self) -> None:
+        self.bind(DefinitionCompiler)
         self.bind(ExecutionAccessResolver)
         self.bind(ExecutionResultAccessResolver)
         self.bind(ScheduleExecutionUseCase, to_class=ScheduleExecutionUseCaseImpl)
         self.bind(GetExecutionUseCase, to_class=GetExecutionUseCaseImpl)
         self.bind(ListExecutionsUseCase, to_class=ListExecutionsUseCaseImpl)
+        self.bind(ProcessNextExecutionUseCase, to_class=ProcessNextExecutionUseCaseImpl)
         self.bind(CancelExecutionUseCase, to_class=CancelExecutionUseCaseImpl)
         self.bind(ListExecutionResultsUseCase, to_class=ListExecutionResultsUseCaseImpl)
         self.bind(GetExecutionResultUseCase, to_class=GetExecutionResultUseCaseImpl)
