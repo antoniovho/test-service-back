@@ -99,3 +99,15 @@ class ViewerSettings(BaseSettings):
 
     operation_recovery_timeout_seconds: int = Field(default=1800, gt=0)
 
+
+class JiraSettings(BaseSettings):
+    """Configuration of Jira as the V1 external project validator."""
+
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", env_prefix="JIRA_", extra="ignore"
+    )
+
+    base_url: str
+    user_email: str
+    api_token: SecretStr
+    timeout_seconds: float = 10.0
