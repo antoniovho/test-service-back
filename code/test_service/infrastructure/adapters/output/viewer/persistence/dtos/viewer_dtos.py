@@ -24,9 +24,28 @@ class ViewerSyncRecordDTO(Base):
     external_entity_key: Mapped[str] = mapped_column(Text, nullable=False)
     external_entity_id: Mapped[str | None] = mapped_column(Text, nullable=True)
     sync_status: Mapped[str] = mapped_column(String, nullable=False)
+    operation_id: Mapped[UUID | None] = mapped_column(PostgreSQLUUID(as_uuid=True), nullable=True)
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ViewerOperationDTO(Base):
+    __tablename__ = "viewer_operation"
+    __table_args__ = {"schema": "test_service_v1"}
+
+    id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), primary_key=True)
+    project_key: Mapped[str] = mapped_column(Text, nullable=False)
+    viewer_type: Mapped[str] = mapped_column(String, nullable=False)
+    operation_type: Mapped[str] = mapped_column(String, nullable=False)
+    status: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    total_items: Mapped[int | None] = mapped_column(nullable=True)
+    succeeded_items: Mapped[int | None] = mapped_column(nullable=True)
+    failed_items: Mapped[int | None] = mapped_column(nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class DriftEventDTO(Base):
