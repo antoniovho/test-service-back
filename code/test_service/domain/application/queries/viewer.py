@@ -60,3 +60,20 @@ class ListProjectViewerDriftEventsQuery:
     project_key: str
     pagination: PaginationParams
     viewer_type: ViewerType | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ListViewerOperationsQuery:
+    """Request to list asynchronous Viewer operations across all projects."""
+
+    pagination: PaginationParams
+    viewer_type: ViewerType | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ListProjectViewerOperationsQuery:
+    """Request to list asynchronous Viewer operations for one project."""
+
+    project_key: str
+    pagination: PaginationParams
+    viewer_type: ViewerType | None = None
