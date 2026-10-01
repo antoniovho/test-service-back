@@ -4,6 +4,8 @@ from test_service_server.models.drift_event import DriftEvent as ApiDriftEvent
 from test_service_server.models.drift_event_list_response import DriftEventListResponse
 from test_service_server.models.pagination import Pagination as ApiPagination
 from test_service_server.models.project_reference import ProjectReference
+from test_service_server.models.viewer_operation import ViewerOperation as ApiViewerOperation
+from test_service_server.models.viewer_operation_list_response import ViewerOperationListResponse
 from test_service_server.models.viewer_operation_request import ViewerOperationRequest
 from test_service_server.models.viewer_sync_record import ViewerSyncRecord as ApiViewerSyncRecord
 from test_service_server.models.viewer_sync_record_list_response import ViewerSyncRecordListResponse
@@ -15,12 +17,19 @@ from test_service.domain.application.commands.viewer import (
 )
 from test_service.domain.application.queries.viewer import (
     ListProjectViewerDriftEventsQuery,
+    ListProjectViewerOperationsQuery,
     ListProjectViewerSyncRecordsQuery,
     ListViewerDriftEventsQuery,
+    ListViewerOperationsQuery,
     ListViewerSyncRecordsQuery,
 )
 from test_service.domain.commons.pagination import Page, PaginationParams, SortOrder
-from test_service.domain.model.viewer.records import DriftEvent, ViewerSyncRecord, ViewerType
+from test_service.domain.model.viewer.records import (
+    DriftEvent,
+    ViewerOperation,
+    ViewerSyncRecord,
+    ViewerType,
+)
 
 
 class ViewerMapper:
@@ -51,6 +60,9 @@ class ViewerMapper:
             "detectedAt": "detected_at",
             "driftType": "drift_type",
             "notificationStatus": "notification_status",
+            "startedAt": "started_at",
+            "finishedAt": "finished_at",
+            "status": "status",
         }
         return PaginationParams(
             offset=offset or 0,
@@ -70,6 +82,20 @@ class ViewerMapper:
         project_key: str, pagination: PaginationParams, viewer_type: ApiViewerType | None
     ) -> ListProjectViewerSyncRecordsQuery:
         return ListProjectViewerSyncRecordsQuery(
+            project_key, pagination, ViewerMapper.to_viewer_type(viewer_type)
+        )
+
+    @staticmethod
+    def to_list_operations_query(
+        pagination: PaginationParams, viewer_type: ApiViewerType | None
+    ) -> ListViewerOperationsQuery:
+        return ListViewerOperationsQuery(pagination, ViewerMapper.to_viewer_type(viewer_type))
+
+    @staticmethod
+    def to_list_project_operations_query(
+        project_key: str, pagination: PaginationParams, viewer_type: ApiViewerType | None
+    ) -> ListProjectViewerOperationsQuery:
+        return ListProjectViewerOperationsQuery(
             project_key, pagination, ViewerMapper.to_viewer_type(viewer_type)
         )
 
@@ -119,6 +145,23 @@ class ViewerMapper:
         )
 
     @staticmethod
+    def operation_to_api(operation: ViewerOperation, project_name: str) -> ApiViewerOperation:
+        return ApiViewerOperation(
+            id=operation.identifier,
+            project=ProjectReference(key=operation.project_key, name=project_name),
+            viewerType=ApiViewerType(operation.viewer_type.value),
+            operationType=operation.operation_type.value,
+            status=operation.status.value,
+            createdAt=operation.created_at,
+            startedAt=operation.started_at,
+            finishedAt=operation.finished_at,
+            totalItems=operation.total_items,
+            succeededItems=operation.succeeded_items,
+            failedItems=operation.failed_items,
+            error=operation.error,
+        )
+
+    @staticmethod
     def sync_response(
         page: Page[ViewerSyncRecord], pagination: PaginationParams, project_names: dict[str, str]
     ) -> ViewerSyncRecordListResponse:
@@ -139,6 +182,20 @@ class ViewerMapper:
         return DriftEventListResponse(
             data=[
                 ViewerMapper.drift_event_to_api(item, project_names[item.project_key])
+                for item in page.items
+            ],
+            pagination=ApiPagination(
+                offset=pagination.offset, limit=pagination.limit, total=page.total
+            ),
+        )
+
+    @staticmethod
+    def operation_response(
+        page: Page[ViewerOperation], pagination: PaginationParams, project_names: dict[str, str]
+    ) -> ViewerOperationListResponse:
+        return ViewerOperationListResponse(
+            data=[
+                ViewerMapper.operation_to_api(item, project_names[item.project_key])
                 for item in page.items
             ],
             pagination=ApiPagination(

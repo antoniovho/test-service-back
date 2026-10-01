@@ -3,6 +3,8 @@
 from test_service_server.apis.viewer_integration_api_base import BaseViewerIntegrationApi
 from test_service_server.models.drift_event_list_response import DriftEventListResponse
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
+from test_service_server.models.viewer_operation import ViewerOperation
+from test_service_server.models.viewer_operation_list_response import ViewerOperationListResponse
 from test_service_server.models.viewer_operation_request import ViewerOperationRequest
 from test_service_server.models.viewer_sync_record_list_response import ViewerSyncRecordListResponse
 from test_service_server.models.viewer_type import ViewerType as ApiViewerType
@@ -30,6 +32,11 @@ from test_service.domain.ports.input.use_cases.viewer.list_viewer_sync_records_u
 from test_service.domain.ports.input.use_cases.viewer.publish_viewer_projection_use_case import (  # noqa: E501
     PublishViewerProjectionUseCase,
 )
+from test_service.domain.ports.input.use_cases.viewer.viewer_operation_use_cases import (
+    GetProjectViewerOperationUseCase,
+    ListProjectViewerOperationsUseCase,
+    ListViewerOperationsUseCase,
+)
 from test_service.infrastructure.adapters.input.rest.viewer.viewer_mapper import ViewerMapper
 
 
@@ -43,26 +50,70 @@ class ViewerIntegrationController(BaseViewerIntegrationApi):
         self._list_project_sync = injector.inject(ListProjectViewerSyncRecordsUseCase)
         self._list_drift = injector.inject(ListViewerDriftEventsUseCase)
         self._list_project_drift = injector.inject(ListProjectViewerDriftEventsUseCase)
+        self._list_operations = injector.inject(ListViewerOperationsUseCase)
+        self._list_project_operations = injector.inject(ListProjectViewerOperationsUseCase)
+        self._get_operation = injector.inject(GetProjectViewerOperationUseCase)
 
     async def publish_viewer_projection(
         self,
         projectKey: str,  # NOSONAR
         viewer_operation_request: ViewerOperationRequest,
-    ) -> ViewerSyncRecordListResponse:  # NOSONAR
+    ) -> ViewerOperation:  # NOSONAR
         project = await self._get_project.execute(GetProjectQuery(projectKey))
         command = ViewerMapper.to_publish_command(projectKey, viewer_operation_request)
-        viewer_sync_records = await self._publish.execute(command)
-        return ViewerMapper.sync_records_response(viewer_sync_records, {project.key: project.name})
+        operation = await self._publish.execute(command)
+        return ViewerMapper.operation_to_api(operation, project.name)
 
     async def check_viewer_drift(
         self,
         projectKey: str,  # NOSONAR
         viewer_operation_request: ViewerOperationRequest,
-    ) -> DriftEventListResponse:
+    ) -> ViewerOperation:
         project = await self._get_project.execute(GetProjectQuery(projectKey))
         command = ViewerMapper.to_check_drift_command(projectKey, viewer_operation_request)
-        drift_events = await self._check_drift.execute(command)
-        return ViewerMapper.drift_events_response(drift_events, {project.key: project.name})
+        operation = await self._check_drift.execute(command)
+        return ViewerMapper.operation_to_api(operation, project.name)
+
+    async def list_viewer_operations(
+        self,
+        viewer_type: ApiViewerType | None,
+        offset: int | None,
+        limit: int | None,
+        sort_by: str | None,
+        order: ApiSortOrder | None,
+    ) -> ViewerOperationListResponse:
+        pagination = ViewerMapper.to_pagination(offset, limit, sort_by, order)
+        page = await self._list_operations.execute(
+            ViewerMapper.to_list_operations_query(pagination, viewer_type)
+        )
+        return ViewerMapper.operation_response(
+            page, pagination, await self._project_names(page.items)
+        )
+
+    async def list_project_viewer_operations(
+        self,
+        projectKey: str,  # NOSONAR
+        viewer_type: ApiViewerType | None,
+        offset: int | None,
+        limit: int | None,
+        sort_by: str | None,
+        order: ApiSortOrder | None,
+    ) -> ViewerOperationListResponse:  # NOSONAR
+        project = await self._get_project.execute(GetProjectQuery(projectKey))
+        pagination = ViewerMapper.to_pagination(offset, limit, sort_by, order)
+        page = await self._list_project_operations.execute(
+            ViewerMapper.to_list_project_operations_query(projectKey, pagination, viewer_type)
+        )
+        return ViewerMapper.operation_response(page, pagination, {project.key: project.name})
+
+    async def get_project_viewer_operation(
+        self,
+        projectKey: str,  # NOSONAR
+        viewerOperationId,  # NOSONAR
+    ) -> ViewerOperation:  # NOSONAR
+        project = await self._get_project.execute(GetProjectQuery(projectKey))
+        operation = await self._get_operation.execute((projectKey, viewerOperationId))
+        return ViewerMapper.operation_to_api(operation, project.name)
 
     async def list_viewer_sync_records(
         self,
