@@ -1,6 +1,6 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import cast
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
@@ -8,6 +8,7 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from test_service.config import ViewerSettings
 from test_service.domain.commons.pagination import PaginationParams, SortOrder
 from test_service.domain.model.viewer.records import ViewerType
 from test_service.infrastructure.adapters.output.commons.persistence.postgres.postgres_session_provider import (  # noqa: E501
@@ -15,6 +16,7 @@ from test_service.infrastructure.adapters.output.commons.persistence.postgres.po
 )
 from test_service.infrastructure.adapters.output.viewer.persistence.dtos.viewer_dtos import (
     DriftEventDTO,
+    ViewerOperationDTO,
     ViewerSyncRecordDTO,
 )
 from test_service.infrastructure.adapters.output.viewer.persistence.repositories.viewer_repository import (  # noqa: E501
@@ -62,7 +64,28 @@ def _drift_dto(sync_dto: ViewerSyncRecordDTO) -> DriftEventDTO:
     )
 
 
+def _operation_dto() -> ViewerOperationDTO:
+    return ViewerOperationDTO(
+        id=uuid4(),
+        project_key="IAG",
+        viewer_type="XRAY",
+        operation_type="DRIFT_CHECK",
+        status="PENDING",
+        created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        started_at=None,
+        finished_at=None,
+        total_items=None,
+        succeeded_items=None,
+        failed_items=None,
+        error=None,
+    )
+
+
 class TestViewerRepository:
+    @pytest.fixture
+    def settings(self) -> ViewerSettings:
+        return ViewerSettings(operation_recovery_timeout_seconds=60)
+
     async def test_when_saving_sync_record_expect_existing_identity_retained(self) -> None:
         record = _sync_dto()
         current = _sync_dto()
@@ -73,13 +96,38 @@ class TestViewerRepository:
         session.merge = AsyncMock(return_value=record)
         session.commit = AsyncMock()
         session.refresh = AsyncMock()
-        repository = ViewerRepository(_SessionProvider(session))
+        repository = ViewerRepository(_SessionProvider(session), ViewerSettings())
 
         persisted = await repository.save_sync_record(record)
 
         assert persisted is record
         assert record.id == current.id
         assert record.created_at == current.created_at
+
+    async def test_when_claiming_operation_expect_configured_stale_timeout_used(
+        self, settings: ViewerSettings
+    ) -> None:
+        operation = _operation_dto()
+        result = MagicMock()
+        result.scalar_one_or_none.return_value = operation
+        session = MagicMock()
+        session.execute = AsyncMock(return_value=result)
+        session.commit = AsyncMock()
+        session.refresh = AsyncMock()
+        repository = ViewerRepository(_SessionProvider(session), settings)
+
+        before_claim = datetime.now(UTC)
+        await repository.claim_next_operation()
+        after_claim = datetime.now(UTC)
+
+        statement = session.execute.await_args.args[0]
+        threshold = next(
+            value for value in statement.compile().params.values() if isinstance(value, datetime)
+        )
+        assert (
+            before_claim - timedelta(seconds=60) <= threshold <= after_claim - timedelta(seconds=60)
+        )
+        assert operation.status == "RUNNING"
 
     async def test_when_saving_new_sync_and_drift_expect_persisted_dtos(self) -> None:
         record = _sync_dto()
@@ -89,7 +137,7 @@ class TestViewerRepository:
         session.merge = AsyncMock(side_effect=[record, event])
         session.commit = AsyncMock()
         session.refresh = AsyncMock()
-        repository = ViewerRepository(_SessionProvider(session))
+        repository = ViewerRepository(_SessionProvider(session), ViewerSettings())
 
         saved_record = await repository.save_sync_record(record)
         saved_event = await repository.save_drift_event(event)
@@ -105,7 +153,7 @@ class TestViewerRepository:
         page.scalars.return_value.all.return_value = [record]
         session = MagicMock()
         session.execute = AsyncMock(side_effect=[total, page, total, page])
-        repository = ViewerRepository(_SessionProvider(session))
+        repository = ViewerRepository(_SessionProvider(session), ViewerSettings())
         pagination = PaginationParams(order=SortOrder.DESC)
 
         global_page = await repository.find_sync_records_page(pagination, ViewerType.XRAY)
@@ -129,7 +177,7 @@ class TestViewerRepository:
         session.execute = AsyncMock(
             side_effect=[total, page, total, page, total, page, total, page]
         )
-        repository = ViewerRepository(_SessionProvider(session))
+        repository = ViewerRepository(_SessionProvider(session), ViewerSettings())
         pagination = PaginationParams()
 
         global_page = await repository.find_drift_events_page(pagination)
@@ -145,7 +193,7 @@ class TestViewerRepository:
         assert project_filtered_page.total == 1
 
     async def test_when_sort_field_is_unsupported_expect_value_error(self) -> None:
-        repository = ViewerRepository(_SessionProvider(MagicMock()))
+        repository = ViewerRepository(_SessionProvider(MagicMock()), ViewerSettings())
         page_request = repository.find_sync_records_page(PaginationParams(sort_by="unsafe"))
 
         with pytest.raises(ValueError, match="unsupported viewer sort field: unsafe"):
