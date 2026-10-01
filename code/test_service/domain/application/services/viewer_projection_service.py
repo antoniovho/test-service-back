@@ -8,6 +8,9 @@ from test_service.domain.application.services.project_resolver import ProjectRes
 from test_service.domain.commons.pagination import MAX_PAGE_LIMIT, PaginationParams
 from test_service.domain.model.lifecycle import VersionStatus
 from test_service.domain.model.viewer.records import (
+    DriftEvent,
+    DriftObservation,
+    NotificationStatus,
     SyncStatus,
     ViewerEntityType,
     ViewerOperation,
@@ -167,7 +170,7 @@ class ViewerProjectionService:
             )
             for record in page.items:
                 try:
-                    await self._viewer_drift_detector.check_drift(record)
+                    observation = await self._viewer_drift_detector.check_drift(record)
                 except Exception:
                     failed += 1
                     await self._viewer_repository.save_sync_record(
@@ -175,8 +178,17 @@ class ViewerProjectionService:
                     )
                 else:
                     checked += 1
+                    await self._persist_drift_observation(record, observation)
                     await self._viewer_repository.save_sync_record(
-                        replace(record, last_checked_at=datetime.now(UTC))
+                        replace(
+                            record,
+                            sync_status=(
+                                SyncStatus.DRIFT_DETECTED
+                                if observation is not None
+                                else SyncStatus.SYNCED
+                            ),
+                            last_checked_at=datetime.now(UTC),
+                        )
                     )
             offset += len(page.items)
             if offset >= page.total:
@@ -201,6 +213,24 @@ class ViewerProjectionService:
         if succeeded == 0:
             return ViewerOperationStatus.FAILED
         return ViewerOperationStatus.PARTIALLY_SUCCEEDED
+
+    async def _persist_drift_observation(
+        self, record: ViewerSyncRecord, observation: DriftObservation | None
+    ) -> None:
+        if observation is None or record.sync_status is SyncStatus.DRIFT_DETECTED:
+            return
+        await self._viewer_repository.save_drift_event(
+            DriftEvent(
+                identifier=uuid4(),
+                project_key=record.project_key,
+                sync_record_id=record.identifier,
+                projected_version_id=record.projected_version_id,
+                detected_at=datetime.now(UTC),
+                drift_type=observation.drift_type,
+                notification_status=NotificationStatus.PENDING,
+                details=observation.details,
+            )
+        )
 
     async def _active_snapshots(self, project_key: str):
         test_cases = await self._all_active(self._test_case_repository, project_key)
