@@ -163,9 +163,12 @@ from test_service.domain.application.use_cases.viewer.publish_viewer_projection_
     PublishViewerProjectionUseCaseImpl,
 )
 from test_service.domain.application.use_cases.viewer.viewer_query_use_cases import (
+    GetProjectViewerOperationUseCaseImpl,
     ListProjectViewerDriftEventsUseCaseImpl,
+    ListProjectViewerOperationsUseCaseImpl,
     ListProjectViewerSyncRecordsUseCaseImpl,
     ListViewerDriftEventsUseCaseImpl,
+    ListViewerOperationsUseCaseImpl,
     ListViewerSyncRecordsUseCaseImpl,
 )
 from test_service.domain.ports.input.use_cases.authoring.preconditions.activate_precondition_use_case import (  # noqa: E501
@@ -321,6 +324,11 @@ from test_service.domain.ports.input.use_cases.viewer.list_viewer_sync_records_u
 from test_service.domain.ports.input.use_cases.viewer.publish_viewer_projection_use_case import (
     PublishViewerProjectionUseCase,
 )
+from test_service.domain.ports.input.use_cases.viewer.viewer_operation_use_cases import (
+    GetProjectViewerOperationUseCase,
+    ListProjectViewerOperationsUseCase,
+    ListViewerOperationsUseCase,
+)
 
 
 class ProjectsModule(Module):
@@ -427,6 +435,11 @@ class ViewerModule(Module):
             ListProjectViewerSyncRecordsUseCase, to_class=ListProjectViewerSyncRecordsUseCaseImpl
         )
         self.bind(ListViewerDriftEventsUseCase, to_class=ListViewerDriftEventsUseCaseImpl)
+        self.bind(ListViewerOperationsUseCase, to_class=ListViewerOperationsUseCaseImpl)
+        self.bind(
+            ListProjectViewerOperationsUseCase, to_class=ListProjectViewerOperationsUseCaseImpl
+        )
+        self.bind(GetProjectViewerOperationUseCase, to_class=GetProjectViewerOperationUseCaseImpl)
         self.bind(
             ListProjectViewerDriftEventsUseCase, to_class=ListProjectViewerDriftEventsUseCaseImpl
         )
