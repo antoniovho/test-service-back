@@ -345,9 +345,6 @@ from test_service.domain.ports.input.use_cases.viewer.sync_records.list_project_
 from test_service.domain.ports.input.use_cases.viewer.sync_records.list_viewer_sync_records_use_case import (  # noqa: E501
     ListViewerSyncRecordsUseCase,
 )
-from test_service.domain.ports.output.executions.execution_cancellation_port import (
-    ExecutionCancellationPort,
-)
 
 
 class ProjectsModule(Module):
