@@ -14,6 +14,9 @@ from test_service.domain.model.exceptions.environment_already_exists_exception i
     EnvironmentAlreadyExistsException,
 )
 from test_service.domain.model.exceptions.error_origin_enum import ErrorOrigin
+from test_service.domain.model.exceptions.external_project_not_found_exception import (
+    ExternalProjectNotFoundException,
+)
 from test_service.domain.model.exceptions.invalid_action_exception import InvalidActionException
 from test_service.domain.model.exceptions.invalid_artifact_storage_exception import (
     InvalidArtifactStorageException,
@@ -82,6 +85,7 @@ _GENERIC_PROVIDER_ERROR_DETAIL = "A dependent service error occurred."
 
 _EXCEPTION_STATUS_MAP: dict[type[DomainException], HTTPStatus] = {
     EntityNotFoundException: HTTPStatus.NOT_FOUND,
+    ExternalProjectNotFoundException: HTTPStatus.UNPROCESSABLE_ENTITY,
     ProjectAlreadyDeletedException: HTTPStatus.CONFLICT,
     ProjectAlreadyExistsException: HTTPStatus.CONFLICT,
     TestCaseAlreadyExistsException: HTTPStatus.CONFLICT,
