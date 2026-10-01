@@ -4,7 +4,7 @@ from dataclasses import replace
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from test_service.domain.application.services.project_resolver import ProjectResolver
+from test_service.domain.application.services.resolvers.project_resolver import ProjectResolver
 from test_service.domain.commons.pagination import MAX_PAGE_LIMIT, PaginationParams
 from test_service.domain.model.lifecycle import VersionStatus
 from test_service.domain.model.viewer.records import (
