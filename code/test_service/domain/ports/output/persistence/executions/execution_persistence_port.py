@@ -18,6 +18,10 @@ class ExecutionPersistencePort(Protocol):
         """Find an execution by UUID."""
         ...
 
+    async def claim_next_created(self) -> Execution | None:
+        """Atomically claim the oldest execution waiting for a runner."""
+        ...
+
     async def find_page(self, project_key: str, pagination: PaginationParams) -> Page[Execution]:
         """Find executions owned by one project."""
         ...
