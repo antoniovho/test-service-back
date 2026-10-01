@@ -82,6 +82,18 @@ class DriftType(StrEnum):
     MISSING = "MISSING"
 
 
+@dataclass(frozen=True, slots=True)
+class DriftObservation:
+    """Normalized difference detected in an external Viewer projection."""
+
+    drift_type: DriftType
+    details: Mapping[str, object] | None = None
+
+    def __post_init__(self) -> None:
+        """Freeze normalized, safe difference details."""
+        object.__setattr__(self, "details", freeze_mapping(self.details))
+
+
 class NotificationStatus(StrEnum):
     """Lifecycle of a drift notification.
 
