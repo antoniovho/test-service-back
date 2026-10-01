@@ -1,6 +1,6 @@
 """Environment-driven configuration for the Test Service application."""
 
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import URL
 
@@ -83,3 +83,19 @@ class XraySettings(BaseSettings):
     projection_url: str
     drift_check_url: str
     timeout_seconds: float = 10.0
+    max_attempts: int = 3
+    retry_backoff_seconds: float = 0.25
+
+
+class ViewerSettings(BaseSettings):
+    """Configuration for durable Viewer operation processing."""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        env_prefix="VIEWER_",
+        extra="ignore",
+    )
+
+    operation_recovery_timeout_seconds: int = Field(default=1800, gt=0)
+
