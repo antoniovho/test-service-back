@@ -13,8 +13,8 @@ from test_service.domain.application.queries.composition import (
     ListTestSetsQuery,
     TestSetQuery,
 )
-from test_service.domain.application.services.project_resolver import ProjectResolver
-from test_service.domain.application.services.test_case_snapshot_resolver import (
+from test_service.domain.application.services.resolvers.project_resolver import ProjectResolver
+from test_service.domain.application.services.resolvers.test_case_snapshot_resolver import (
     TestCaseSnapshotResolver,
 )
 from test_service.domain.application.use_cases.composition.test_sets.activate_test_set_use_case import (  # noqa: E501

@@ -3,7 +3,7 @@
 from uuid import uuid4
 
 from test_service.domain.application.commands.authoring import CreatePreconditionCommand
-from test_service.domain.application.services.project_resolver import ProjectResolver
+from test_service.domain.application.services.resolvers.project_resolver import ProjectResolver
 from test_service.domain.model.authoring.precondition import Precondition
 from test_service.domain.model.exceptions.precondition_already_exists_exception import (
     PreconditionAlreadyExistsException,

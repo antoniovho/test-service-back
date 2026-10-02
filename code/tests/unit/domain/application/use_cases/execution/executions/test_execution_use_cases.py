@@ -9,10 +9,10 @@ from test_service.domain.application.commands.execution import (
     ScheduleExecutionCommand,
 )
 from test_service.domain.application.queries.execution import ExecutionQuery, ListExecutionsQuery
-from test_service.domain.application.services.execution_access_resolver import (
+from test_service.domain.application.services.resolvers.execution_access_resolver import (
     ExecutionAccessResolver,
 )
-from test_service.domain.application.services.project_resolver import ProjectResolver
+from test_service.domain.application.services.resolvers.project_resolver import ProjectResolver
 from test_service.domain.application.use_cases.execution.executions.cancel_execution_use_case import (  # noqa: E501
     CancelExecutionUseCaseImpl,
 )
@@ -91,6 +91,14 @@ class _ExecutionRepository:
 
     async def find_page(self, project_key: str, pagination):
         return Page((), 0) if self.execution is None else Page((self.execution,), 1)
+
+
+class _CancellationRegistry:
+    def __init__(self) -> None:
+        self.cancelled = []
+
+    def request_cancellation(self, execution_id) -> None:
+        self.cancelled.append(execution_id)
 
 
 class TestExecutionUseCases:
@@ -207,16 +215,20 @@ class TestExecutionUseCases:
         execution = _execution()
         command = CancelExecutionCommand("IAG", execution.identifier)
         repository = _ExecutionRepository(execution)
+        cancellation = _CancellationRegistry()
 
-        result = await CancelExecutionUseCaseImpl(repository).execute(command)
+        result = await CancelExecutionUseCaseImpl(repository, cancellation).execute(command)
 
         assert result.status is ExecutionStatus.CANCELLED
         assert repository.saved == result
+        assert cancellation.cancelled == [execution.identifier]
 
     async def test_when_cancelling_foreign_execution_expect_not_found(self):
         execution = _execution("ZAR")
         command = CancelExecutionCommand("IAG", execution.identifier)
-        use_case = CancelExecutionUseCaseImpl(_ExecutionRepository(execution))
+        use_case = CancelExecutionUseCaseImpl(
+            _ExecutionRepository(execution), _CancellationRegistry()
+        )
 
         with pytest.raises(EntityNotFoundException):
             await use_case.execute(command)

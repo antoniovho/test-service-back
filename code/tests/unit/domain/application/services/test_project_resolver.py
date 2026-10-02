@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from test_service.domain.application.services.project_resolver import ProjectResolver
+from test_service.domain.application.services.resolvers.project_resolver import ProjectResolver
 from test_service.domain.model.exceptions.entity_not_found_exception import EntityNotFoundException
 from test_service.domain.model.exceptions.project_already_deleted_exception import (
     ProjectAlreadyDeletedException,

@@ -9,10 +9,10 @@ from test_service.domain.application.queries.execution import (
     ListExecutionResultArtifactsQuery,
     ListExecutionResultsQuery,
 )
-from test_service.domain.application.services.execution_access_resolver import (
+from test_service.domain.application.services.resolvers.execution_access_resolver import (
     ExecutionAccessResolver,
 )
-from test_service.domain.application.services.execution_result_access_resolver import (
+from test_service.domain.application.services.resolvers.execution_result_access_resolver import (
     ExecutionResultAccessResolver,
 )
 from test_service.domain.application.use_cases.execution.executions.get_execution_result_use_case import (  # noqa: E501

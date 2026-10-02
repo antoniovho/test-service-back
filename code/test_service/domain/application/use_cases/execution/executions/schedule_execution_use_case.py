@@ -3,7 +3,7 @@
 from uuid import uuid4
 
 from test_service.domain.application.commands.execution import ScheduleExecutionCommand
-from test_service.domain.application.services.project_resolver import ProjectResolver
+from test_service.domain.application.services.resolvers.project_resolver import ProjectResolver
 from test_service.domain.model.exceptions.entity_not_found_exception import EntityNotFoundException
 from test_service.domain.model.exceptions.invalid_environment_transition_exception import (
     InvalidEnvironmentTransitionException,

@@ -3,6 +3,9 @@
 from opyoid import Module  # type: ignore
 
 from test_service.config import JiraSettings, PostgresDatabaseSettings, ViewerSettings, XraySettings
+from test_service.domain.ports.output.executions.execution_cancellation_port import (
+    ExecutionCancellationPort,
+)
 from test_service.domain.ports.output.persistence.environments.environment_persistence_port import (  # noqa: E501
     EnvironmentPersistencePort,
 )
@@ -30,6 +33,7 @@ from test_service.domain.ports.output.persistence.test_sets.test_set_persistence
 from test_service.domain.ports.output.persistence.viewer.viewer_persistence_port import (
     ViewerPersistencePort,
 )
+from test_service.domain.ports.output.projects.project_validation_port import ProjectValidationPort
 from test_service.domain.ports.output.viewer.viewer_drift_detector_port import (
     ViewerDriftDetectorPort,
 )
@@ -71,6 +75,9 @@ from .adapters.output.execution.environments.environment_persistence_adapter imp
 from .adapters.output.execution.environments.persistence.repositories.environment_repository import (  # noqa: E501
     EnvironmentRepository,
 )
+from .adapters.output.execution.executions.cancellation.execution_cancellation_registry import (  # noqa: E501
+    ExecutionCancellationRegistry,
+)
 from .adapters.output.execution.executions.execution_persistence_adapter import (
     ExecutionPersistenceAdapter,
 )
@@ -82,6 +89,9 @@ from .adapters.output.execution.executions.persistence.repositories.execution_re
 )
 from .adapters.output.execution.executions.persistence.repositories.execution_results_repository import (  # noqa: E501
     ExecutionResultsRepository,
+)
+from .adapters.output.projects.jira.jira_project_validation_adapter import (
+    JiraProjectValidationAdapter,
 )
 from .adapters.output.projects.persistence.project_persistence_adapter import (
     ProjectPersistenceAdapter,
@@ -106,6 +116,7 @@ class ProjectModule(Module):
         self.bind(ProjectRepository)
         self.bind(ProjectPersistencePort, to_class=ProjectPersistenceAdapter)
         self.bind(JiraSettings, to_instance=JiraSettings())
+        self.bind(ProjectValidationPort, to_class=JiraProjectValidationAdapter)
 
 
 class AuthoringModule(Module):
@@ -132,6 +143,9 @@ class ExecutionModule(Module):
         self.bind(EnvironmentPersistencePort, to_class=EnvironmentPersistenceAdapter)
         self.bind(ExecutionPersistencePort, to_class=ExecutionPersistenceAdapter)
         self.bind(ExecutionResultsPersistencePort, to_class=ExecutionResultsPersistenceAdapter)
+        cancellations = ExecutionCancellationRegistry()
+        self.bind(ExecutionCancellationRegistry, to_instance=cancellations)
+        self.bind(ExecutionCancellationPort, to_instance=cancellations)
 
 
 class ViewerModule(Module):
