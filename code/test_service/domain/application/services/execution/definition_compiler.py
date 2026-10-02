@@ -3,13 +3,13 @@
 
 from uuid import UUID
 
-from test_service.domain.application.services.execution.runner import (
-    CompiledAction,
-    CompiledTestCase,
-)
 from test_service.domain.model.authoring.definition import Definition
 from test_service.domain.model.exceptions.invalid_definition_exception import (
     InvalidDefinitionException,
+)
+from test_service.domain.ports.output.runners.runner_dtos import (
+    CompiledAction,
+    CompiledTestCase,
 )
 
 

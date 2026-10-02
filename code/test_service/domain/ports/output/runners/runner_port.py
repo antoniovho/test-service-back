@@ -3,7 +3,7 @@
 import asyncio
 from typing import Protocol
 
-from test_service.domain.application.services.execution.runner import (
+from test_service.domain.ports.output.runners.runner_dtos import (
     CompiledTestCase,
     RunnerTestCaseOutcome,
 )
