@@ -7,7 +7,7 @@ info:
     \ executing validated plans, and publishing read-only projections to an external\
     \ testing viewer."
   title: Test Service
-  version: 0.3.0
+  version: 0.3.1
 servers:
 - description: Local development server
   url: http://localhost:8080
@@ -9466,6 +9466,7 @@ components:
         triggerType: CI
         triggeredBy: github-actions
         status: RUNNING
+        runnerIdentifier: tavern
         runnerVersion: 2.4.1
         startedAt: 2026-01-15T10:30:05Z
         finishedAt: 2026-01-15T10:32:05Z
@@ -9520,6 +9521,14 @@ components:
           - ERROR
           example: RUNNING
           title: status
+          type: string
+        runnerIdentifier:
+          description: Stable identifier of the runner accepted when the execution
+            was scheduled.
+          example: tavern
+          maxLength: 100
+          minLength: 1
+          title: runnerIdentifier
           type: string
         runnerVersion:
           description: Version of the execution runner.
