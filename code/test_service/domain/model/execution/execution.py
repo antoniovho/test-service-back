@@ -125,10 +125,13 @@ class Execution:
         project_key: Owning project key.
         test_plan_id: UUID of the executed test plan snapshot.
         environment_id: UUID of the environment used for execution.
+        test_case_ids: Ordered Test Case snapshot UUIDs selected at scheduling.
+        environment_snapshot: Safe unresolved environment configuration at scheduling.
         trigger_type: Source of the execution request.
         created_at: Request acceptance timestamp.
         status: Current execution lifecycle state.
         triggered_by: Optional initiating identity.
+        runner_identifier: Optional stable identifier of the accepted runner.
         runner_version: Optional runner version.
         started_at: Optional start timestamp.
         finished_at: Optional completion timestamp.
@@ -144,8 +147,11 @@ class Execution:
     environment_id: UUID
     trigger_type: TriggerType
     created_at: datetime
+    test_case_ids: tuple[UUID, ...] = ()
+    environment_snapshot: Mapping[str, object] | None = None
     status: ExecutionStatus = ExecutionStatus.CREATED
     triggered_by: str | None = None
+    runner_identifier: str | None = None
     runner_version: str | None = None
     started_at: datetime | None = None
     finished_at: datetime | None = None
@@ -158,6 +164,7 @@ class Execution:
             InvalidTemporalDataException: If timestamps or duration are inconsistent.
         """
         _validate_temporal_data(self.started_at, self.finished_at, self.duration_ms)
+        object.__setattr__(self, "environment_snapshot", freeze_mapping(self.environment_snapshot))
 
     def start(self, started_at: datetime) -> "Execution":
         """Return this execution transitioned from CREATED to RUNNING.
