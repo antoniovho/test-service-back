@@ -29,6 +29,7 @@ class DefinitionCompiler:
         return CompiledTestCase(str(test_case_id), definition.variables, actions)
 
     def _compile_action(self, identifier: str, action_type: str, position: int, configuration):
+        """Validate one supported action and translate it to runner-ready work."""
         if action_type not in self._SUPPORTED_ACTIONS:
             raise InvalidDefinitionException(f"unsupported runner action type '{action_type}'")
         url = configuration.get("url")
