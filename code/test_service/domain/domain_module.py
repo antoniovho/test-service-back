@@ -8,6 +8,9 @@ from test_service.domain.application.services.execution.definition_compiler impo
 from test_service.domain.application.services.resolvers.execution_access_resolver import (
     ExecutionAccessResolver,
 )
+from test_service.domain.application.services.resolvers.execution_manifest_resolver import (
+    ExecutionManifestResolver,
+)
 from test_service.domain.application.services.resolvers.execution_result_access_resolver import (
     ExecutionResultAccessResolver,
 )
@@ -439,6 +442,7 @@ class ExecutionsModule(Module):
         self.bind(DefinitionCompiler)
         self.bind(ExecutionAccessResolver)
         self.bind(ExecutionResultAccessResolver)
+        self.bind(ExecutionManifestResolver)
         self.bind(ScheduleExecutionUseCase, to_class=ScheduleExecutionUseCaseImpl)
         self.bind(GetExecutionUseCase, to_class=GetExecutionUseCaseImpl)
         self.bind(ListExecutionsUseCase, to_class=ListExecutionsUseCaseImpl)
