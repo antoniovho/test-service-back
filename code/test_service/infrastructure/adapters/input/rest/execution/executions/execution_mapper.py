@@ -79,6 +79,7 @@ class ExecutionMapper:
             triggerType=execution.trigger_type.value,
             triggeredBy=execution.triggered_by,
             status=execution.status.value,
+            runnerIdentifier=execution.runner_identifier,
             runnerVersion=execution.runner_version,
             startedAt=execution.started_at,
             finishedAt=execution.finished_at,

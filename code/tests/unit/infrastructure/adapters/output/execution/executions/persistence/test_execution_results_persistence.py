@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, call
 from uuid import uuid4
 
 import pytest
@@ -14,6 +14,9 @@ from test_service.infrastructure.adapters.output.execution.executions.persistenc
     ActionResultDTO,
     TestResultArtifactDTO,
     TestResultDTO,
+)
+from test_service.infrastructure.adapters.output.execution.executions.persistence.mappers.execution_results_persistence_mapper import (  # noqa: E501
+    ExecutionResultsPersistenceMapper,
 )
 from test_service.infrastructure.adapters.output.execution.executions.persistence.repositories.execution_results_repository import (  # noqa: E501
     ExecutionResultsRepository,
@@ -61,6 +64,9 @@ class _Repository:
     async def find_result(self, identifier):
         return self.result
 
+    async def save_results(self, result, actions, artifacts):
+        self.saved = (result, actions, artifacts)
+
     async def find_results_page(self, identifier, pagination):
         return Page((self.result,), 1)
 
@@ -83,22 +89,62 @@ class _SessionProvider:
 class TestExecutionResultsPersistence:
     async def test_when_mapping_adapter_results_expect_domain_pages(self):
         result, action, artifact = _dtos()
-        adapter = ExecutionResultsPersistenceAdapter(_Repository(result, action, artifact))
+        repository = _Repository(result, action, artifact)
+        adapter = ExecutionResultsPersistenceAdapter(repository)
 
         found = await adapter.find_result(result.id)
         results = await adapter.find_results_page(result.execution_id, PaginationParams())
         actions = await adapter.find_actions_page(result.id, PaginationParams())
         artifacts = await adapter.find_artifacts_page(result.id, PaginationParams())
+        await adapter.save_results(
+            ExecutionResultsPersistenceMapper.to_test_result(result),
+            (ExecutionResultsPersistenceMapper.to_action_result(action),),
+            (ExecutionResultsPersistenceMapper.to_artifact(artifact),),
+        )
 
         assert found.status is ResultStatus.PASSED
         assert results.items[0].test_case_id == result.test_case_id
         assert actions.items[0].expected["code"] == 200
         assert artifacts.items[0].artifact_type is ArtifactType.LOG
         assert artifacts.items[0].storage_type is StorageType.DB
+        saved_result, saved_actions, saved_artifacts = repository.saved
+        assert saved_result.id == result.id
+        assert saved_actions[0].id == action.id
+        assert saved_artifacts[0].id == artifact.id
+
+    def test_when_mapping_domain_evidence_expect_persistence_dtos(self):
+        result, action, artifact = _dtos()
+
+        result_dto = ExecutionResultsPersistenceMapper.to_test_result_dto(
+            ExecutionResultsPersistenceMapper.to_test_result(result)
+        )
+        action_dto = ExecutionResultsPersistenceMapper.to_action_result_dto(
+            ExecutionResultsPersistenceMapper.to_action_result(action)
+        )
+        artifact_dto = ExecutionResultsPersistenceMapper.to_artifact_dto(
+            ExecutionResultsPersistenceMapper.to_artifact(artifact)
+        )
+
+        assert result_dto.id == result.id
+        assert action_dto.id == action.id
+        assert artifact_dto.id == artifact.id
 
     def test_when_sort_field_is_unknown_expect_value_error(self):
         with pytest.raises(ValueError, match="unsupported artifact sort field"):
             ExecutionResultsRepository._artifact_sort_column("unknown")
+
+    @pytest.mark.parametrize(
+        ("sort_column", "resource_name"),
+        [
+            (ExecutionResultsRepository._result_sort_column, "result"),
+            (ExecutionResultsRepository._action_sort_column, "action result"),
+        ],
+    )
+    def test_when_result_or_action_sort_field_is_unknown_expect_value_error(
+        self, sort_column, resource_name
+    ):
+        with pytest.raises(ValueError, match=f"unsupported {resource_name} sort field"):
+            sort_column("unknown")
 
     async def test_when_repository_queries_expect_owned_pages(self):
         result, action, artifact = _dtos()
@@ -129,3 +175,17 @@ class TestExecutionResultsPersistence:
         assert results.items == (result,)
         assert actions.items == (action,)
         assert artifacts.items == (artifact,)
+
+    async def test_when_saving_result_tree_expect_single_transaction(self):
+        result, action, artifact = _dtos()
+        session = MagicMock()
+        session.add = MagicMock()
+        session.add_all = MagicMock()
+        session.commit = AsyncMock()
+        repository = ExecutionResultsRepository(_SessionProvider(session))
+
+        await repository.save_results(result, (action,), (artifact,))
+
+        session.add.assert_called_once_with(result)
+        assert session.add_all.call_args_list == [call((action,)), call((artifact,))]
+        session.commit.assert_awaited_once()

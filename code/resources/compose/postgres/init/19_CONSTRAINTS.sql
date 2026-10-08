@@ -460,7 +460,7 @@ BEGIN
     ) THEN
         ALTER TABLE test_service_v1.test_plan
             ADD CONSTRAINT chk_test_plan_execution_mode
-            CHECK (execution_mode IN ('SEQUENTIAL', 'PARALLEL'));
+            CHECK (execution_mode = 'SEQUENTIAL');
     END IF;
 
     -- environment status check

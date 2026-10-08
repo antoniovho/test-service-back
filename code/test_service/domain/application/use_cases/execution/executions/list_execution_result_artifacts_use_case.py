@@ -1,10 +1,10 @@
 """Use case implementation: list result artifacts."""
 
 from test_service.domain.application.queries.execution import ListExecutionResultArtifactsQuery
-from test_service.domain.application.services.execution_access_resolver import (
+from test_service.domain.application.services.resolvers.execution_access_resolver import (
     ExecutionAccessResolver,
 )
-from test_service.domain.application.services.execution_result_access_resolver import (
+from test_service.domain.application.services.resolvers.execution_result_access_resolver import (
     ExecutionResultAccessResolver,
 )
 from test_service.domain.commons.pagination import Page

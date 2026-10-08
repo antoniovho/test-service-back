@@ -1,4 +1,5 @@
 """Persistence adapter for immutable execution evidence."""
+# ruff: noqa: E501
 
 from uuid import UUID
 
@@ -24,6 +25,23 @@ class ExecutionResultsPersistenceAdapter(ExecutionResultsPersistencePort):
 
     def __init__(self, repository: ExecutionResultsRepository) -> None:
         self._repository = repository
+
+    async def save_results(
+        self,
+        result: TestResult,
+        actions: tuple[ActionResult, ...],
+        artifacts: tuple[TestResultArtifact, ...] = (),
+    ) -> None:
+        await self._repository.save_results(
+            ExecutionResultsPersistenceMapper.to_test_result_dto(result),
+            tuple(
+                ExecutionResultsPersistenceMapper.to_action_result_dto(action) for action in actions
+            ),
+            tuple(
+                ExecutionResultsPersistenceMapper.to_artifact_dto(artifact)
+                for artifact in artifacts
+            ),
+        )
 
     async def find_result(self, identifier: UUID) -> TestResult | None:
         """Find one result or return ``None`` when absent."""

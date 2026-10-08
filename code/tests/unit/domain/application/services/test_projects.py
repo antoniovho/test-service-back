@@ -8,7 +8,7 @@ from test_service.domain.application.commands.projects import (
     DeleteProjectCommand,
 )
 from test_service.domain.application.queries.projects import GetProjectQuery, ListProjectsQuery
-from test_service.domain.application.services.project_resolver import ProjectResolver
+from test_service.domain.application.services.resolvers.project_resolver import ProjectResolver
 from test_service.domain.application.use_cases.projects.create_project_use_case import (
     CreateProjectUseCaseImpl,
 )
@@ -51,6 +51,11 @@ class InMemoryProjectRepository:
         return Page(items=page_items, total=len(projects))
 
 
+class AcceptingProjectValidation:
+    async def validate(self, project_key: str) -> None:
+        return None
+
+
 def _project(**overrides: object) -> Project:
     fields = {
         "key": "IAG",
@@ -75,7 +80,9 @@ class TestListProjectsUseCaseImpl:
 
 class TestCreateProjectUseCaseImpl:
     async def test_when_key_is_unused_expect_project_persisted(self):
-        use_case = CreateProjectUseCaseImpl(InMemoryProjectRepository())
+        use_case = CreateProjectUseCaseImpl(
+            InMemoryProjectRepository(), AcceptingProjectValidation()
+        )
         requested_at = datetime(2026, 1, 1, tzinfo=UTC)
 
         project = await use_case.execute(
@@ -95,7 +102,9 @@ class TestCreateProjectUseCaseImpl:
 
     async def test_when_key_already_exists_expect_already_exists_exception(self):
         existing = _project()
-        use_case = CreateProjectUseCaseImpl(InMemoryProjectRepository((existing,)))
+        use_case = CreateProjectUseCaseImpl(
+            InMemoryProjectRepository((existing,)), AcceptingProjectValidation()
+        )
         request = CreateProjectCommand(
             key=existing.key,
             name="Another name",

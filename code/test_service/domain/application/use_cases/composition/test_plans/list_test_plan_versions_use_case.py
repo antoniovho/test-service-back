@@ -1,7 +1,7 @@
 """Use case implementation: list Test Plan versions."""
 
 from test_service.domain.application.queries.composition import ListTestPlanVersionsQuery
-from test_service.domain.application.services.project_resolver import ProjectResolver
+from test_service.domain.application.services.resolvers.project_resolver import ProjectResolver
 from test_service.domain.commons.pagination import Page
 from test_service.domain.model.composition.test_plan import TestPlan
 from test_service.domain.ports.input.use_cases.composition.test_plans.list_test_plan_versions_use_case import (  # noqa: E501

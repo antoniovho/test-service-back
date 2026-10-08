@@ -3,11 +3,11 @@
 from uuid import uuid4
 
 from test_service.domain.application.commands.composition import CreateTestPlanCommand
-from test_service.domain.application.services.project_resolver import ProjectResolver
-from test_service.domain.application.services.test_case_snapshot_resolver import (
+from test_service.domain.application.services.resolvers.project_resolver import ProjectResolver
+from test_service.domain.application.services.resolvers.test_case_snapshot_resolver import (
     TestCaseSnapshotResolver,
 )
-from test_service.domain.application.services.test_set_snapshot_resolver import (
+from test_service.domain.application.services.resolvers.test_set_snapshot_resolver import (
     TestSetSnapshotResolver,
 )
 from test_service.domain.model.composition.test_plan import TestPlan
@@ -68,6 +68,5 @@ class CreateTestPlanUseCaseImpl(CreateTestPlanUseCase):
             test_case_ids=test_case_ids,
             exclusions=exclusions,
             description=request.description,
-            max_parallelism=request.max_parallelism,
         )
         return await self._test_plan_repository.save(test_plan)

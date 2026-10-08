@@ -24,7 +24,6 @@ class TestPlanDTO(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String, nullable=False)
     execution_mode: Mapped[str] = mapped_column(String, nullable=False)
-    max_parallelism: Mapped[int | None] = mapped_column(Integer, nullable=True)
     timeout_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     created_by: Mapped[str] = mapped_column(Text, nullable=False)

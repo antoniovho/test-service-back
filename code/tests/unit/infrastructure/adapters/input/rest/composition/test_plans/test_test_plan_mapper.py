@@ -17,8 +17,7 @@ def _request() -> CreateTestPlanRequest:
         planKey="checkout-nightly",
         name="Checkout nightly",
         description="Nightly regression",
-        executionMode="PARALLEL",
-        maxParallelism=4,
+        executionMode="SEQUENTIAL",
         timeoutSeconds=900,
         testSetIds=[uuid4()],
         testCaseIds=[uuid4()],
@@ -33,7 +32,7 @@ def _snapshot() -> TestPlan:
         "checkout-nightly",
         1,
         "Checkout nightly",
-        ExecutionMode.PARALLEL,
+        ExecutionMode.SEQUENTIAL,
         900,
         datetime(2026, 1, 1, tzinfo=UTC),
         "author@example.test",
@@ -41,7 +40,6 @@ def _snapshot() -> TestPlan:
         test_case_ids=(uuid4(),),
         exclusions=(uuid4(),),
         description="Nightly regression",
-        max_parallelism=4,
     )
 
 
@@ -58,7 +56,7 @@ class TestTestPlanMapper:
         )
 
         assert command.plan_key == request.plan_key
-        assert command.execution_mode is ExecutionMode.PARALLEL
+        assert command.execution_mode is ExecutionMode.SEQUENTIAL
         assert command.test_set_ids == tuple(request.test_set_ids)
         assert version.source_id is not None
 

@@ -3,7 +3,10 @@
 from uuid import uuid4
 
 from test_service.domain.application.commands.execution import ScheduleExecutionCommand
-from test_service.domain.application.services.project_resolver import ProjectResolver
+from test_service.domain.application.services.resolvers.execution_manifest_resolver import (
+    ExecutionManifestResolver,
+)
+from test_service.domain.application.services.resolvers.project_resolver import ProjectResolver
 from test_service.domain.model.exceptions.entity_not_found_exception import EntityNotFoundException
 from test_service.domain.model.exceptions.invalid_environment_transition_exception import (
     InvalidEnvironmentTransitionException,
@@ -23,9 +26,10 @@ from test_service.domain.ports.output.persistence.environments.environment_persi
 from test_service.domain.ports.output.persistence.executions.execution_persistence_port import (  # noqa: E501
     ExecutionPersistencePort,
 )
-from test_service.domain.ports.output.persistence.test_plans.test_plan_persistence_port import (
+from test_service.domain.ports.output.persistence.test_plans.test_plan_persistence_port import (  # noqa: E501
     TestPlanPersistencePort,
 )
+from test_service.domain.ports.output.runners.runner_port import RunnerPort
 
 
 class ScheduleExecutionUseCaseImpl(ScheduleExecutionUseCase):
@@ -37,11 +41,15 @@ class ScheduleExecutionUseCaseImpl(ScheduleExecutionUseCase):
         project_resolver: ProjectResolver,
         test_plan_repository: TestPlanPersistencePort,
         environment_repository: EnvironmentPersistencePort,
+        manifest_resolver: ExecutionManifestResolver,
+        runner: RunnerPort,
     ) -> None:
         self._execution_repository = execution_repository
         self._project_resolver = project_resolver
         self._test_plan_repository = test_plan_repository
         self._environment_repository = environment_repository
+        self._manifest_resolver = manifest_resolver
+        self._runner = runner
 
     async def execute(self, request: ScheduleExecutionCommand) -> Execution:
         """Accept an execution when its project, active plan, and environment are valid."""
@@ -58,6 +66,7 @@ class ScheduleExecutionUseCaseImpl(ScheduleExecutionUseCase):
             raise EntityNotFoundException("environment", str(request.environment_id))
         if environment.status is not EnvironmentStatus.ACTIVE:
             raise InvalidEnvironmentTransitionException("only active environments can be executed")
+        test_case_ids = await self._manifest_resolver.resolve(test_plan, request.project_key)
         return await self._execution_repository.save_execution(
             Execution(
                 identifier=uuid4(),
@@ -66,6 +75,10 @@ class ScheduleExecutionUseCaseImpl(ScheduleExecutionUseCase):
                 environment_id=request.environment_id,
                 trigger_type=request.trigger_type,
                 created_at=request.requested_at,
+                test_case_ids=test_case_ids,
+                environment_snapshot=environment.configuration,
                 triggered_by=request.triggered_by,
+                runner_identifier=self._runner.identifier,
+                runner_version=self._runner.version,
             )
         )

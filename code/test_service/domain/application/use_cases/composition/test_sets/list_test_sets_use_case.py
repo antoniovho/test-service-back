@@ -1,7 +1,7 @@
 """Use case implementation: list Test Sets."""
 
 from test_service.domain.application.queries.composition import ListTestSetsQuery
-from test_service.domain.application.services.project_resolver import ProjectResolver
+from test_service.domain.application.services.resolvers.project_resolver import ProjectResolver
 from test_service.domain.commons.pagination import Page
 from test_service.domain.model.composition.test_set import TestSet
 from test_service.domain.ports.input.use_cases.composition.test_sets.list_test_sets_use_case import (  # noqa: E501

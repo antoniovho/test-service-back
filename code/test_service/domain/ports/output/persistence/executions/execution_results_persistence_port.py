@@ -14,6 +14,15 @@ from test_service.domain.model.execution.execution import (
 class ExecutionResultsPersistencePort(Protocol):
     """Read contract for immutable execution result details."""
 
+    async def save_results(
+        self,
+        result: TestResult,
+        actions: tuple[ActionResult, ...],
+        artifacts: tuple[TestResultArtifact, ...] = (),
+    ) -> None:
+        """Atomically persist a test result and its action/evidence records."""
+        ...
+
     async def find_result(self, identifier: UUID) -> TestResult | None:
         """Find a test result by UUID."""
         ...

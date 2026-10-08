@@ -1,6 +1,6 @@
 from opyoid import Injector, InstanceBinding
 
-from test_service.domain.application.services.project_resolver import ProjectResolver
+from test_service.domain.application.services.resolvers.project_resolver import ProjectResolver
 from test_service.domain.application.use_cases.authoring.test_cases.activate_test_case_use_case import (  # noqa: E501
     ActivateTestCaseUseCaseImpl,
 )
@@ -42,6 +42,9 @@ from test_service.domain.application.use_cases.execution.executions.list_executi
 )
 from test_service.domain.application.use_cases.execution.executions.list_executions_use_case import (  # noqa: E501
     ListExecutionsUseCaseImpl,
+)
+from test_service.domain.application.use_cases.execution.executions.process_next_execution_use_case import (  # noqa: E501
+    ProcessNextExecutionUseCaseImpl,
 )
 from test_service.domain.application.use_cases.execution.executions.schedule_execution_use_case import (  # noqa: E501
     ScheduleExecutionUseCaseImpl,
@@ -101,6 +104,9 @@ from test_service.domain.ports.input.use_cases.execution.executions.list_executi
 from test_service.domain.ports.input.use_cases.execution.executions.list_executions_use_case import (  # noqa: E501
     ListExecutionsUseCase,
 )
+from test_service.domain.ports.input.use_cases.execution.executions.process_next_execution_use_case import (  # noqa: E501
+    ProcessNextExecutionUseCase,
+)
 from test_service.domain.ports.input.use_cases.execution.executions.schedule_execution_use_case import (  # noqa: E501
     ScheduleExecutionUseCase,
 )
@@ -115,6 +121,9 @@ from test_service.domain.ports.input.use_cases.projects.get_project_use_case imp
 )
 from test_service.domain.ports.input.use_cases.projects.list_projects_use_case import (
     ListProjectsUseCase,
+)
+from test_service.domain.ports.output.executions.execution_cancellation_port import (
+    ExecutionCancellationPort,
 )
 from test_service.domain.ports.output.persistence.environments.environment_persistence_port import (  # noqa: E501
     EnvironmentPersistencePort,
@@ -143,6 +152,8 @@ from test_service.domain.ports.output.persistence.test_sets.test_set_persistence
 from test_service.domain.ports.output.persistence.viewer.viewer_persistence_port import (
     ViewerPersistencePort,
 )
+from test_service.domain.ports.output.projects.project_validation_port import ProjectValidationPort
+from test_service.domain.ports.output.runners.runner_port import RunnerPort
 from test_service.domain.ports.output.viewer.viewer_drift_detector_port import (
     ViewerDriftDetectorPort,
 )
@@ -158,6 +169,11 @@ class _FakeProjectRepository:
 
     async def find_page(self, pagination):
         raise NotImplementedError
+
+
+class _FakeProjectValidation:
+    async def validate(self, project_key):
+        return None
 
 
 class _FakeTestCaseRepository:
@@ -252,6 +268,29 @@ class _FakeExecutionResultsRepository:
         raise NotImplementedError
 
 
+class _FakeExecutionCancellation:
+    def register(self, execution_id):
+        return None
+
+    def unregister(self, execution_id):
+        return None
+
+    def request_cancellation(self, execution_id):
+        return None
+
+
+class _FakeRunner:
+    @property
+    def version(self):
+        return "test"
+
+    def supports(self, action_types):
+        return True
+
+    async def execute(self, test_case, cancellation):
+        raise NotImplementedError
+
+
 class _FakeViewerRepository:
     async def save_sync_record(self, record):
         return record
@@ -288,6 +327,7 @@ class TestDomainModule:
             [DomainModule],
             bindings=[
                 InstanceBinding(ProjectPersistencePort, _FakeProjectRepository()),
+                InstanceBinding(ProjectValidationPort, _FakeProjectValidation()),
                 InstanceBinding(TestCasePersistencePort, _FakeTestCaseRepository()),
                 InstanceBinding(PreconditionPersistencePort, _FakePreconditionRepository()),
                 InstanceBinding(TestSetPersistencePort, _FakeTestSetRepository()),
@@ -295,6 +335,8 @@ class TestDomainModule:
                 InstanceBinding(EnvironmentPersistencePort, _FakeEnvironmentRepository()),
                 InstanceBinding(ExecutionPersistencePort, _FakeExecutionRepository()),
                 InstanceBinding(ExecutionResultsPersistencePort, _FakeExecutionResultsRepository()),
+                InstanceBinding(ExecutionCancellationPort, _FakeExecutionCancellation()),
+                InstanceBinding(RunnerPort, _FakeRunner()),
                 InstanceBinding(ViewerPersistencePort, _FakeViewerRepository()),
                 InstanceBinding(ViewerPublisherPort, _FakeViewerPublisher()),
                 InstanceBinding(ViewerDriftDetectorPort, _FakeViewerDriftDetector()),
@@ -338,12 +380,20 @@ class TestDomainModule:
                 InstanceBinding(EnvironmentPersistencePort, _FakeEnvironmentRepository()),
                 InstanceBinding(ExecutionPersistencePort, _FakeExecutionRepository()),
                 InstanceBinding(ExecutionResultsPersistencePort, _FakeExecutionResultsRepository()),
+                InstanceBinding(TestCasePersistencePort, _FakeTestCaseRepository()),
+                InstanceBinding(PreconditionPersistencePort, _FakePreconditionRepository()),
+                InstanceBinding(TestSetPersistencePort, _FakeTestSetRepository()),
+                InstanceBinding(ExecutionCancellationPort, _FakeExecutionCancellation()),
+                InstanceBinding(RunnerPort, _FakeRunner()),
             ],
         )
 
         assert isinstance(injector.inject(ScheduleExecutionUseCase), ScheduleExecutionUseCaseImpl)
         assert isinstance(injector.inject(GetExecutionUseCase), GetExecutionUseCaseImpl)
         assert isinstance(injector.inject(ListExecutionsUseCase), ListExecutionsUseCaseImpl)
+        assert isinstance(
+            injector.inject(ProcessNextExecutionUseCase), ProcessNextExecutionUseCaseImpl
+        )
         assert isinstance(injector.inject(CancelExecutionUseCase), CancelExecutionUseCaseImpl)
         assert isinstance(
             injector.inject(ListExecutionResultsUseCase), ListExecutionResultsUseCaseImpl

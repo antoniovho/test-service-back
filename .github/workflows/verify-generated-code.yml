@@ -36,6 +36,17 @@ jobs:
           node-version: "22"
       - run: uv sync --extra dev --locked
       - run: uv run contract-sync test-service
+      - id: openapi-generator
+        name: Resolve OpenAPI Generator version
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import tomllib
+
+          with open("pyproject.toml", "rb") as file:
+              configuration = tomllib.load(file)
+          print("version=" + configuration["tool"]["openapi-contracts"]["generator-version"])
+          PY
+      - run: npx --yes @openapitools/openapi-generator-cli@2.41.0 version-manager set "${{ steps.openapi-generator.outputs.version }}"
       - run: uv run generate-source --rest-server --api test-service-server
       - run: git ls-files --error-unmatch generated/test_service_server/openapi.yaml
       - run: git diff --exit-code -- generated/test_service_server/test_service_server/
