@@ -9,9 +9,31 @@ from collections.abc import Mapping
 from datetime import datetime
 from pathlib import Path
 
+from test_service.domain.commons.reserved_constructs import find_reserved_construct
 from test_service.infrastructure.adapters.output.runners.tavern.dtos.tavern_dtos import (
     TavernExecutionResult,
     TavernStageResult,
+)
+
+# Tavern exposes the whole process environment to test documents, so only what the
+# subprocess needs to start and reach targets through proxies is passed on.
+_INHERITED_ENVIRONMENT = frozenset(
+    {
+        "PATH",
+        "LANG",
+        "LC_ALL",
+        "LC_CTYPE",
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "NO_PROXY",
+        "http_proxy",
+        "https_proxy",
+        "no_proxy",
+        "SSL_CERT_FILE",
+        "SSL_CERT_DIR",
+        "REQUESTS_CA_BUNDLE",
+        "CURL_CA_BUNDLE",
+    }
 )
 
 
@@ -44,9 +66,14 @@ class TavernExecutor:
             state, stage outcomes, and Tavern variables saved during execution.
 
         Raises:
+            ValueError: If the document uses a construct Tavern would evaluate
+                as code or as privileged data.
             OSError: If the temporary files cannot be created or the Tavern
                 process cannot be started.
         """
+        reserved = find_reserved_construct(document)
+        if reserved is not None:
+            raise ValueError(f"Tavern document uses {reserved}")
         with tempfile.TemporaryDirectory(prefix="test-service-") as directory:
             root = Path(directory)
             test_file = root / "test-execution.tavern.yaml"
@@ -59,6 +86,7 @@ class TavernExecutor:
                 "tavern-ci",
                 str(test_file),
                 cwd=root,
+                env=_subprocess_environment(),
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
                 start_new_session=True,
@@ -102,6 +130,16 @@ class TavernExecutor:
             if not cancellation_wait.done():
                 cancellation_wait.cancel()
             await asyncio.gather(cancellation_wait, return_exceptions=True)
+
+
+def _subprocess_environment() -> dict[str, str]:
+    """Build the minimal environment handed to the Tavern subprocess.
+
+    Returns:
+        Only the allow-listed variables currently set in this process, so service
+        credentials such as database or integration secrets never reach Tavern.
+    """
+    return {name: value for name, value in os.environ.items() if name in _INHERITED_ENVIRONMENT}
 
 
 def _write_secure(path: Path, content: str) -> None:
