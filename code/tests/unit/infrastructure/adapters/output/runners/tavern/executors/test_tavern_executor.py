@@ -1,3 +1,5 @@
+import pytest
+
 from test_service.infrastructure.adapters.output.runners.tavern.executors.tavern_executor import (
     _reporter_source,
 )
@@ -75,3 +77,14 @@ class TestTavernExecutor:
         evidence = namespace["response_body_evidence"]("x" * 4097)
 
         assert evidence == {"truncated": True, "content": '"' + "x" * 4095}
+
+    def test_when_tavern_emits_more_requests_than_stages_expect_explicit_runner_error(
+        self,
+    ) -> None:
+        namespace: dict[str, object] = {}
+        exec(_reporter_source(("request-account",)), namespace)
+
+        namespace["pytest_tavern_beta_before_every_request"]({})
+
+        with pytest.raises(RuntimeError, match="more HTTP requests"):
+            namespace["pytest_tavern_beta_before_every_request"]({})
