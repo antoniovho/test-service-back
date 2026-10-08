@@ -34,6 +34,7 @@ from test_service.domain.ports.output.persistence.viewer.viewer_persistence_port
     ViewerPersistencePort,
 )
 from test_service.domain.ports.output.projects.project_validation_port import ProjectValidationPort
+from test_service.domain.ports.output.runners.runner_port import RunnerPort
 from test_service.domain.ports.output.viewer.viewer_drift_detector_port import (
     ViewerDriftDetectorPort,
 )
@@ -97,6 +98,7 @@ from .adapters.output.projects.persistence.project_persistence_adapter import (
     ProjectPersistenceAdapter,
 )
 from .adapters.output.projects.persistence.repositories.project_repository import ProjectRepository
+from .adapters.output.runners.tavern.tavern_runner_adapter import TavernRunnerAdapter
 from .adapters.output.viewer.persistence.repositories.viewer_repository import ViewerRepository
 from .adapters.output.viewer.persistence.viewer_persistence_adapter import ViewerPersistenceAdapter
 from .adapters.output.viewer.xray_viewer_adapter import XrayViewerAdapter
@@ -143,6 +145,7 @@ class ExecutionModule(Module):
         self.bind(EnvironmentPersistencePort, to_class=EnvironmentPersistenceAdapter)
         self.bind(ExecutionPersistencePort, to_class=ExecutionPersistenceAdapter)
         self.bind(ExecutionResultsPersistencePort, to_class=ExecutionResultsPersistenceAdapter)
+        self.bind(RunnerPort, to_class=TavernRunnerAdapter)
         cancellations = ExecutionCancellationRegistry()
         self.bind(ExecutionCancellationRegistry, to_instance=cancellations)
         self.bind(ExecutionCancellationPort, to_instance=cancellations)
