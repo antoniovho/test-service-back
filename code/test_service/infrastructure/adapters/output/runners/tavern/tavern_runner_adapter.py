@@ -19,11 +19,11 @@ from test_service.domain.ports.output.runners.runner_dtos import (
     RunnerActionOutcome,
     RunnerTestCaseOutcome,
 )
+from test_service.infrastructure.adapters.output.runners.sse.sse_action_executor import (
+    SseExecutor,
+)
 from test_service.infrastructure.adapters.output.runners.tavern.compilers.tavern_compiler import (
     TavernCompiler,
-)
-from test_service.infrastructure.adapters.output.runners.tavern.executors.sse_executor import (
-    SseExecutor,
 )
 from test_service.infrastructure.adapters.output.runners.tavern.executors.tavern_executor import (
     TavernExecutor,

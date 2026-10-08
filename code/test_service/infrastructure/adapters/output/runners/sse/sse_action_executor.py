@@ -1,4 +1,4 @@
-"""SSE execution extension for the Tavern-backed runner."""
+"""SSE action execution for runner adapters."""
 
 import asyncio
 from collections.abc import Mapping
