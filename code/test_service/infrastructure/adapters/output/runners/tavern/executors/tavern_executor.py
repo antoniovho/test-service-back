@@ -188,6 +188,13 @@ result = {{"stages": [], "variables": {{}}}}
 initial_variables = set()
 next_stage = 0
 pending = None
+SENSITIVE_HEADERS = frozenset({{
+    "authorization", "cookie", "proxy-authorization", "set-cookie", "x-api-key",
+}})
+SENSITIVE_FIELDS = frozenset({{
+    "access_token", "api_key", "authorization", "password", "refresh_token", "secret", "token",
+}})
+MAX_RESPONSE_BODY_CHARS = 4096
 
 def now():
     """Return the current UTC instant in JSON-compatible form."""
@@ -200,6 +207,35 @@ def safe(value):
         return value
     except (TypeError, ValueError):
         return repr(value)
+
+def redact_headers(headers):
+    """Remove credentials from HTTP headers before recording execution evidence."""
+    return {{key: "[REDACTED]" if key.lower() in SENSITIVE_HEADERS else value
+            for key, value in headers.items()}}
+
+def request_evidence(request_args):
+    """Keep request metadata without retaining potentially sensitive request bodies."""
+    return {{key: safe(request_args[key])
+            for key in ("method", "url", "params") if key in request_args}} | {{
+                "headers": redact_headers(request_args.get("headers", {{}}))
+            }}
+
+def redact_fields(value):
+    """Remove common credential fields from nested JSON-compatible response bodies."""
+    if isinstance(value, dict):
+        return {{key: "[REDACTED]" if key.lower() in SENSITIVE_FIELDS else redact_fields(item)
+                for key, item in value.items()}}
+    if isinstance(value, list):
+        return [redact_fields(item) for item in value]
+    return value
+
+def response_body_evidence(body):
+    """Limit response-body size before persisting it as execution evidence."""
+    redacted_body = redact_fields(body)
+    serialized = json.dumps(redacted_body, default=repr)
+    if len(serialized) <= MAX_RESPONSE_BODY_CHARS:
+        return safe(redacted_body)
+    return {{"truncated": True, "content": serialized[:MAX_RESPONSE_BODY_CHARS]}}
 
 def complete(status, code=None, message=None):
     """Persist the pending stage with its terminal structured status."""
@@ -225,7 +261,7 @@ def pytest_tavern_beta_before_every_request(request_args):
     global next_stage, pending
     complete("PASSED")
     pending = {{"identifier": STAGES[next_stage], "startedAt": now(),
-               "actual": {{"request": safe(dict(request_args))}}}}
+               "actual": {{"request": request_evidence(request_args)}}}}
     next_stage += 1
 
 def pytest_tavern_beta_after_every_response(expected, response):
@@ -238,7 +274,8 @@ def pytest_tavern_beta_after_every_response(expected, response):
         body = response.text
     pending["expected"] = safe(expected)
     pending["actual"] = {{"statusCode": response.status_code,
-                         "headers": safe(dict(response.headers)), "body": safe(body)}}
+                         "headers": redact_headers(response.headers),
+                         "body": response_body_evidence(body)}}
 
 def pytest_tavern_beta_after_every_test_run(test_dict, variables):
     """Expose serializable variables saved by Tavern for a later HTTP block."""
