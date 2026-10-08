@@ -260,6 +260,8 @@ def pytest_tavern_beta_before_every_request(request_args):
     """Open the structured result record for the next HTTP stage."""
     global next_stage, pending
     complete("PASSED")
+    if next_stage >= len(STAGES):
+        raise RuntimeError("Tavern emitted more HTTP requests than configured stages")
     pending = {{"identifier": STAGES[next_stage], "startedAt": now(),
                "actual": {{"request": request_evidence(request_args)}}}}
     next_stage += 1
