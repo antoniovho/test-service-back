@@ -19,6 +19,7 @@ class DomainError(Enum):
     PRECONDITION_ALREADY_EXISTS = ("PRECONDITION_ALREADY_EXISTS", "Precondition already exists")
     ENVIRONMENT_ALREADY_EXISTS = ("ENVIRONMENT_ALREADY_EXISTS", "Environment already exists")
     INVALID_PROJECT_DELETION = ("INVALID_PROJECT_DELETION", "Invalid project deletion metadata")
+    INVALID_PROJECT_KEY = ("INVALID_PROJECT_KEY", "Invalid project key")
     PRECONDITION_PROJECT_MISMATCH = (
         "PRECONDITION_PROJECT_MISMATCH",
         "Precondition snapshot does not belong to the requested project",

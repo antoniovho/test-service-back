@@ -1,5 +1,6 @@
 """Project Catalog aggregate."""
 
+import re
 from dataclasses import dataclass, replace
 from datetime import datetime
 from enum import StrEnum
@@ -7,9 +8,15 @@ from enum import StrEnum
 from test_service.domain.model.exceptions.invalid_project_deletion_exception import (
     InvalidProjectDeletionException,
 )
+from test_service.domain.model.exceptions.invalid_project_key_exception import (
+    InvalidProjectKeyException,
+)
 from test_service.domain.model.exceptions.project_already_deleted_exception import (
     ProjectAlreadyDeletedException,
 )
+
+# Jira project key shape, bounded by the 20 characters the API contract allows.
+_PROJECT_KEY = re.compile(r"[A-Z][A-Z0-9_]{1,19}")
 
 
 class ProjectStatus(StrEnum):
@@ -38,6 +45,7 @@ class Project:
         deleted_by: Identity that logically deleted the project, when applicable.
 
     Raises:
+        InvalidProjectKeyException: If the key does not follow the accepted key format.
         InvalidProjectDeletionException:
         If fields are invalid or deletion metadata is inconsistent.
     """
@@ -54,9 +62,15 @@ class Project:
         """Validate Project Catalog invariants.
 
         Raises:
+            InvalidProjectKeyException: If the key does not follow the accepted key format.
             InvalidProjectDeletionException: If deletion metadata is inconsistent with the
             lifecycle.
         """
+        if not isinstance(self.key, str) or _PROJECT_KEY.fullmatch(self.key) is None:
+            raise InvalidProjectKeyException(
+                "project key must start with an uppercase letter and contain only uppercase "
+                "letters, digits or underscores (2 to 20 characters)"
+            )
         self._validate_deletion_metadata()
 
     def delete(self, deleted_at: datetime, deleted_by: str) -> "Project":
