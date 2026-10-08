@@ -13,6 +13,7 @@ from test_service.infrastructure.adapters.output.runners.tavern.executors.tavern
     TavernExecutor,
     _read_result,
     _reporter_source,
+    _subprocess_environment,
     _terminate_process_group,
     _write_secure,
 )
@@ -87,6 +88,50 @@ class TestTavernExecutor:
         assert result.cancelled is True
         assert result.stages == ()
 
+    async def test_when_launching_tavern_expect_service_secrets_not_inherited(
+        self, monkeypatch
+    ) -> None:
+        create_subprocess = AsyncMock(return_value=_Process())
+        monkeypatch.setattr(tavern_executor.asyncio, "create_subprocess_exec", create_subprocess)
+        monkeypatch.setenv("DATABASE_PASSWORD", "database-secret")
+        monkeypatch.setenv("XRAY_CLIENT_SECRET", "xray-secret")
+        monkeypatch.setenv("PATH", "/usr/local/bin:/usr/bin")
+
+        await TavernExecutor().execute({}, ("request-account",), asyncio.Event())
+
+        environment = create_subprocess.await_args.kwargs["env"]
+        assert environment["PATH"] == "/usr/local/bin:/usr/bin"
+        assert "database-secret" not in environment.values()
+        assert "xray-secret" not in environment.values()
+        assert "DATABASE_PASSWORD" not in environment
+        assert "XRAY_CLIENT_SECRET" not in environment
+
+    @pytest.mark.parametrize(
+        ("document", "construct"),
+        [
+            (
+                {"stages": [{"request": {"json": {"$ext": {"function": "os:system"}}}}]},
+                "$ext",
+            ),
+            (
+                {"stages": [{"request": {"headers": {"X": "{tavern.env_vars.SECRET}"}}}]},
+                "tavern",
+            ),
+        ],
+        ids=["ext-directive", "tavern-template-field"],
+    )
+    async def test_when_document_uses_reserved_construct_expect_error_before_launching_tavern(
+        self, monkeypatch, document, construct
+    ) -> None:
+        create_subprocess = AsyncMock(return_value=_Process())
+        monkeypatch.setattr(tavern_executor.asyncio, "create_subprocess_exec", create_subprocess)
+
+        with pytest.raises(ValueError, match="Tavern document uses") as exc:
+            await TavernExecutor().execute(document, ("request-account",), asyncio.Event())
+
+        assert construct in str(exc.value)
+        create_subprocess.assert_not_awaited()
+
     async def test_when_process_finishes_before_cancellation_expect_process_result(self) -> None:
         process = _Process(2)
 
@@ -115,6 +160,50 @@ class TestTavernExecutor:
         assert exit_code == 143
         assert cancelled is True
         assert signals == [tavern_executor.signal.SIGTERM]
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "PATH",
+            "LANG",
+            "LC_ALL",
+            "HTTP_PROXY",
+            "HTTPS_PROXY",
+            "NO_PROXY",
+            "https_proxy",
+            "SSL_CERT_FILE",
+            "REQUESTS_CA_BUNDLE",
+        ],
+    )
+    def test_when_building_environment_expect_runtime_variable_kept(
+        self, monkeypatch, name
+    ) -> None:
+        monkeypatch.setenv(name, "kept-value")
+
+        environment = _subprocess_environment()
+
+        assert environment[name] == "kept-value"
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "DATABASE_PASSWORD",
+            "DATABASE_HOST",
+            "XRAY_CLIENT_SECRET",
+            "JIRA_API_TOKEN",
+            "AUTH_JWKS_URL",
+            "AWS_SECRET_ACCESS_KEY",
+            "PYTEST_ADDOPTS",
+        ],
+    )
+    def test_when_building_environment_expect_other_variable_dropped(
+        self, monkeypatch, name
+    ) -> None:
+        monkeypatch.setenv(name, "dropped-value")
+
+        environment = _subprocess_environment()
+
+        assert name not in environment
 
     def test_when_writing_temporary_file_expect_owner_only_content(self, tmp_path) -> None:
         path = tmp_path / "result.json"
