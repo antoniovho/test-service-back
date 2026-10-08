@@ -41,6 +41,37 @@ class _ResultMapper:
         )
 
 
+class _PassingResultMapper:
+    def map(self, actions, result):
+        timestamp = datetime(2026, 1, 1, tzinfo=UTC)
+        return (
+            RunnerActionOutcome(
+                actions[0].identifier,
+                actions[0].action_type,
+                ResultStatus.PASSED,
+                timestamp,
+                timestamp,
+            ),
+        )
+
+
+class _SseExecutor:
+    async def execute(self, client, action, context, cancellation):
+        timestamp = datetime(2026, 1, 1, tzinfo=UTC)
+        return RunnerActionOutcome(
+            action.identifier,
+            action.action_type,
+            ResultStatus.PASSED,
+            timestamp,
+            timestamp,
+        )
+
+
+class _FailingCompiler:
+    def compile(self, actions, context):
+        raise ValueError("invalid HTTP action")
+
+
 class TestTavernRunnerAdapter:
     async def test_when_http_block_returns_runner_error_expect_error_test_case_outcome(
         self,
@@ -52,3 +83,32 @@ class TestTavernRunnerAdapter:
 
         assert outcome.status is ResultStatus.ERROR
         assert outcome.error_code == "TAVERN_PROCESS_FAILED"
+
+    async def test_when_cancelled_before_execution_expect_skipped_test_case_outcome(self) -> None:
+        cancellation = asyncio.Event()
+        cancellation.set()
+        test_case = CompiledTestCase("case-id", {}, (CompiledAction("first", "HTTP", 0, {}),))
+
+        outcome = await TavernRunnerAdapter().execute(test_case, cancellation)
+
+        assert outcome.status is ResultStatus.SKIPPED
+        assert outcome.error_code == "CANCELLED"
+
+    async def test_when_sse_action_passes_expect_passed_test_case_outcome(self) -> None:
+        adapter = TavernRunnerAdapter(sse_executor=_SseExecutor())
+        test_case = CompiledTestCase("case-id", {}, (CompiledAction("first", "SSE", 0, {}),))
+
+        outcome = await adapter.execute(test_case, asyncio.Event())
+
+        assert outcome.status is ResultStatus.PASSED
+        assert outcome.actions[0].status is ResultStatus.PASSED
+
+    async def test_when_http_compilation_fails_expect_failed_action_outcome(self) -> None:
+        adapter = TavernRunnerAdapter(compiler=_FailingCompiler())
+        action = CompiledAction("first", "HTTP", 0, {})
+
+        outcomes, variables = await adapter._tavern_http_block((action,), {}, asyncio.Event())
+
+        assert outcomes[0].status is ResultStatus.FAILED
+        assert outcomes[0].error_code == "TAVERN_RUNNER_ERROR"
+        assert variables == {}

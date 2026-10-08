@@ -160,3 +160,44 @@ class TestXrayViewerAdapter:
 
         with pytest.raises(XrayTransportError, match="no configured attempts"):
             await adapter.publish(record)
+
+    @pytest.mark.parametrize(
+        ("payload", "error"),
+        [
+            ([], "does not contain a driftType"),
+            ({"driftType": "UNKNOWN"}, "unsupported driftType"),
+            ({"driftType": "MODIFIED", "details": []}, "details must be an object"),
+        ],
+    )
+    async def test_when_drift_payload_is_invalid_expect_protocol_error(
+        self, settings: XraySettings, record: ViewerSyncRecord, payload, error
+    ) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/auth":
+                return httpx.Response(200, json="xray-token")
+            return httpx.Response(200, json=payload)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            adapter = XrayViewerAdapter(settings, client)
+
+            with pytest.raises(XrayProtocolError, match=error):
+                await adapter.check_drift(record)
+
+    async def test_when_drift_payload_is_null_expect_no_observation(
+        self, settings: XraySettings, record: ViewerSyncRecord
+    ) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/auth":
+                return httpx.Response(200, json="xray-token")
+            return httpx.Response(200, json=None)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            observation = await XrayViewerAdapter(settings, client).check_drift(record)
+
+        assert observation is None
+
+    def test_when_response_body_is_not_json_expect_protocol_error(self) -> None:
+        response = httpx.Response(200, content=b"not-json")
+
+        with pytest.raises(XrayProtocolError, match="not valid JSON"):
+            XrayViewerAdapter._json_payload(response, "drift")
