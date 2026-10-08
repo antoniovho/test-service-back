@@ -42,6 +42,8 @@ def _execution() -> Execution:
         environment_id=uuid4(),
         trigger_type=TriggerType.API,
         created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        runner_identifier="tavern",
+        runner_version="2.4.1",
     )
 
 
@@ -94,6 +96,8 @@ class TestExecutionRest:
 
         assert response.project.name == "AI Gateway"
         assert response.status == "CREATED"
+        assert response.runner_identifier == "tavern"
+        assert response.runner_version == "2.4.1"
         assert page.pagination.total == 1
 
     def test_when_constructed_expect_execution_use_cases_injected(self, monkeypatch):

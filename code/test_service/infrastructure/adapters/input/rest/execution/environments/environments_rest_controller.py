@@ -44,15 +44,16 @@ class EnvironmentsRestController:
         self._list = injector.inject(ListEnvironmentsUseCase)
 
     async def create(self, request: CreateEnvironmentRequest) -> ApiEnvironment:
-        environment = await self._create.execute(
-            EnvironmentMapper.to_create_command(request, get_current_identity(), datetime.now(UTC))
+        command = EnvironmentMapper.to_create_command(
+            request, get_current_identity(), datetime.now(UTC)
         )
+        environment = await self._create.execute(command)
         return EnvironmentMapper.to_api(environment)
 
     async def get(self, environment_id: UUID) -> ApiEnvironment:
-        return EnvironmentMapper.to_api(
-            await self._get.execute(EnvironmentMapper.to_get_query(environment_id))
-        )
+        query = EnvironmentMapper.to_get_query(environment_id)
+        environment = await self._get.execute(query)
+        return EnvironmentMapper.to_api(environment)
 
     async def activate(self, environment_id: UUID, request: ActionRequest | None) -> ApiEnvironment:
         return EnvironmentMapper.to_api(
@@ -78,4 +79,5 @@ class EnvironmentsRestController:
         self, offset: int | None, limit: int | None, sort_by: str | None, order
     ) -> EnvironmentListResponse:
         query = EnvironmentMapper.to_list_query(offset, limit, sort_by, order)
-        return EnvironmentMapper.to_list_response(await self._list.execute(query), query.pagination)
+        environments = await self._list.execute(query)
+        return EnvironmentMapper.to_list_response(environments, query.pagination)

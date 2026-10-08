@@ -42,6 +42,14 @@ class DomainError(Enum):
         "INVALID_EXECUTION_TRANSITION",
         "Invalid execution state transition",
     )
+    EXECUTION_RUNNER_UNAVAILABLE = (
+        "EXECUTION_RUNNER_UNAVAILABLE",
+        "Accepted execution runner is unavailable",
+    )
+    EXECUTION_MANIFEST_INVALID = (
+        "EXECUTION_MANIFEST_INVALID",
+        "Execution manifest is invalid",
+    )
     INVALID_LIFECYCLE_TRANSITION = ("INVALID_LIFECYCLE_TRANSITION", "Invalid lifecycle transition")
     INVALID_TEMPORAL_DATA = ("INVALID_TEMPORAL_DATA", "Invalid temporal data")
     INVALID_ARTIFACT_STORAGE = ("INVALID_ARTIFACT_STORAGE", "Invalid artifact storage metadata")

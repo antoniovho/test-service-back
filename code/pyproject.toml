@@ -12,6 +12,7 @@ dependencies = [
   "pydantic-settings>=2.7,<3.0",
   "pyjwt[crypto]>=2.15.0",
   "sqlalchemy[asyncio]>=2.0,<3.0",
+  "tavern>=3.0,<4.0",
   "test-service-server",
   "uvicorn[standard]>=0.34,<1.0",
 ]
@@ -32,11 +33,11 @@ generator-command = "npx --yes @openapitools/openapi-generator-cli@2.41.0"
 generator-version = "7.25.0"
 
 [tool.openapi-contracts.contracts.test-service]
-version = "0.3.0"
+version = "0.3.2"
 repository = "antoniovho/app-devtools"
 tag = "test-service-api-v{version}"
 artifact = "test-service-api-{version}.yml"
-sha256 = "93a6beff95f5fa69fb07fd9684129124273b6bec49daa70ef8f2dc4c6873398a"
+sha256 = "5914022cb2d4988784337e2abaefb349e86da64c0c84e184e45c89f77fb4f281"
 output = "contracts/open_api/test-service-api.yml"
 
 [tool.openapi-contracts.generators.rest.server.test-service-server]

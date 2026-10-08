@@ -1,4 +1,5 @@
 """Map immutable execution evidence between persistence and domain representations."""
+# ruff: noqa: E501
 
 from test_service.domain.model.execution.execution import (
     ActionResult,
@@ -17,6 +18,55 @@ from test_service.infrastructure.adapters.output.execution.executions.persistenc
 
 class ExecutionResultsPersistenceMapper:
     """Translate immutable execution evidence DTOs to domain values."""
+
+    @staticmethod
+    def to_test_result_dto(value: TestResult) -> TestResultDTO:
+        return TestResultDTO(
+            id=value.identifier,
+            execution_id=value.execution_id,
+            test_case_id=value.test_case_id,
+            status=value.status.value,
+            created_at=value.created_at,
+            started_at=value.started_at,
+            finished_at=value.finished_at,
+            duration_ms=value.duration_ms,
+            error_code=value.error_code,
+            error_message=value.error_message,
+        )
+
+    @staticmethod
+    def to_action_result_dto(value: ActionResult) -> ActionResultDTO:
+        return ActionResultDTO(
+            id=value.identifier,
+            test_result_id=value.test_result_id,
+            action_id=value.action_id,
+            action_type=value.action_type,
+            status=value.status.value,
+            created_at=value.created_at,
+            expected=dict(value.expected) if value.expected else None,
+            actual=dict(value.actual) if value.actual else None,
+            output=dict(value.output) if value.output else None,
+            started_at=value.started_at,
+            finished_at=value.finished_at,
+            duration_ms=value.duration_ms,
+            error_code=value.error_code,
+            error_message=value.error_message,
+        )
+
+    @staticmethod
+    def to_artifact_dto(value: TestResultArtifact) -> TestResultArtifactDTO:
+        return TestResultArtifactDTO(
+            id=value.identifier,
+            test_result_id=value.test_result_id,
+            action_result_id=value.action_result_id,
+            artifact_type=value.artifact_type.value,
+            storage_type=value.storage_type.value,
+            storage_uri=value.storage_uri,
+            content_hash=value.content_hash,
+            size_bytes=value.size_bytes,
+            mime_type=value.mime_type,
+            created_at=value.created_at,
+        )
 
     @staticmethod
     def to_test_result(dto: TestResultDTO) -> TestResult:

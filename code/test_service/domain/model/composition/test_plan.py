@@ -16,11 +16,9 @@ class ExecutionMode(StrEnum):
 
     Attributes:
         SEQUENTIAL: Executes plan items one by one.
-        PARALLEL: Executes plan items concurrently with a maximum limit.
     """
 
     SEQUENTIAL = "SEQUENTIAL"
-    PARALLEL = "PARALLEL"
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,7 +39,6 @@ class TestPlan:
         test_case_ids: Ordered individual test case snapshot UUIDs.
         exclusions: Test case snapshot UUIDs excluded from the plan.
         description: Optional plan purpose.
-        max_parallelism: Maximum concurrent items when execution is parallel.
         status: Snapshot lifecycle state.
 
     Raises:
@@ -61,7 +58,6 @@ class TestPlan:
     test_case_ids: tuple[UUID, ...] = ()
     exclusions: tuple[UUID, ...] = ()
     description: str | None = None
-    max_parallelism: int | None = None
     status: VersionStatus = VersionStatus.DRAFT
 
     def __post_init__(self) -> None:
@@ -73,7 +69,6 @@ class TestPlan:
         if self.version < 1 or self.timeout_seconds < 1:
             raise InvalidTestPlanException("version and timeout must be positive")
         self._validate_unique_references()
-        self._validate_execution_mode()
 
     def activate(self) -> "TestPlan":
         """Return this snapshot in the active state.
@@ -105,12 +100,3 @@ class TestPlan:
             )
         if set(self.test_case_ids).intersection(self.exclusions):
             raise InvalidTestPlanException("test plan cannot exclude a directly included test case")
-
-    def _validate_execution_mode(self) -> None:
-        if self.execution_mode is ExecutionMode.PARALLEL:
-            if self.max_parallelism is None or self.max_parallelism < 1:
-                raise InvalidTestPlanException(
-                    "parallel test plans require a positive max_parallelism"
-                )
-        elif self.max_parallelism is not None:
-            raise InvalidTestPlanException("sequential test plans must not set max_parallelism")

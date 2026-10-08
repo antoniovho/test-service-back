@@ -1,7 +1,7 @@
 """Use case implementation: list executions."""
 
 from test_service.domain.application.queries.execution import ListExecutionsQuery
-from test_service.domain.application.services.project_resolver import ProjectResolver
+from test_service.domain.application.services.resolvers.project_resolver import ProjectResolver
 from test_service.domain.commons.pagination import Page
 from test_service.domain.model.execution.execution import Execution
 from test_service.domain.ports.input.use_cases.execution.executions.list_executions_use_case import (  # noqa: E501

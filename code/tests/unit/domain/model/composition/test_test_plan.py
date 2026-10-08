@@ -49,24 +49,6 @@ class TestTestPlanInvariants:
 
         assert exc.value.code == "INVALID_TEST_PLAN"
 
-    def test_when_sequential_with_max_parallelism_expect_exception(self):
-        with pytest.raises(InvalidTestPlanException) as exc:
-            _test_plan(execution_mode=ExecutionMode.SEQUENTIAL, max_parallelism=4)
-
-        assert exc.value.code == "INVALID_TEST_PLAN"
-
-    @pytest.mark.parametrize("max_parallelism", [None, 0], ids=["missing", "zero"])
-    def test_when_parallel_without_positive_max_parallelism_expect_exception(self, max_parallelism):
-        with pytest.raises(InvalidTestPlanException) as exc:
-            _test_plan(execution_mode=ExecutionMode.PARALLEL, max_parallelism=max_parallelism)
-
-        assert exc.value.code == "INVALID_TEST_PLAN"
-
-    def test_when_parallel_with_positive_max_parallelism_expect_instance(self):
-        test_plan = _test_plan(execution_mode=ExecutionMode.PARALLEL, max_parallelism=4)
-
-        assert test_plan.max_parallelism == 4
-
 
 class TestTestPlanLifecycle:
     def test_when_draft_expect_activate_returns_active(self):

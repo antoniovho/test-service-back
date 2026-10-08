@@ -11,13 +11,17 @@ from test_service.domain.ports.input.use_cases.projects.create_project_use_case 
 from test_service.domain.ports.output.persistence.projects.project_persistence_port import (
     ProjectPersistencePort,
 )
+from test_service.domain.ports.output.projects.project_validation_port import ProjectValidationPort
 
 
 class CreateProjectUseCaseImpl(CreateProjectUseCase):
     """Registers a new Project Catalog entry."""
 
-    def __init__(self, project_repository: ProjectPersistencePort) -> None:
+    def __init__(
+        self, project_repository: ProjectPersistencePort, project_validation: ProjectValidationPort
+    ) -> None:
         self._project_repository = project_repository
+        self._project_validation = project_validation
 
     async def execute(self, request: CreateProjectCommand) -> Project:
         """Register a project, rejecting keys already present in the catalog.
@@ -28,6 +32,7 @@ class CreateProjectUseCaseImpl(CreateProjectUseCase):
         existing = await self._project_repository.find_by_key(request.key)
         if existing is not None:
             raise ProjectAlreadyExistsException(f"project with key '{request.key}' already exists")
+        await self._project_validation.validate(request.key)
         project = Project(
             key=request.key,
             name=request.name,
