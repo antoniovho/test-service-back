@@ -71,7 +71,6 @@ class CreateTestPlanCommand:
         test_case_ids: Ordered individual test case snapshot UUIDs.
         exclusions: Test case snapshots excluded from execution.
         description: Optional plan purpose.
-        max_parallelism: Required maximum concurrency for parallel plans.
     """
 
     project_key: str
@@ -85,7 +84,6 @@ class CreateTestPlanCommand:
     test_case_ids: tuple[UUID, ...] = ()
     exclusions: tuple[UUID, ...] = ()
     description: str | None = None
-    max_parallelism: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,7 +103,6 @@ class CreateTestPlanVersionCommand:
         test_case_ids: Ordered individual test case snapshot UUIDs.
         exclusions: Test case snapshots excluded from execution.
         description: Optional plan purpose.
-        max_parallelism: Required maximum concurrency for parallel plans.
     """
 
     source_id: UUID
@@ -120,7 +117,6 @@ class CreateTestPlanVersionCommand:
     test_case_ids: tuple[UUID, ...] = ()
     exclusions: tuple[UUID, ...] = ()
     description: str | None = None
-    max_parallelism: int | None = None
 
 
 @dataclass(frozen=True, slots=True)

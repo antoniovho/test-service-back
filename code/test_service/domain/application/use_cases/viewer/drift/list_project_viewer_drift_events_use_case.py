@@ -1,7 +1,7 @@
 """Use case implementation: list project Viewer drift events."""
 
 from test_service.domain.application.queries.viewer import ListProjectViewerDriftEventsQuery
-from test_service.domain.application.services.project_resolver import ProjectResolver
+from test_service.domain.application.services.resolvers.project_resolver import ProjectResolver
 from test_service.domain.commons.pagination import Page
 from test_service.domain.model.viewer.records import DriftEvent
 from test_service.domain.ports.input.use_cases.viewer.drift.list_project_viewer_drift_events_use_case import (  # noqa: E501

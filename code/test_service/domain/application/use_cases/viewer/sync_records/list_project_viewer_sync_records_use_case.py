@@ -1,7 +1,7 @@
 """Use case implementation: list project Viewer synchronization records."""
 
 from test_service.domain.application.queries.viewer import ListProjectViewerSyncRecordsQuery
-from test_service.domain.application.services.project_resolver import ProjectResolver
+from test_service.domain.application.services.resolvers.project_resolver import ProjectResolver
 from test_service.domain.commons.pagination import Page
 from test_service.domain.model.viewer.records import ViewerSyncRecord
 from test_service.domain.ports.input.use_cases.viewer.sync_records.list_project_viewer_sync_records_use_case import (  # noqa: E501

@@ -1,10 +1,10 @@
 """Use case implementation: get an execution result."""
 
 from test_service.domain.application.queries.execution import ExecutionResultQuery
-from test_service.domain.application.services.execution_access_resolver import (
+from test_service.domain.application.services.resolvers.execution_access_resolver import (
     ExecutionAccessResolver,
 )
-from test_service.domain.application.services.execution_result_access_resolver import (
+from test_service.domain.application.services.resolvers.execution_result_access_resolver import (
     ExecutionResultAccessResolver,
 )
 from test_service.domain.model.execution.execution import TestResult

@@ -1,4 +1,5 @@
 """SQLAlchemy repository for immutable execution evidence DTOs."""
+# ruff: noqa: E501
 
 from uuid import UUID
 
@@ -41,6 +42,19 @@ class ExecutionResultsRepository:
 
     def __init__(self, session_provider: PostgresSessionProvider) -> None:
         self._session_provider = session_provider
+
+    async def save_results(
+        self,
+        result: TestResultDTO,
+        actions: tuple[ActionResultDTO, ...],
+        artifacts: tuple[TestResultArtifactDTO, ...],
+    ) -> None:
+        """Persist one immutable result tree in a single database transaction."""
+        async with self._session_provider.session() as session:
+            session.add(result)
+            session.add_all(actions)
+            session.add_all(artifacts)
+            await session.commit()
 
     async def find_result(self, identifier: UUID) -> TestResultDTO | None:
         """Find an immutable test result by UUID."""

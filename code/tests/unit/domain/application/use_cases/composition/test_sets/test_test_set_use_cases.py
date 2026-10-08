@@ -1,5 +1,4 @@
 from datetime import UTC, datetime
-from types import SimpleNamespace
 from uuid import UUID, uuid4
 
 import pytest
@@ -13,8 +12,8 @@ from test_service.domain.application.queries.composition import (
     ListTestSetsQuery,
     TestSetQuery,
 )
-from test_service.domain.application.services.project_resolver import ProjectResolver
-from test_service.domain.application.services.test_case_snapshot_resolver import (
+from test_service.domain.application.services.resolvers.project_resolver import ProjectResolver
+from test_service.domain.application.services.resolvers.test_case_snapshot_resolver import (
     TestCaseSnapshotResolver,
 )
 from test_service.domain.application.use_cases.composition.test_sets.activate_test_set_use_case import (  # noqa: E501
@@ -41,7 +40,7 @@ from test_service.domain.model.exceptions.test_set_already_exists_exception impo
     TestSetAlreadyExistsException,
 )
 from test_service.domain.model.lifecycle import VersionStatus
-from test_service.domain.model.projects.project import ProjectStatus
+from test_service.domain.model.projects.project import Project
 
 
 class _TestSetRepository:
@@ -134,7 +133,21 @@ class _TestCaseRepository:
         )
 
 
-def _test_case(project_key: str = "IAG") -> TestCase:
+class _ProjectRepository:
+    def __init__(self, project: Project) -> None:
+        self._project = project
+
+    async def save(self, project: Project) -> Project:
+        return project
+
+    async def find_by_key(self, key: str) -> Project | None:
+        return self._project if key == self._project.key else None
+
+    async def find_page(self, pagination: PaginationParams) -> Page[Project]:
+        return Page((self._project,), 1)
+
+
+def _test_case(project_key: str = "IAG", status: VersionStatus = VersionStatus.ACTIVE) -> TestCase:
     return TestCase(
         identifier=uuid4(),
         project_key=project_key,
@@ -154,6 +167,7 @@ def _test_case(project_key: str = "IAG") -> TestCase:
         timeout_seconds=30,
         created_at=datetime(2026, 1, 1, tzinfo=UTC),
         created_by="author@example.test",
+        status=status,
     )
 
 
@@ -170,8 +184,13 @@ def _command(item: UUID) -> CreateTestSetCommand:
 
 def _project_resolver() -> ProjectResolver:
     return ProjectResolver(
-        SimpleNamespace(
-            find_by_key=lambda key: _async_result(SimpleNamespace(status=ProjectStatus.ACTIVE))
+        _ProjectRepository(
+            Project(
+                key="IAG",
+                name="AI Gateway",
+                created_at=datetime(2026, 1, 1, tzinfo=UTC),
+                created_by="author@example.test",
+            )
         )
     )
 

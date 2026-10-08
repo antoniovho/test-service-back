@@ -1,7 +1,7 @@
 """Use case implementation: list execution results."""
 
 from test_service.domain.application.queries.execution import ListExecutionResultsQuery
-from test_service.domain.application.services.execution_access_resolver import (
+from test_service.domain.application.services.resolvers.execution_access_resolver import (
     ExecutionAccessResolver,
 )
 from test_service.domain.commons.pagination import Page

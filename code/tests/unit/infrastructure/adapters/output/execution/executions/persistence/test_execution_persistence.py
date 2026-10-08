@@ -26,6 +26,10 @@ def _execution() -> Execution:
         environment_id=uuid4(),
         trigger_type=TriggerType.API,
         created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        test_case_ids=(uuid4(),),
+        environment_snapshot={"baseUrl": "https://staging.example.test"},
+        runner_identifier="tavern",
+        runner_version="2.4.1",
     )
 
 
@@ -37,6 +41,9 @@ class _Repository:
         return dto
 
     async def find_by_id(self, identifier):
+        return self.dto
+
+    async def claim_next_created(self):
         return self.dto
 
     async def find_page(self, project_key, pagination):
@@ -60,11 +67,13 @@ class TestExecutionPersistence:
 
         saved = await adapter.save_execution(execution)
         found = await adapter.find_execution(execution.identifier)
+        claimed = await adapter.claim_next_created()
         page = await adapter.find_page("IAG", PaginationParams())
 
         assert ExecutionPersistenceMapper.to_domain(dto) == execution
         assert saved == execution
         assert found == execution
+        assert claimed == execution
         assert page.items == (execution,)
 
     async def test_when_repository_operations_are_called_expect_persistence_results(self):
@@ -92,3 +101,36 @@ class TestExecutionPersistence:
 
         with pytest.raises(ValueError, match="unsupported execution sort field"):
             await repository.find_page("IAG", pagination)
+
+    async def test_when_no_created_execution_exists_expect_no_claim(self):
+        claim_result = MagicMock()
+        claim_result.scalar_one_or_none.return_value = None
+        session = MagicMock()
+        session.execute = AsyncMock(return_value=claim_result)
+        session.commit = AsyncMock()
+        session.refresh = AsyncMock()
+        repository = ExecutionRepository(_SessionProvider(session))
+
+        claimed = await repository.claim_next_created()
+
+        assert claimed is None
+        session.commit.assert_not_awaited()
+        session.refresh.assert_not_awaited()
+
+    async def test_when_created_execution_exists_expect_claimed_running_execution(self):
+        execution = MagicMock()
+        claim_result = MagicMock()
+        claim_result.scalar_one_or_none.return_value = execution
+        session = MagicMock()
+        session.execute = AsyncMock(return_value=claim_result)
+        session.commit = AsyncMock()
+        session.refresh = AsyncMock()
+        repository = ExecutionRepository(_SessionProvider(session))
+
+        claimed = await repository.claim_next_created()
+
+        assert claimed is execution
+        assert execution.status == "RUNNING"
+        assert execution.started_at.tzinfo is UTC
+        session.commit.assert_awaited_once()
+        session.refresh.assert_awaited_once_with(execution)

@@ -1,7 +1,7 @@
 """Use case implementation: delete project."""
 
 from test_service.domain.application.commands.projects import DeleteProjectCommand
-from test_service.domain.application.services.project_resolver import ProjectResolver
+from test_service.domain.application.services.resolvers.project_resolver import ProjectResolver
 from test_service.domain.model.projects.project import Project
 from test_service.domain.ports.input.use_cases.projects.delete_project_use_case import (
     DeleteProjectUseCase,
