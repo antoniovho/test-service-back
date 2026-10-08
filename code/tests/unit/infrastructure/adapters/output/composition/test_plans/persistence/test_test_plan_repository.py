@@ -34,7 +34,6 @@ def _dto() -> TestPlanDTO:
         description="Nightly regression",
         status="DRAFT",
         execution_mode="SEQUENTIAL",
-        max_parallelism=None,
         timeout_seconds=900,
         created_at=datetime(2026, 1, 1, tzinfo=UTC),
         created_by="author@example.test",

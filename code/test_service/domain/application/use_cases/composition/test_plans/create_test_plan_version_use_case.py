@@ -65,6 +65,5 @@ class CreateTestPlanVersionUseCaseImpl(CreateTestPlanVersionUseCase):
             test_case_ids=test_case_ids,
             exclusions=exclusions,
             description=request.description,
-            max_parallelism=request.max_parallelism,
         )
         return await self._test_plan_repository.save(test_plan)
