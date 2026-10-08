@@ -88,16 +88,21 @@ class TavernRunnerAdapter:
                     return self._build_test_case_outcome(
                         ResultStatus.SKIPPED, started_at, outcomes, "CANCELLED", "Cancelled"
                     )
-                failed = next(
-                    (item for item in outcomes if item.status is ResultStatus.FAILED), None
+                terminal_issue = next(
+                    (
+                        item
+                        for item in outcomes
+                        if item.status in {ResultStatus.FAILED, ResultStatus.ERROR}
+                    ),
+                    None,
                 )
-                if failed is not None:
+                if terminal_issue is not None:
                     return self._build_test_case_outcome(
-                        ResultStatus.FAILED,
+                        terminal_issue.status,
                         started_at,
                         outcomes,
-                        failed.error_code,
-                        failed.error_message,
+                        terminal_issue.error_code,
+                        terminal_issue.error_message,
                     )
         return self._build_test_case_outcome(ResultStatus.PASSED, started_at, outcomes)
 
