@@ -1,5 +1,6 @@
 """SQLAlchemy repository for Execution DTOs."""
 
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import asc, desc, func, select
@@ -39,6 +40,25 @@ class ExecutionRepository:
         """Find an Execution DTO by UUID."""
         async with self._session_provider.session() as session:
             return await session.get(ExecutionDTO, identifier)
+
+    async def claim_next_created(self) -> ExecutionDTO | None:
+        """Claim one queued execution with a cross-process row lock."""
+        async with self._session_provider.session() as session:
+            result = await session.execute(
+                select(ExecutionDTO)
+                .where(ExecutionDTO.status == "CREATED")
+                .order_by(asc(ExecutionDTO.created_at))
+                .with_for_update(skip_locked=True)
+                .limit(1)
+            )
+            execution = result.scalar_one_or_none()
+            if execution is None:
+                return None
+            execution.status = "RUNNING"
+            execution.started_at = datetime.now(UTC)
+            await session.commit()
+            await session.refresh(execution)
+            return execution
 
     async def find_page(self, project_key: str, pagination: PaginationParams) -> Page[ExecutionDTO]:
         """Return a deterministically ordered page for one project."""

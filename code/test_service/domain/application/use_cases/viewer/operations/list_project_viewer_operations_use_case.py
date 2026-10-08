@@ -1,7 +1,7 @@
 """Use case implementation: list project Viewer operations."""
 
 from test_service.domain.application.queries.viewer import ListProjectViewerOperationsQuery
-from test_service.domain.application.services.project_resolver import ProjectResolver
+from test_service.domain.application.services.resolvers.project_resolver import ProjectResolver
 from test_service.domain.commons.pagination import Page
 from test_service.domain.model.viewer.records import ViewerOperation
 from test_service.domain.ports.input.use_cases.viewer.operations.list_project_viewer_operations_use_case import (  # noqa: E501

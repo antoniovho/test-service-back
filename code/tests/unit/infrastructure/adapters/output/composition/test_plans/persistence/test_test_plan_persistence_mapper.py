@@ -17,7 +17,7 @@ class TestTestPlanPersistenceMapper:
             "checkout-nightly",
             2,
             "Checkout nightly",
-            ExecutionMode.PARALLEL,
+            ExecutionMode.SEQUENTIAL,
             900,
             datetime(2026, 1, 1, tzinfo=UTC),
             "author@example.test",
@@ -25,7 +25,6 @@ class TestTestPlanPersistenceMapper:
             (test_case_id,),
             (exclusion_id,),
             "Regression",
-            4,
             VersionStatus.ACTIVE,
         )
 

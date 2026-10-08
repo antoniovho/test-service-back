@@ -6,6 +6,7 @@ from uuid import UUID
 from test_service.domain.model.exceptions.entity_not_found_exception import (
     EntityNotFoundException,
 )
+from test_service.domain.model.lifecycle import VersionStatus
 from test_service.domain.ports.output.persistence.test_cases.test_case_persistence_port import (
     TestCasePersistencePort,
 )
@@ -22,9 +23,13 @@ class TestCaseSnapshotResolver:
         snapshots: list[UUID] = []
         for identifier in identifiers:
             test_case = await self._test_case_repository.find_by_id(identifier)
-            if test_case is None or test_case.project_key != project_key:
+            if (
+                test_case is None
+                or test_case.project_key != project_key
+                or test_case.status is not VersionStatus.ACTIVE
+            ):
                 raise EntityNotFoundException(
-                    "Test case", str(identifier), f"project '{project_key}'"
+                    "Test case", str(identifier), f"active snapshots in project '{project_key}'"
                 )
             snapshots.append(test_case.identifier)
         return tuple(snapshots)

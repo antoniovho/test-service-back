@@ -3,10 +3,10 @@
 from uuid import uuid4
 
 from test_service.domain.application.commands.authoring import CreateTestCaseCommand
-from test_service.domain.application.services.precondition_reference_resolver import (
+from test_service.domain.application.services.resolvers.precondition_reference_resolver import (
     PreconditionReferenceResolver,
 )
-from test_service.domain.application.services.project_resolver import ProjectResolver
+from test_service.domain.application.services.resolvers.project_resolver import ProjectResolver
 from test_service.domain.model.authoring.test_case import TestCase
 from test_service.domain.model.exceptions.test_case_already_exists_exception import (
     TestCaseAlreadyExistsException,

@@ -5,7 +5,7 @@ from uuid import UUID
 import pytest
 
 from test_service.domain.application.commands.authoring import CreatePreconditionCommand
-from test_service.domain.application.services.project_resolver import ProjectResolver
+from test_service.domain.application.services.resolvers.project_resolver import ProjectResolver
 from test_service.domain.application.use_cases.authoring.preconditions.create_precondition_use_case import (  # noqa: E501
     CreatePreconditionUseCaseImpl,
 )

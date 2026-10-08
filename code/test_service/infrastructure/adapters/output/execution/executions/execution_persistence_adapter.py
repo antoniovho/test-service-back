@@ -30,6 +30,10 @@ class ExecutionPersistenceAdapter(ExecutionPersistencePort):
         execution = await self._repository.find_by_id(identifier)
         return ExecutionPersistenceMapper.to_domain(execution) if execution is not None else None
 
+    async def claim_next_created(self) -> Execution | None:
+        execution = await self._repository.claim_next_created()
+        return ExecutionPersistenceMapper.to_domain(execution) if execution is not None else None
+
     async def find_page(self, project_key: str, pagination: PaginationParams) -> Page[Execution]:
         page = await self._repository.find_page(project_key, pagination)
         return Page(
