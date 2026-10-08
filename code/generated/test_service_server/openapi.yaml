@@ -7,7 +7,7 @@ info:
     \ executing validated plans, and publishing read-only projections to an external\
     \ testing viewer."
   title: Test Service
-  version: 0.3.1
+  version: 0.3.2
 servers:
 - description: Local development server
   url: http://localhost:8080
@@ -7990,7 +7990,8 @@ components:
         variables:
           additionalProperties:
             type: string
-          description: Runtime variables available to actions.
+          description: |
+            Service-owned runtime variables available to actions. Reference one with `{{variableName}}`; the service resolves it before invoking the runner. In Tavern-backed HTTP actions, `{variableName}` is reserved for a dynamic variable saved by a preceding Tavern stage.
           example:
             baseUrl: https://api.example.com
           title: variables
@@ -8972,7 +8973,6 @@ components:
         description: Nightly checkout validation
         status: ACTIVE
         executionMode: SEQUENTIAL
-        maxParallelism: 4
         timeoutSeconds: 900
         testSetIds:
         - 550e8400-e29b-41d4-a716-446655440000
@@ -9025,19 +9025,12 @@ components:
           title: status
           type: string
         executionMode:
-          description: Scheduling mode for plan items.
+          description: Execution mode for plan items.
           enum:
           - SEQUENTIAL
-          - PARALLEL
           example: SEQUENTIAL
           title: executionMode
           type: string
-        maxParallelism:
-          description: Maximum number of concurrent executions.
-          example: 4
-          minimum: 1
-          title: maxParallelism
-          type: integer
         timeoutSeconds:
           description: Maximum plan execution time in seconds.
           example: 900
@@ -9127,7 +9120,6 @@ components:
         name: Checkout nightly
         description: Nightly checkout validation
         executionMode: SEQUENTIAL
-        maxParallelism: 4
         timeoutSeconds: 900
         testSetIds:
         - 550e8400-e29b-41d4-a716-446655440000
@@ -9155,19 +9147,12 @@ components:
           title: description
           type: string
         executionMode:
-          description: Scheduling mode for plan items.
+          description: Execution mode for plan items.
           enum:
           - SEQUENTIAL
-          - PARALLEL
           example: SEQUENTIAL
           title: executionMode
           type: string
-        maxParallelism:
-          description: Maximum number of concurrent executions.
-          example: 4
-          minimum: 1
-          title: maxParallelism
-          type: integer
         timeoutSeconds:
           description: Maximum plan execution time in seconds.
           example: 900
@@ -9222,7 +9207,6 @@ components:
           description: Nightly checkout validation
           status: ACTIVE
           executionMode: SEQUENTIAL
-          maxParallelism: 4
           timeoutSeconds: 900
           testSetIds:
           - 550e8400-e29b-41d4-a716-446655440000
@@ -9241,7 +9225,6 @@ components:
           description: Nightly checkout validation
           status: ACTIVE
           executionMode: SEQUENTIAL
-          maxParallelism: 4
           timeoutSeconds: 900
           testSetIds:
           - 550e8400-e29b-41d4-a716-446655440000
@@ -9260,7 +9243,6 @@ components:
           description: Nightly checkout validation
           status: ACTIVE
           executionMode: SEQUENTIAL
-          maxParallelism: 4
           timeoutSeconds: 900
           testSetIds:
           - 550e8400-e29b-41d4-a716-446655440000
@@ -9279,7 +9261,6 @@ components:
           description: Nightly checkout validation
           status: ACTIVE
           executionMode: SEQUENTIAL
-          maxParallelism: 4
           timeoutSeconds: 900
           testSetIds:
           - 550e8400-e29b-41d4-a716-446655440000
@@ -9298,7 +9279,6 @@ components:
           description: Nightly checkout validation
           status: ACTIVE
           executionMode: SEQUENTIAL
-          maxParallelism: 4
           timeoutSeconds: 900
           testSetIds:
           - 550e8400-e29b-41d4-a716-446655440000
