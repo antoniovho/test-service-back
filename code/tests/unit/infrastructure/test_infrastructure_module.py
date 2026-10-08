@@ -8,6 +8,9 @@ from test_service.domain.domain_module import DomainModule
 from test_service.domain.ports.input.use_cases.projects.create_project_use_case import (
     CreateProjectUseCase,
 )
+from test_service.domain.ports.output.executions.execution_cancellation_port import (
+    ExecutionCancellationPort,
+)
 from test_service.domain.ports.output.persistence.environments.environment_persistence_port import (  # noqa: E501
     EnvironmentPersistencePort,
 )
@@ -23,6 +26,9 @@ from test_service.domain.ports.output.persistence.projects.project_persistence_p
 from test_service.domain.ports.output.viewer.viewer_publisher_port import ViewerPublisherPort
 from test_service.infrastructure.adapters.output.execution.environments.environment_persistence_adapter import (  # noqa: E501
     EnvironmentPersistenceAdapter,
+)
+from test_service.infrastructure.adapters.output.execution.executions.cancellation.execution_cancellation_registry import (  # noqa: E501
+    ExecutionCancellationRegistry,
 )
 from test_service.infrastructure.adapters.output.execution.executions.execution_persistence_adapter import (  # noqa: E501
     ExecutionPersistenceAdapter,
@@ -95,6 +101,17 @@ class TestInfrastructureModule:
         persistence_port = injector.inject(ExecutionResultsPersistencePort)
 
         assert isinstance(persistence_port, ExecutionResultsPersistenceAdapter)
+
+    def test_when_infrastructure_is_installed_expect_shared_cancellation_registry(
+        self,
+        postgres_settings_env: None,
+    ) -> None:
+        injector = Injector([DomainModule, InfrastructureModule])
+
+        cancellation_port = injector.inject(ExecutionCancellationPort)
+        registry = injector.inject(ExecutionCancellationRegistry)
+
+        assert cancellation_port is registry
 
     def test_when_infrastructure_is_installed_expect_xray_publisher_resolves(
         self,

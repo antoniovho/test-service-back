@@ -8,10 +8,16 @@ from pydantic import SecretStr
 
 from test_service.config import XraySettings
 from test_service.domain.model.viewer.records import (
+    DriftType,
     SyncStatus,
     ViewerEntityType,
     ViewerSyncRecord,
     ViewerType,
+)
+from test_service.infrastructure.adapters.output.viewer.xray_exceptions import (
+    XrayAuthenticationError,
+    XrayProtocolError,
+    XrayTransportError,
 )
 from test_service.infrastructure.adapters.output.viewer.xray_viewer_adapter import (
     XrayViewerAdapter,
@@ -84,11 +90,30 @@ class TestXrayViewerAdapter:
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
             adapter = XrayViewerAdapter(settings, client)
 
-            await adapter.check_drift(record)
+            observation = await adapter.check_drift(record)
 
         assert paths == ["/auth", "/drift"]
+        assert observation is None
 
-    async def test_when_authentication_response_has_no_token_expect_value_error(
+    async def test_when_drift_response_contains_safe_observation_expect_normalized_result(
+        self, settings: XraySettings, record: ViewerSyncRecord
+    ) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/auth":
+                return httpx.Response(200, json="xray-token")
+            return httpx.Response(
+                200,
+                json={"driftType": "MODIFIED", "details": {"field": "summary"}},
+            )
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            observation = await XrayViewerAdapter(settings, client).check_drift(record)
+
+        assert observation is not None
+        assert observation.drift_type is DriftType.MODIFIED
+        assert observation.details == {"field": "summary"}
+
+    async def test_when_authentication_response_has_no_token_expect_provider_error(
         self, settings: XraySettings, record: ViewerSyncRecord
     ) -> None:
         def handler(_: httpx.Request) -> httpx.Response:
@@ -97,5 +122,41 @@ class TestXrayViewerAdapter:
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
             adapter = XrayViewerAdapter(settings, client)
 
-            with pytest.raises(ValueError, match="does not contain a token"):
+            with pytest.raises(XrayAuthenticationError, match="does not contain a token"):
                 await adapter.publish(record)
+
+    async def test_when_drift_response_is_invalid_expect_protocol_error(
+        self, settings: XraySettings, record: ViewerSyncRecord
+    ) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/auth":
+                return httpx.Response(200, json="xray-token")
+            return httpx.Response(200, json={"details": {}})
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            adapter = XrayViewerAdapter(settings, client)
+
+            with pytest.raises(XrayProtocolError, match="does not contain a driftType"):
+                await adapter.check_drift(record)
+
+    async def test_when_xray_returns_unsuccessful_status_expect_transport_error(
+        self, settings: XraySettings, record: ViewerSyncRecord
+    ) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/auth":
+                return httpx.Response(200, json="xray-token")
+            return httpx.Response(503, request=request)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            adapter = XrayViewerAdapter(settings, client)
+
+            with pytest.raises(XrayTransportError, match="Xray request failed"):
+                await adapter.publish(record)
+
+    async def test_when_no_attempts_are_configured_expect_transport_error(
+        self, settings: XraySettings, record: ViewerSyncRecord
+    ) -> None:
+        adapter = XrayViewerAdapter(settings.model_copy(update={"max_attempts": 0}))
+
+        with pytest.raises(XrayTransportError, match="no configured attempts"):
+            await adapter.publish(record)

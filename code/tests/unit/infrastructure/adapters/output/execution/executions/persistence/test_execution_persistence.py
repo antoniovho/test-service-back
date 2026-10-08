@@ -26,6 +26,10 @@ def _execution() -> Execution:
         environment_id=uuid4(),
         trigger_type=TriggerType.API,
         created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        test_case_ids=(uuid4(),),
+        environment_snapshot={"baseUrl": "https://staging.example.test"},
+        runner_identifier="tavern",
+        runner_version="2.4.1",
     )
 
 
