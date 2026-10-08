@@ -54,6 +54,32 @@ class TestJiraProjectValidationAdapter:
         assert requests[0].headers["Accept"] == "application/json"
         assert requests[0].headers["Authorization"].startswith("Basic ")
 
+    @pytest.mark.parametrize(
+        ("key", "raw_path"),
+        [
+            ("../myself", b"/rest/api/3/project/..%2Fmyself"),
+            ("IAG/../../myself", b"/rest/api/3/project/IAG%2F..%2F..%2Fmyself"),
+            ("IAG?expand=lead", b"/rest/api/3/project/IAG%3Fexpand%3Dlead"),
+            ("IAG#x", b"/rest/api/3/project/IAG%23x"),
+            ("IAG\n", b"/rest/api/3/project/IAG%0A"),
+        ],
+        ids=["traversal", "nested-traversal", "query-string", "fragment", "newline"],
+    )
+    async def test_when_key_has_reserved_characters_expect_single_encoded_path_segment(
+        self, settings: JiraSettings, key: str, raw_path: bytes
+    ) -> None:
+        requests: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            return httpx.Response(200)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            await JiraProjectValidationAdapter(settings, client).validate(key)
+
+        assert requests[0].url.raw_path == raw_path
+        assert requests[0].url.query == b""
+
     @pytest.mark.parametrize("status", [httpx.codes.NOT_FOUND, httpx.codes.FORBIDDEN])
     async def test_when_project_is_not_accessible_expect_not_found_error(
         self, settings: JiraSettings, status: int
