@@ -31,6 +31,10 @@ class DomainError(Enum):
     INVALID_TEST_PLAN = ("INVALID_TEST_PLAN", "Invalid test plan snapshot")
     INVALID_TEST_SET = ("INVALID_TEST_SET", "Invalid test set snapshot")
     INVALID_SECRET_REFERENCE = ("INVALID_SECRET_REFERENCE", "Invalid secret reference")
+    SECRET_RESOLUTION_FAILED = (
+        "SECRET_RESOLUTION_FAILED",
+        "Secret reference could not be resolved",
+    )
     RESOLVED_SECRET_NOT_ALLOWED = (
         "RESOLVED_SECRET_NOT_ALLOWED",
         "A resolved secret value is not allowed here",

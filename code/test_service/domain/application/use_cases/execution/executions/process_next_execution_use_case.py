@@ -10,6 +10,13 @@ from uuid import uuid4
 from test_service.domain.application.services.execution.definition_compiler import (
     DefinitionCompiler,
 )
+from test_service.domain.application.services.execution.execution_variables_resolver import (
+    ExecutionVariables,
+    ExecutionVariablesResolver,
+)
+from test_service.domain.application.services.execution.secret_redactor import (
+    redact_test_case_outcome,
+)
 from test_service.domain.model.exceptions.execution_manifest_integrity_exception import (
     ExecutionManifestIntegrityException,
 )
@@ -58,6 +65,7 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
         compiler: DefinitionCompiler,
         runner: RunnerPort,
         cancellations: ExecutionCancellationPort,
+        variables_resolver: ExecutionVariablesResolver,
     ) -> None:
         self._executions = executions
         self._results = results
@@ -66,6 +74,7 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
         self._compiler = compiler
         self._runner = runner
         self._cancellations = cancellations
+        self._variables_resolver = variables_resolver
 
     async def execute(self, _: None) -> Execution | None:
         execution = await self._executions.claim_next_created()
@@ -86,9 +95,11 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
                     self._runner.identifier,
                     self._runner.version,
                 )
+            variables = await self._variables_resolver.resolve(execution.environment_snapshot)
             outcomes = await self._execute(
                 execution,
                 cancellation,
+                variables,
             )
             if cancellation.is_set():
                 return await self._executions.save_execution(execution.cancel(datetime.now(UTC)))
@@ -120,6 +131,7 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
         self,
         execution: Execution,
         cancellation: asyncio.Event,
+        variables: ExecutionVariables,
     ) -> tuple[ResultStatus, ...]:
         """Execute every Test Case captured by the accepted execution manifest."""
         if not execution.test_case_ids:
@@ -140,6 +152,7 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
                 execution,
                 test_case,
                 cancellation,
+                variables,
             )
 
             statuses.append(status)
@@ -151,6 +164,7 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
         execution: Execution,
         test_case,
         cancellation: asyncio.Event,
+        variables: ExecutionVariables,
     ) -> ResultStatus:
         """Run a Test Case and persist its outcome or a blocking precondition failure."""
         started_at = datetime.now(UTC)
@@ -176,6 +190,7 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
             compiled = self._compiler.compile(
                 precondition.identifier,
                 precondition.validation_definition,
+                variables.values,
             )
 
             if not self._runner.supports(frozenset(item.action_type for item in compiled.actions)):
@@ -208,6 +223,7 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
         compiled = self._compiler.compile(
             test_case.identifier,
             test_case.definition,
+            variables.values,
         )
 
         if not self._runner.supports(frozenset(item.action_type for item in compiled.actions)):
@@ -225,9 +241,11 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
                 error_message,
             )
 
-        outcome = await self._runner.execute(
-            compiled,
-            cancellation,
+        test_case_outcome = await self._runner.execute(compiled, cancellation)
+        # Redact sensitive information from the test case outcome before persisting it.
+        outcome = redact_test_case_outcome(
+            test_case_outcome,
+            variables.secrets,
         )
 
         result_id = uuid4()
