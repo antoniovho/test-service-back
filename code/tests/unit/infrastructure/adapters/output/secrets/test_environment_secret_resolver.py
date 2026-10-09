@@ -13,7 +13,7 @@ class TestEnvironmentSecretResolver:
     async def test_when_prefixed_variable_exists_expect_its_value(self) -> None:
         resolver = EnvironmentSecretResolver(environ={"TEST_SERVICE_SECRET_API_KEY": "the-value"})
 
-        value = await resolver.resolve(SecretReference("env", "API_KEY"))
+        value = await resolver.resolve_secret(SecretReference("env", "API_KEY"))
 
         assert value == "the-value"
 
@@ -22,14 +22,14 @@ class TestEnvironmentSecretResolver:
     ) -> None:
         monkeypatch.setenv("TEST_SERVICE_SECRET_API_KEY", "process-value")
 
-        value = await EnvironmentSecretResolver().resolve(SecretReference("env", "API_KEY"))
+        value = await EnvironmentSecretResolver().resolve_secret(SecretReference("env", "API_KEY"))
 
         assert value == "process-value"
 
     async def test_when_custom_prefix_is_configured_expect_it_used(self) -> None:
         resolver = EnvironmentSecretResolver(prefix="E2E_", environ={"E2E_TOKEN": "custom"})
 
-        value = await resolver.resolve(SecretReference("env", "TOKEN"))
+        value = await resolver.resolve_secret(SecretReference("env", "TOKEN"))
 
         assert value == "custom"
 
@@ -41,7 +41,7 @@ class TestEnvironmentSecretResolver:
         resolver = EnvironmentSecretResolver(environ={key: "service-credential"})
 
         with pytest.raises(SecretResolutionException) as exc:
-            await resolver.resolve(SecretReference("env", key))
+            await resolver.resolve_secret(SecretReference("env", key))
 
         assert exc.value.code == "SECRET_RESOLUTION_FAILED"
         assert "service-credential" not in exc.value.error_description
@@ -51,7 +51,7 @@ class TestEnvironmentSecretResolver:
         resolver = EnvironmentSecretResolver(environ={"TEST_SERVICE_SECRET_API_KEY": "value"})
 
         with pytest.raises(SecretResolutionException, match="provider is not supported") as exc:
-            await resolver.resolve(SecretReference(provider, "API_KEY"))
+            await resolver.resolve_secret(SecretReference(provider, "API_KEY"))
 
         assert provider not in exc.value.error_description
 
@@ -64,7 +64,7 @@ class TestEnvironmentSecretResolver:
         resolver = EnvironmentSecretResolver(environ={"TEST_SERVICE_SECRET_API_KEY": "value"})
 
         with pytest.raises(SecretResolutionException, match="invalid format") as exc:
-            await resolver.resolve(SecretReference("env", key))
+            await resolver.resolve_secret(SecretReference("env", key))
 
         assert key not in exc.value.error_description
 
@@ -75,4 +75,4 @@ class TestEnvironmentSecretResolver:
         resolver = EnvironmentSecretResolver(environ=environ)
 
         with pytest.raises(SecretResolutionException, match="not available"):
-            await resolver.resolve(SecretReference("env", "API_KEY"))
+            await resolver.resolve_secret(SecretReference("env", "API_KEY"))

@@ -8,7 +8,7 @@ from test_service.domain.model.execution.environment import SecretReference
 class SecretResolverPort(Protocol):
     """Resolve secret references held by an Environment configuration."""
 
-    async def resolve(self, reference: SecretReference) -> str:
+    async def resolve_secret(self, reference: SecretReference) -> str:
         """Return the secret value addressed by a reference.
 
         Raises:

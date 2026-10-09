@@ -44,7 +44,7 @@ class ExecutionVariablesResolver:
         secrets: set[str] = set()
         for name, value in (configuration or {}).items():
             if isinstance(value, SecretReference):
-                resolved = await self._secret_resolver.resolve(value)
+                resolved = await self._secret_resolver.resolve_secret(value)
                 values[name] = resolved
                 secrets.add(resolved)
             elif isinstance(value, bool):

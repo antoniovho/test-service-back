@@ -293,7 +293,7 @@ class _FakeRunner:
 
 
 class _FakeSecretResolver:
-    async def resolve(self, reference):
+    async def resolve_secret(self, reference):
         raise NotImplementedError
 
 

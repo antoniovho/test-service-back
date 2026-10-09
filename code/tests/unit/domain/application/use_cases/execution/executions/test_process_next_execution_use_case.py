@@ -149,7 +149,7 @@ class _SecretResolver:
     def __init__(self, values: dict[str, str] | None = None) -> None:
         self._values = values or {}
 
-    async def resolve(self, reference: SecretReference) -> str:
+    async def resolve_secret(self, reference: SecretReference) -> str:
         if reference.reference_key not in self._values:
             raise SecretResolutionException("secret is not available")
         return self._values[reference.reference_key]

@@ -49,19 +49,19 @@ class TestExecutionVariablesResolver:
 
         assert variables.values == {}
         assert variables.secrets == frozenset()
-        secret_resolver.resolve.assert_not_awaited()
+        secret_resolver.resolve_secret.assert_not_awaited()
 
     async def test_when_configuration_has_secret_reference_expect_resolved_value_and_tracked_secret(
         self, resolver, secret_resolver
     ) -> None:
         reference = SecretReference("env", "API_KEY")
-        secret_resolver.resolve.return_value = "resolved-secret"
+        secret_resolver.resolve_secret.return_value = "resolved-secret"
 
         variables = await resolver.resolve({"apiKey": reference, "baseUrl": "https://api.test"})
 
         assert variables.values == {"apiKey": "resolved-secret", "baseUrl": "https://api.test"}
         assert variables.secrets == frozenset({"resolved-secret"})
-        secret_resolver.resolve.assert_awaited_once_with(reference)
+        secret_resolver.resolve_secret.assert_awaited_once_with(reference)
 
     async def test_when_value_is_not_scalar_expect_it_not_exposed_as_variable(
         self, resolver
@@ -75,7 +75,9 @@ class TestExecutionVariablesResolver:
     async def test_when_secret_cannot_be_resolved_expect_exception_propagated(
         self, resolver, secret_resolver
     ) -> None:
-        secret_resolver.resolve.side_effect = SecretResolutionException("secret is not available")
+        secret_resolver.resolve_secret.side_effect = SecretResolutionException(
+            "secret is not available"
+        )
 
         with pytest.raises(SecretResolutionException) as exc:
             await resolver.resolve({"apiKey": SecretReference("env", "MISSING")})

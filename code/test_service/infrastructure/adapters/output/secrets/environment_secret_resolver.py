@@ -28,7 +28,7 @@ class EnvironmentSecretResolver(SecretResolverPort):
         self._prefix = prefix
         self._environ = environ
 
-    async def resolve(self, reference: SecretReference) -> str:
+    async def resolve_secret(self, reference: SecretReference) -> str:
         """Return the value of ``<prefix><reference_key>`` from the environment.
 
         Raises:
