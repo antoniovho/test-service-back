@@ -2,6 +2,7 @@
 # ruff: noqa: E501
 
 import base64
+from urllib.parse import quote
 
 import httpx
 
@@ -39,7 +40,7 @@ class JiraProjectValidationAdapter(ProjectValidationPort):
             raise ExternalProjectProviderException()
 
     def _project_url(self, project_key: str) -> str:
-        return f"{self._settings.base_url.rstrip('/')}/rest/api/3/project/{project_key}"
+        return f"{self._settings.base_url.rstrip('/')}/rest/api/3/project/{quote(project_key, safe='')}"
 
     def _headers(self) -> dict[str, str]:
         credentials = f"{self._settings.user_email}:{self._settings.api_token.get_secret_value()}"

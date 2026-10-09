@@ -154,6 +154,7 @@ from test_service.domain.ports.output.persistence.viewer.viewer_persistence_port
 )
 from test_service.domain.ports.output.projects.project_validation_port import ProjectValidationPort
 from test_service.domain.ports.output.runners.runner_port import RunnerPort
+from test_service.domain.ports.output.secrets.secret_resolver_port import SecretResolverPort
 from test_service.domain.ports.output.viewer.viewer_drift_detector_port import (
     ViewerDriftDetectorPort,
 )
@@ -291,6 +292,11 @@ class _FakeRunner:
         raise NotImplementedError
 
 
+class _FakeSecretResolver:
+    async def resolve_secret(self, reference):
+        raise NotImplementedError
+
+
 class _FakeViewerRepository:
     async def save_sync_record(self, record):
         return record
@@ -337,6 +343,7 @@ class TestDomainModule:
                 InstanceBinding(ExecutionResultsPersistencePort, _FakeExecutionResultsRepository()),
                 InstanceBinding(ExecutionCancellationPort, _FakeExecutionCancellation()),
                 InstanceBinding(RunnerPort, _FakeRunner()),
+                InstanceBinding(SecretResolverPort, _FakeSecretResolver()),
                 InstanceBinding(ViewerPersistencePort, _FakeViewerRepository()),
                 InstanceBinding(ViewerPublisherPort, _FakeViewerPublisher()),
                 InstanceBinding(ViewerDriftDetectorPort, _FakeViewerDriftDetector()),
@@ -385,6 +392,7 @@ class TestDomainModule:
                 InstanceBinding(TestSetPersistencePort, _FakeTestSetRepository()),
                 InstanceBinding(ExecutionCancellationPort, _FakeExecutionCancellation()),
                 InstanceBinding(RunnerPort, _FakeRunner()),
+                InstanceBinding(SecretResolverPort, _FakeSecretResolver()),
             ],
         )
 

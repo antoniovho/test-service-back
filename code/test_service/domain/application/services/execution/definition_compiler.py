@@ -1,6 +1,7 @@
 """Deterministic compiler from canonical Definitions to runner work."""
 # ruff: noqa: E501
 
+from collections.abc import Mapping
 from uuid import UUID
 
 from test_service.domain.model.authoring.definition import Definition
@@ -18,15 +19,29 @@ class DefinitionCompiler:
 
     _SUPPORTED_ACTIONS = frozenset({"HTTP", "SSE"})
 
-    def compile(self, test_case_id: UUID, definition: Definition) -> CompiledTestCase:
-        """Produce stable work and reject unknown or malformed actions early."""
+    def compile(
+        self,
+        test_case_id: UUID,
+        definition: Definition,
+        environment_variables: Mapping[str, str] | None = None,
+    ) -> CompiledTestCase:
+        """Produce stable work and reject unknown or malformed actions early.
+
+        Args:
+            test_case_id: Identifier of the snapshot being compiled.
+            definition: Canonical definition to compile.
+            environment_variables: Variables supplied by the execution Environment. They
+                take precedence over a Definition variable with the same name, so choosing
+                an Environment decides where and how the Definition runs.
+        """
         actions = tuple(
             self._compile_action(
                 action.identifier, action.action_type, position, action.configuration
             )
             for position, action in enumerate(definition.actions)
         )
-        return CompiledTestCase(str(test_case_id), definition.variables, actions)
+        variables = {**definition.variables, **(environment_variables or {})}
+        return CompiledTestCase(str(test_case_id), variables, actions)
 
     def _compile_action(self, identifier: str, action_type: str, position: int, configuration):
         """Validate one supported action and translate it to runner-ready work."""
