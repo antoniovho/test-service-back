@@ -100,6 +100,19 @@ class ViewerSettings(BaseSettings):
     operation_recovery_timeout_seconds: int = Field(default=1800, gt=0)
 
 
+class ExecutionSettings(BaseSettings):
+    """Configuration for durable execution processing."""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        env_prefix="EXECUTION_",
+        extra="ignore",
+    )
+
+    recovery_timeout_seconds: int = Field(default=1800, gt=0)
+
+
 class JiraSettings(BaseSettings):
     """Configuration of Jira as the V1 external project validator."""
 

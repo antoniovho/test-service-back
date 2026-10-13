@@ -34,6 +34,9 @@ class ExecutionPersistenceAdapter(ExecutionPersistencePort):
         execution = await self._repository.claim_next_created()
         return ExecutionPersistenceMapper.to_domain(execution) if execution is not None else None
 
+    async def recover_stale_running(self) -> int:
+        return await self._repository.recover_stale_running()
+
     async def find_page(self, project_key: str, pagination: PaginationParams) -> Page[Execution]:
         page = await self._repository.find_page(project_key, pagination)
         return Page(

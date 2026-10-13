@@ -102,6 +102,7 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
         self._variables_resolver = variables_resolver
 
     async def execute(self, _: None) -> Execution | None:
+        await self._executions.recover_stale_running()
         execution = await self._executions.claim_next_created()
 
         if execution is None:

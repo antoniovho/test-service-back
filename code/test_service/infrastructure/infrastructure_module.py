@@ -2,7 +2,13 @@
 
 from opyoid import Module  # type: ignore
 
-from test_service.config import JiraSettings, PostgresDatabaseSettings, ViewerSettings, XraySettings
+from test_service.config import (
+    ExecutionSettings,
+    JiraSettings,
+    PostgresDatabaseSettings,
+    ViewerSettings,
+    XraySettings,
+)
 from test_service.domain.ports.output.executions.execution_cancellation_port import (
     ExecutionCancellationPort,
 )
@@ -141,6 +147,7 @@ class ExecutionModule(Module):
     """Bind persistence adapters required by execution resources."""
 
     def configure(self) -> None:
+        self.bind(ExecutionSettings, to_instance=ExecutionSettings())
         self.bind(EnvironmentRepository)
         self.bind(ExecutionRepository)
         self.bind(ExecutionResultsRepository)
