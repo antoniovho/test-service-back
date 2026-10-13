@@ -50,8 +50,17 @@ class SseExecutor:
                 raise ValueError("SSE action configuration must define a non-empty url")
             timeout = float(config.get("receiveTimeoutSeconds", 30))
             max_events = int(config.get("maxEvents", 1))
+            method = config.get("method", "GET")
+            if method not in {"GET", "POST"}:
+                raise ValueError("SSE action method must be GET or POST")
+            params = config.get("query", config.get("params"))
             async with client.stream(
-                "GET", url, headers=config.get("headers"), timeout=timeout
+                method,
+                url,
+                headers=config.get("headers"),
+                params=params,
+                json=config.get("json"),
+                timeout=timeout,
             ) as response:
                 response.raise_for_status()
                 events, cancelled = await self._read_events(response, max_events, cancellation)
@@ -71,13 +80,33 @@ class SseExecutor:
                 return self._failed(
                     action, started_at, "SSE_EXPECTED_EVENT_NOT_RECEIVED", {"events": events}
                 )
+            expected_data = config.get("expectedData")
+            if expected_data is not None and not any(
+                item.get("data") == expected_data for item in events
+            ):
+                return self._failed(
+                    action, started_at, "SSE_EXPECTED_DATA_NOT_RECEIVED", {"events": events}
+                )
+            expected_done = config.get("expectedDone")
+            done_received = any(item.get("data") == "[DONE]" for item in events)
+            if expected_done is True and not done_received:
+                return self._failed(action, started_at, "SSE_DONE_NOT_RECEIVED", {"events": events})
+            if expected_done is False and done_received:
+                return self._failed(action, started_at, "SSE_UNEXPECTED_DONE", {"events": events})
+            expected = {}
+            if expected_event:
+                expected["event"] = expected_event
+            if expected_data is not None:
+                expected["data"] = expected_data
+            if expected_done is not None:
+                expected["done"] = expected_done
             return RunnerActionOutcome(
                 action.identifier,
                 action.action_type,
                 ResultStatus.PASSED,
                 started_at,
                 datetime.now(UTC),
-                expected={"event": expected_event},
+                expected=expected,
                 actual={"events": events},
             )
         except (httpx.HTTPError, ValueError, TypeError) as exc:
