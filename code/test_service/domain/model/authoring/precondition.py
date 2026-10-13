@@ -56,6 +56,11 @@ class Precondition:
             raise InvalidPreconditionException("version must be positive")
         object.__setattr__(self, "metadata", freeze_mapping(self.metadata))
 
+    @property
+    def logical_key(self) -> str:
+        """Return the stable logical key shared across this precondition's snapshots."""
+        return self.precondition_key
+
     def activate(self) -> "Precondition":
         """Return this snapshot in the active state.
 

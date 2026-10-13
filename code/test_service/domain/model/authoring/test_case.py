@@ -138,6 +138,11 @@ class TestCase:
             )
         object.__setattr__(self, "metadata", freeze_mapping(self.metadata))
 
+    @property
+    def logical_key(self) -> str:
+        """Return the stable logical key shared across this test case's snapshots."""
+        return self.test_key
+
     def activate(self) -> "TestCase":
         """Return this snapshot in the active state.
 

@@ -70,6 +70,11 @@ class TestPlan:
             raise InvalidTestPlanException("version and timeout must be positive")
         self._validate_unique_references()
 
+    @property
+    def logical_key(self) -> str:
+        """Return the stable logical key shared across this test plan's snapshots."""
+        return self.plan_key
+
     def activate(self) -> "TestPlan":
         """Return this snapshot in the active state.
 
