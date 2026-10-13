@@ -1,4 +1,5 @@
 import asyncio
+import json
 
 import httpx
 import pytest
@@ -62,6 +63,34 @@ async def test_when_expected_event_is_not_received_expect_failed_outcome() -> No
 
     assert outcome.status is ResultStatus.FAILED
     assert outcome.error_code == "SSE_EXPECTED_EVENT_NOT_RECEIVED"
+
+
+async def test_when_posting_and_expected_data_is_received_expect_passed_outcome() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, content=b"event: completed\ndata: [DONE]\n\n")
+
+    action = CompiledAction(
+        "await-completion",
+        "SSE",
+        0,
+        {
+            "url": "https://api.example.test/events",
+            "method": "POST",
+            "json": {"jobId": "42"},
+            "expectedData": "[DONE]",
+            "expectedDone": True,
+        },
+    )
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        outcome = await SseExecutor().execute(client, action, {}, asyncio.Event())
+
+    assert requests[0].method == "POST"
+    assert json.loads(requests[0].content) == {"jobId": "42"}
+    assert outcome.status is ResultStatus.PASSED
+    assert outcome.expected == {"data": "[DONE]", "done": True}
 
 
 async def test_when_stream_is_cancelled_expect_skipped_outcome() -> None:

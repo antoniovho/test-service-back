@@ -61,6 +61,12 @@ class TestDefinitionCompiler:
 
         assert definition.variables == {"baseUrl": "https://definition.test"}
 
+    def test_when_http_action_has_unknown_configuration_expect_invalid_definition(self) -> None:
+        definition = _definition(_http(unsupportedAssertion="present"))
+
+        with pytest.raises(InvalidDefinitionException, match="unsupported configuration keys"):
+            DefinitionCompiler().compile(uuid4(), definition)
+
     @pytest.mark.parametrize(
         ("action", "message"),
         [
