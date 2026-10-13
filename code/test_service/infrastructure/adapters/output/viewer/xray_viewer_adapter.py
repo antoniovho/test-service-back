@@ -9,15 +9,16 @@ from datetime import UTC, datetime, timedelta
 import httpx
 
 from test_service.config import XraySettings
+from test_service.domain.model.viewer.managed_state import ViewerManagedState
 from test_service.domain.model.viewer.projection import (
     ViewerExternalIdentity,
     ViewerProjection,
+    ViewerProjectionStep,
 )
 from test_service.domain.model.viewer.records import (
     DriftObservation,
     DriftType,
     ViewerEntityType,
-    ViewerSyncRecord,
 )
 from test_service.domain.ports.output.viewer.viewer_drift_detector_port import (
     ViewerDriftDetectorPort,
@@ -54,17 +55,27 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort):
             )
         return await self._create_projection(projection)
 
-    async def check_drift(self, record: ViewerSyncRecord) -> DriftObservation | None:
-        """Detect whether the external entity identified by a sync record still exists."""
+    async def check_drift(self, projection: ViewerProjection) -> DriftObservation | None:
+        """Compare provider-managed fields with the canonical published projection."""
+        record = projection.record
         if record.external_entity_id is None:
             return DriftObservation(DriftType.MISSING, {"reason": "missing external identity"})
         payload = await self._graphql(
             self._read_query(record.entity_type),
-            {"issueIds": [record.external_entity_id], "limit": 1},
+            {
+                "issueIds": [record.external_entity_id],
+                "limit": 1,
+                "relationshipLimit": 100,
+                "relationshipStart": 0,
+            },
         )
         results = self._results(payload, record.entity_type)
         if not results:
             return DriftObservation(DriftType.DELETED, None)
+        remote_state = await self._remote_state(projection, results[0])
+        differences = ViewerManagedState.from_projection(projection).differing_fields(remote_state)
+        if differences:
+            return DriftObservation(DriftType.MODIFIED, {"fields": differences})
         return None
 
     async def _create_projection(self, projection: ViewerProjection) -> ViewerExternalIdentity:
@@ -79,7 +90,7 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort):
                 {
                     "testType": {"name": "Manual"},
                     "steps": [self._step_input(step) for step in projection.steps],
-                    "preconditionIssueIds": list(projection.precondition_issue_ids),
+                    "preconditionIssueIds": list(projection.precondition_external_ids),
                 }
             )
             payload = await self._graphql(self._CREATE_TEST, variables)
@@ -94,11 +105,11 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort):
             payload = await self._graphql(self._CREATE_PRECONDITION, variables)
             return self._identity(payload, "createPrecondition", "precondition")
         if record.entity_type is ViewerEntityType.TEST_SET:
-            variables["testIssueIds"] = list(projection.test_issue_ids)
+            variables["testIssueIds"] = list(projection.test_external_ids)
             payload = await self._graphql(self._CREATE_TEST_SET, variables)
             return self._identity(payload, "createTestSet", "testSet")
         if record.entity_type is ViewerEntityType.TEST_PLAN:
-            variables["testIssueIds"] = list(projection.test_issue_ids)
+            variables["testIssueIds"] = list(projection.test_external_ids)
             payload = await self._graphql(self._CREATE_TEST_PLAN, variables)
             return self._identity(payload, "createTestPlan", "testPlan")
         raise XrayProtocolError(f"unsupported Xray entity type: {record.entity_type}")
@@ -117,12 +128,30 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort):
                 await self._graphql(
                     self._ADD_TEST_STEP, {"issueId": issue_id, "step": self._step_input(step)}
                 )
-            if projection.precondition_issue_ids:
+            current_preconditions = await self._relationship_issue_ids(
+                record.entity_type, issue_id, "preconditions"
+            )
+            stale_preconditions = tuple(
+                issue_id
+                for issue_id in current_preconditions
+                if issue_id not in projection.precondition_external_ids
+            )
+            if stale_preconditions:
+                await self._graphql(
+                    self._REMOVE_PRECONDITIONS,
+                    {"issueId": issue_id, "preconditionIssueIds": list(stale_preconditions)},
+                )
+            missing_preconditions = tuple(
+                precondition_external_id
+                for precondition_external_id in projection.precondition_external_ids
+                if precondition_external_id not in current_preconditions
+            )
+            if missing_preconditions:
                 await self._graphql(
                     self._ADD_PRECONDITIONS,
                     {
                         "issueId": issue_id,
-                        "preconditionIssueIds": list(projection.precondition_issue_ids),
+                        "preconditionIssueIds": list(missing_preconditions),
                     },
                 )
             return
@@ -133,18 +162,144 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort):
             )
             return
         if record.entity_type is ViewerEntityType.TEST_SET:
-            await self._graphql(
-                self._ADD_TESTS_TO_SET,
-                {"issueId": issue_id, "testIssueIds": list(projection.test_issue_ids)},
+            await self._remove_stale_tests(
+                record.entity_type, issue_id, projection.test_external_ids
             )
             return
         if record.entity_type is ViewerEntityType.TEST_PLAN:
-            await self._graphql(
-                self._ADD_TESTS_TO_PLAN,
-                {"issueId": issue_id, "testIssueIds": list(projection.test_issue_ids)},
+            await self._remove_stale_tests(
+                record.entity_type, issue_id, projection.test_external_ids
             )
             return
         raise XrayProtocolError(f"unsupported Xray entity type: {record.entity_type}")
+
+    async def _remove_stale_tests(
+        self, entity_type: ViewerEntityType, issue_id: str, expected_issue_ids: tuple[str, ...]
+    ) -> None:
+        current_issue_ids = await self._relationship_issue_ids(entity_type, issue_id, "tests")
+        stale_issue_ids = tuple(
+            current_issue_id
+            for current_issue_id in current_issue_ids
+            if current_issue_id not in expected_issue_ids
+        )
+        if stale_issue_ids:
+            mutation = (
+                self._REMOVE_TESTS_FROM_SET
+                if entity_type is ViewerEntityType.TEST_SET
+                else self._REMOVE_TESTS_FROM_PLAN
+            )
+            await self._graphql(
+                mutation, {"issueId": issue_id, "testIssueIds": list(stale_issue_ids)}
+            )
+        missing_issue_ids = tuple(
+            expected_issue_id
+            for expected_issue_id in expected_issue_ids
+            if expected_issue_id not in current_issue_ids
+        )
+        if not missing_issue_ids:
+            return
+        mutation = (
+            self._ADD_TESTS_TO_SET
+            if entity_type is ViewerEntityType.TEST_SET
+            else self._ADD_TESTS_TO_PLAN
+        )
+        await self._graphql(
+            mutation, {"issueId": issue_id, "testIssueIds": list(missing_issue_ids)}
+        )
+
+    async def _remote_state(
+        self, projection: ViewerProjection, result: object
+    ) -> ViewerManagedState:
+        if not isinstance(result, Mapping):
+            raise XrayProtocolError("Xray query result must be an object")
+        entity_type = projection.record.entity_type
+        issue_id = projection.record.external_entity_id
+        if issue_id is None:
+            raise XrayProtocolError("Xray read requires an external identity")
+        if entity_type is ViewerEntityType.TEST_CASE:
+            steps = result.get("steps")
+            if not isinstance(steps, list):
+                raise XrayProtocolError("Xray test response does not contain steps")
+            return ViewerManagedState.from_remote(
+                entity_type,
+                steps=tuple(self._step_from_response(step) for step in steps),
+                related_external_ids=await self._relationship_issue_ids(
+                    entity_type, issue_id, "preconditions", result
+                ),
+            )
+        if entity_type is ViewerEntityType.PRECONDITION:
+            definition = result.get("definition")
+            if not isinstance(definition, str):
+                raise XrayProtocolError("Xray precondition response does not contain a definition")
+            return ViewerManagedState.from_remote(entity_type, definition=definition)
+        return ViewerManagedState.from_remote(
+            entity_type,
+            related_external_ids=await self._relationship_issue_ids(
+                entity_type, issue_id, "tests", result
+            ),
+        )
+
+    async def _relationship_issue_ids(
+        self,
+        entity_type: ViewerEntityType,
+        issue_id: str,
+        field: str,
+        initial_result: Mapping[str, object] | None = None,
+    ) -> tuple[str, ...]:
+        result = initial_result
+        start = 0
+        issue_ids: list[str] = []
+        while True:
+            if result is None:
+                payload = await self._graphql(
+                    self._read_query(entity_type),
+                    {
+                        "issueIds": [issue_id],
+                        "limit": 1,
+                        "relationshipLimit": 100,
+                        "relationshipStart": start,
+                    },
+                )
+                results = self._results(payload, entity_type)
+                if not results or not isinstance(results[0], Mapping):
+                    raise XrayProtocolError("Xray relationship response does not contain an entity")
+                result = results[0]
+            relationship = result.get(field)
+            if not isinstance(relationship, Mapping):
+                raise XrayProtocolError(f"Xray response does not contain {field}")
+            related_results = relationship.get("results")
+            total = relationship.get("total")
+            if not isinstance(related_results, list) or not isinstance(total, int):
+                raise XrayProtocolError(f"Xray response does not contain paginated {field}")
+            issue_ids.extend(self._issue_ids(related_results, field))
+            start += len(related_results)
+            if start >= total:
+                return tuple(issue_ids)
+            result = None
+
+    @staticmethod
+    def _step_from_response(step: object) -> ViewerProjectionStep:
+        if not isinstance(step, Mapping):
+            raise XrayProtocolError("Xray test step must be an object")
+        action = step.get("action")
+        data = step.get("data")
+        result = step.get("result")
+        if (
+            not isinstance(action, str)
+            or not isinstance(data, (str, type(None)))
+            or not isinstance(result, (str, type(None)))
+        ):
+            raise XrayProtocolError("Xray test step has invalid fields")
+        return ViewerProjectionStep(action, data, result)
+
+    @staticmethod
+    def _issue_ids(results: list[object], field: str) -> tuple[str, ...]:
+        issue_ids = []
+        for result in results:
+            if not isinstance(result, Mapping) or not isinstance(result.get("issueId"), str):
+                raise XrayProtocolError(f"Xray {field} response contains an invalid issueId")
+            issue_ids.append(result["issueId"])
+        return tuple(issue_ids)
 
     async def _graphql(self, query: str, variables: Mapping[str, object]) -> Mapping[str, object]:
         for attempt in range(1, self._settings.max_attempts + 1):
@@ -400,6 +555,12 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort):
                             preconditionIssueIds: $preconditionIssueIds) { warnings }
         }
     """
+    _REMOVE_PRECONDITIONS = """
+        mutation RemovePreconditions($issueId: String!, $preconditionIssueIds: [String!]!) {
+          removePreconditionsFromTest(testIssueId: $issueId,
+              preconditionIssueIds: $preconditionIssueIds) { warnings }
+        }
+    """
     _UPDATE_PRECONDITION = """
         mutation UpdatePrecondition($issueId: String!, $definition: String!) {
           updatePrecondition(preconditionIssueId: $issueId, definition: $definition) { warnings }
@@ -415,23 +576,63 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort):
           addTestsToTestPlan(testPlanIssueId: $issueId, testIssueIds: $testIssueIds) { warnings }
         }
     """
+    _REMOVE_TESTS_FROM_SET = """
+            mutation RemoveTestsFromTestSet($issueId: String!, $testIssueIds: [String!]!) {
+                removeTestsFromTestSet(testSetIssueId: $issueId, testIssueIds: $testIssueIds) {
+                    warnings
+                }
+            }
+    """
+    _REMOVE_TESTS_FROM_PLAN = """
+            mutation RemoveTestsFromTestPlan($issueId: String!, $testIssueIds: [String!]!) {
+                removeTestsFromTestPlan(testPlanIssueId: $issueId, testIssueIds: $testIssueIds) {
+                    warnings
+                }
+            }
+    """
     _GET_TESTS = """
-        query GetTests($issueIds: [String!], $limit: Int!) {
-          getTests(issueIds: $issueIds, limit: $limit) { results { issueId } }
+                query GetTests($issueIds: [String!], $limit: Int!, $relationshipLimit: Int!,
+                        $relationshipStart: Int!) {
+                    getTests(issueIds: $issueIds, limit: $limit) {
+                        results { issueId steps { action data result }
+                            preconditions(limit: $relationshipLimit, start: $relationshipStart) {
+                                total results { issueId }
+                            }
+                        }
+                    }
         }
     """
     _GET_PRECONDITIONS = """
-        query GetPreconditions($issueIds: [String!], $limit: Int!) {
-          getPreconditions(issueIds: $issueIds, limit: $limit) { results { issueId } }
+                query GetPreconditions($issueIds: [String!], $limit: Int!, $relationshipLimit: Int!,
+                        $relationshipStart: Int!) {
+                    getPreconditions(issueIds: $issueIds, limit: $limit) {
+                        results { issueId definition }
+                    }
         }
     """
     _GET_TEST_SETS = """
-        query GetTestSets($issueIds: [String!], $limit: Int!) {
-          getTestSets(issueIds: $issueIds, limit: $limit) { results { issueId } }
+                query GetTestSets($issueIds: [String!], $limit: Int!, $relationshipLimit: Int!,
+                        $relationshipStart: Int!) {
+                    getTestSets(issueIds: $issueIds, limit: $limit) {
+                        results {
+                            issueId
+                            tests(limit: $relationshipLimit, start: $relationshipStart) {
+                                total results { issueId }
+                            }
+                        }
+                    }
         }
     """
     _GET_TEST_PLANS = """
-        query GetTestPlans($issueIds: [String!], $limit: Int!) {
-          getTestPlans(issueIds: $issueIds, limit: $limit) { results { issueId } }
+                query GetTestPlans($issueIds: [String!], $limit: Int!, $relationshipLimit: Int!,
+                        $relationshipStart: Int!) {
+                    getTestPlans(issueIds: $issueIds, limit: $limit) {
+                        results {
+                            issueId
+                            tests(limit: $relationshipLimit, start: $relationshipStart) {
+                                total results { issueId }
+                            }
+                        }
+                    }
         }
     """
