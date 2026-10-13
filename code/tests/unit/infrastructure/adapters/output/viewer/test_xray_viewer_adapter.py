@@ -1,4 +1,5 @@
 import json
+from dataclasses import replace
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -7,6 +8,7 @@ import pytest
 from pydantic import SecretStr
 
 from test_service.config import XraySettings
+from test_service.domain.model.viewer.projection import ViewerProjection, ViewerProjectionStep
 from test_service.domain.model.viewer.records import (
     DriftType,
     SyncStatus,
@@ -31,26 +33,35 @@ class TestXrayViewerAdapter:
             client_id="client-id",
             client_secret=SecretStr("client-secret"),
             auth_url="https://xray.example.test/auth",
-            projection_url="https://xray.example.test/projections",
-            drift_check_url="https://xray.example.test/drift",
+            graphql_url="https://xray.example.test/graphql",
+            rate_limit_requests=10_000,
+            rate_limit_window_seconds=1,
+            retry_backoff_seconds=0,
         )
 
     @pytest.fixture
-    def record(self) -> ViewerSyncRecord:
-        return ViewerSyncRecord(
+    def projection(self) -> ViewerProjection:
+        record = ViewerSyncRecord(
             identifier=uuid4(),
             project_key="SHOP",
             entity_type=ViewerEntityType.TEST_CASE,
             entity_key="checkout",
             projected_version_id=uuid4(),
             viewer_type=ViewerType.XRAY,
-            external_entity_key="SHOP-123",
+            external_entity_key="checkout",
             sync_status=SyncStatus.PENDING,
-            created_at=datetime.now(UTC),
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        )
+        return ViewerProjection(
+            record=record,
+            summary="Checkout succeeds",
+            description="A customer can complete checkout.",
+            steps=(ViewerProjectionStep("submit: http", '{"method":"POST"}', "201 Created"),),
+            precondition_issue_ids=("10001",),
         )
 
-    async def test_when_publishing_expect_authenticated_projection_request(
-        self, settings: XraySettings, record: ViewerSyncRecord
+    async def test_when_creating_test_expect_authenticated_graphql_projection_and_identity(
+        self, settings: XraySettings, projection: ViewerProjection
     ) -> None:
         requests: list[httpx.Request] = []
 
@@ -58,63 +69,112 @@ class TestXrayViewerAdapter:
             requests.append(request)
             if request.url.path == "/auth":
                 return httpx.Response(200, json="xray-token")
-            return httpx.Response(202)
+            return httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "createTest": {"test": {"issueId": "10002", "jira": {"key": "SHOP-12"}}}
+                    }
+                },
+            )
 
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            adapter = XrayViewerAdapter(settings, client)
+            identity = await XrayViewerAdapter(settings, client).publish(projection)
 
-            await adapter.publish(record)
-
-        assert len(requests) == 2
+        graphql_body = json.loads(requests[1].content)
+        assert identity.external_id == "10002"
+        assert identity.external_key == "SHOP-12"
         assert json.loads(requests[0].content) == {
             "client_id": "client-id",
             "client_secret": "client-secret",
         }
         assert requests[1].headers["Authorization"] == "Bearer xray-token"
-        assert json.loads(requests[1].content)["projectedVersionId"] == str(
-            record.projected_version_id
-        )
+        assert graphql_body["variables"]["testType"] == {"name": "Manual"}
+        assert graphql_body["variables"]["preconditionIssueIds"] == ["10001"]
+        assert graphql_body["variables"]["steps"][0]["action"] == "submit: http"
         assert "client-secret" not in requests[1].content.decode()
 
-    async def test_when_checking_drift_expect_configured_endpoint_is_called(
-        self, settings: XraySettings, record: ViewerSyncRecord
+    async def test_when_publishing_twice_expect_cached_token_and_update(
+        self, settings: XraySettings, projection: ViewerProjection
     ) -> None:
-        paths: list[str] = []
+        requests: list[httpx.Request] = []
+        updated_projection = ViewerProjection(
+            record=replace(
+                projection.record, external_entity_id="10002", external_entity_key="SHOP-12"
+            ),
+            summary=projection.summary,
+            steps=projection.steps,
+        )
 
         def handler(request: httpx.Request) -> httpx.Response:
-            paths.append(request.url.path)
+            requests.append(request)
             if request.url.path == "/auth":
-                return httpx.Response(200, json={"token": "xray-token"})
-            return httpx.Response(204)
+                return httpx.Response(200, json="xray-token")
+            body = json.loads(request.content)
+            if "createTest" in body["query"]:
+                return httpx.Response(
+                    200,
+                    json={
+                        "data": {
+                            "createTest": {"test": {"issueId": "10002", "jira": {"key": "SHOP-12"}}}
+                        }
+                    },
+                )
+            return httpx.Response(200, json={"data": {"updateTestType": {}}})
 
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
             adapter = XrayViewerAdapter(settings, client)
+            await adapter.publish(projection)
+            identity = await adapter.publish(updated_projection)
 
-            observation = await adapter.check_drift(record)
+        assert identity.external_id == "10002"
+        assert sum(request.url.path == "/auth" for request in requests) == 1
+        assert any("removeAllTestSteps" in request.content.decode() for request in requests)
+        assert any("addTestStep" in request.content.decode() for request in requests)
 
-        assert paths == ["/auth", "/drift"]
-        assert observation is None
+    async def test_when_xray_returns_transient_status_expect_request_is_retried(
+        self, settings: XraySettings, projection: ViewerProjection
+    ) -> None:
+        graphql_attempts = 0
 
-    async def test_when_drift_response_contains_safe_observation_expect_normalized_result(
-        self, settings: XraySettings, record: ViewerSyncRecord
+        def handler(request: httpx.Request) -> httpx.Response:
+            nonlocal graphql_attempts
+            if request.url.path == "/auth":
+                return httpx.Response(200, json="xray-token")
+            graphql_attempts += 1
+            if graphql_attempts == 1:
+                return httpx.Response(503)
+            return httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "createTest": {"test": {"issueId": "10002", "jira": {"key": "SHOP-12"}}}
+                    }
+                },
+            )
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            identity = await XrayViewerAdapter(settings, client).publish(projection)
+
+        assert identity.external_id == "10002"
+        assert graphql_attempts == 2
+
+    async def test_when_graphql_returns_errors_expect_protocol_error(
+        self, settings: XraySettings, projection: ViewerProjection
     ) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
             if request.url.path == "/auth":
                 return httpx.Response(200, json="xray-token")
-            return httpx.Response(
-                200,
-                json={"driftType": "MODIFIED", "details": {"field": "summary"}},
-            )
+            return httpx.Response(200, json={"errors": [{"message": "invalid field"}]})
 
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            observation = await XrayViewerAdapter(settings, client).check_drift(record)
+            adapter = XrayViewerAdapter(settings, client)
 
-        assert observation is not None
-        assert observation.drift_type is DriftType.MODIFIED
-        assert observation.details == {"field": "summary"}
+            with pytest.raises(XrayProtocolError, match="contains errors"):
+                await adapter.publish(projection)
 
-    async def test_when_authentication_response_has_no_token_expect_provider_error(
-        self, settings: XraySettings, record: ViewerSyncRecord
+    async def test_when_authentication_has_no_token_expect_authentication_error(
+        self, settings: XraySettings, projection: ViewerProjection
     ) -> None:
         def handler(_: httpx.Request) -> httpx.Response:
             return httpx.Response(200, json={})
@@ -123,81 +183,36 @@ class TestXrayViewerAdapter:
             adapter = XrayViewerAdapter(settings, client)
 
             with pytest.raises(XrayAuthenticationError, match="does not contain a token"):
-                await adapter.publish(record)
+                await adapter.publish(projection)
 
-    async def test_when_drift_response_is_invalid_expect_protocol_error(
-        self, settings: XraySettings, record: ViewerSyncRecord
+    async def test_when_xray_keeps_failing_expect_transport_error(
+        self, settings: XraySettings, projection: ViewerProjection
     ) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
             if request.url.path == "/auth":
                 return httpx.Response(200, json="xray-token")
-            return httpx.Response(200, json={"details": {}})
+            return httpx.Response(503)
 
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
             adapter = XrayViewerAdapter(settings, client)
 
-            with pytest.raises(XrayProtocolError, match="does not contain a driftType"):
-                await adapter.check_drift(record)
+            with pytest.raises(XrayTransportError, match="after retries"):
+                await adapter.publish(projection)
 
-    async def test_when_xray_returns_unsuccessful_status_expect_transport_error(
-        self, settings: XraySettings, record: ViewerSyncRecord
+    async def test_when_remote_entity_is_absent_expect_deleted_drift(
+        self, settings: XraySettings, projection: ViewerProjection
     ) -> None:
+        record = replace(
+            projection.record, external_entity_id="10002", external_entity_key="SHOP-12"
+        )
+
         def handler(request: httpx.Request) -> httpx.Response:
             if request.url.path == "/auth":
                 return httpx.Response(200, json="xray-token")
-            return httpx.Response(503, request=request)
-
-        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            adapter = XrayViewerAdapter(settings, client)
-
-            with pytest.raises(XrayTransportError, match="Xray request failed"):
-                await adapter.publish(record)
-
-    async def test_when_no_attempts_are_configured_expect_transport_error(
-        self, settings: XraySettings, record: ViewerSyncRecord
-    ) -> None:
-        adapter = XrayViewerAdapter(settings.model_copy(update={"max_attempts": 0}))
-
-        with pytest.raises(XrayTransportError, match="no configured attempts"):
-            await adapter.publish(record)
-
-    @pytest.mark.parametrize(
-        ("payload", "error"),
-        [
-            ([], "does not contain a driftType"),
-            ({"driftType": "UNKNOWN"}, "unsupported driftType"),
-            ({"driftType": "MODIFIED", "details": []}, "details must be an object"),
-        ],
-    )
-    async def test_when_drift_payload_is_invalid_expect_protocol_error(
-        self, settings: XraySettings, record: ViewerSyncRecord, payload, error
-    ) -> None:
-        def handler(request: httpx.Request) -> httpx.Response:
-            if request.url.path == "/auth":
-                return httpx.Response(200, json="xray-token")
-            return httpx.Response(200, json=payload)
-
-        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            adapter = XrayViewerAdapter(settings, client)
-
-            with pytest.raises(XrayProtocolError, match=error):
-                await adapter.check_drift(record)
-
-    async def test_when_drift_payload_is_null_expect_no_observation(
-        self, settings: XraySettings, record: ViewerSyncRecord
-    ) -> None:
-        def handler(request: httpx.Request) -> httpx.Response:
-            if request.url.path == "/auth":
-                return httpx.Response(200, json="xray-token")
-            return httpx.Response(200, json=None)
+            return httpx.Response(200, json={"data": {"getTests": {"results": []}}})
 
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
             observation = await XrayViewerAdapter(settings, client).check_drift(record)
 
-        assert observation is None
-
-    def test_when_response_body_is_not_json_expect_protocol_error(self) -> None:
-        response = httpx.Response(200, content=b"not-json")
-
-        with pytest.raises(XrayProtocolError, match="not valid JSON"):
-            XrayViewerAdapter._json_payload(response, "drift")
+        assert observation is not None
+        assert observation.drift_type is DriftType.DELETED

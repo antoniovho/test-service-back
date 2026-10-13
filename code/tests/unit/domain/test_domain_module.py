@@ -301,6 +301,9 @@ class _FakeViewerRepository:
     async def save_sync_record(self, record):
         return record
 
+    async def find_sync_record(self, project_key, entity_type, entity_key, viewer_type):
+        return None
+
     async def save_drift_event(self, event):
         return event
 
@@ -318,7 +321,7 @@ class _FakeViewerRepository:
 
 
 class _FakeViewerPublisher:
-    async def publish(self, record):
+    async def publish(self, projection):
         return None
 
 

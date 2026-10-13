@@ -6,6 +6,17 @@ from test_service.domain.application.services.viewer_projection_service import (
     ViewerProjectionService,
 )
 from test_service.domain.commons.pagination import Page
+from test_service.domain.model.authoring.definition import Action, Definition
+from test_service.domain.model.authoring.precondition import Precondition
+from test_service.domain.model.authoring.test_case import (
+    PreconditionReference,
+    Priority,
+    TestCase,
+    TestLevel,
+    TestType,
+)
+from test_service.domain.model.lifecycle import VersionStatus
+from test_service.domain.model.viewer.projection import ViewerExternalIdentity
 from test_service.domain.model.viewer.records import (
     DriftObservation,
     DriftType,
@@ -45,6 +56,97 @@ def _record(sync_status: SyncStatus = SyncStatus.SYNCED) -> ViewerSyncRecord:
 
 
 class TestViewerProjectionService:
+    async def test_when_publishing_expect_dependencies_steps_and_xray_identities_saved(
+        self,
+    ) -> None:
+        precondition = Precondition(
+            identifier=uuid4(),
+            project_key="SHOP",
+            precondition_key="authenticated-customer",
+            version=1,
+            name="Authenticated customer",
+            description="A customer is signed in.",
+            validation_definition=Definition({}, (Action("login", "HTTP", {"url": "/login"}),)),
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
+            created_by="author@example.test",
+            status=VersionStatus.ACTIVE,
+        )
+        test_case = TestCase(
+            identifier=uuid4(),
+            project_key="SHOP",
+            test_key="checkout",
+            version=1,
+            name="Checkout succeeds",
+            summary="A customer completes checkout.",
+            objective="The order is accepted.",
+            test_type=TestType.AUTOMATED,
+            test_level=TestLevel.FUNCTIONAL,
+            priority=Priority.HIGH,
+            definition=Definition({}, (Action("submit", "HTTP", {"method": "POST"}),)),
+            timeout_seconds=60,
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
+            created_by="author@example.test",
+            preconditions=(
+                PreconditionReference(precondition.identifier, precondition.precondition_key, 1),
+            ),
+            status=VersionStatus.ACTIVE,
+        )
+        operation = ViewerOperation(
+            identifier=uuid4(),
+            project_key="SHOP",
+            viewer_type=ViewerType.XRAY,
+            operation_type=ViewerOperationType.PUBLICATION,
+            status=ViewerOperationStatus.RUNNING,
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        )
+        repository = AsyncMock()
+        repository.claim_next_operation.return_value = operation
+        repository.find_sync_record.return_value = None
+        repository.save_operation.side_effect = lambda value: value
+        repository.save_sync_record.side_effect = lambda value: value
+        publisher = AsyncMock()
+        publisher.publish.side_effect = [
+            ViewerExternalIdentity("10001", "SHOP-11"),
+            ViewerExternalIdentity("10002", "SHOP-12"),
+        ]
+        precondition_repository = AsyncMock()
+        precondition_repository.find_page.return_value = Page((precondition,), 1)
+        test_case_repository = AsyncMock()
+        test_case_repository.find_page.return_value = Page((test_case,), 1)
+        test_set_repository = AsyncMock()
+        test_set_repository.find_page.return_value = Page((), 0)
+        test_plan_repository = AsyncMock()
+        test_plan_repository.find_page.return_value = Page((), 0)
+        service = ViewerProjectionService(
+            AsyncMock(),
+            test_case_repository,
+            precondition_repository,
+            test_set_repository,
+            test_plan_repository,
+            repository,
+            publisher,
+            AsyncMock(),
+        )
+
+        result = await service.process_next_operation()
+
+        published = [call.args[0] for call in publisher.publish.await_args_list]
+        saved_records = [
+            call.args[0]
+            for call in repository.save_sync_record.await_args_list
+            if call.args[0].sync_status is SyncStatus.SYNCED
+        ]
+        assert result is not None
+        assert result.status is ViewerOperationStatus.SUCCEEDED
+        assert [projection.record.entity_type for projection in published] == [
+            ViewerEntityType.PRECONDITION,
+            ViewerEntityType.TEST_CASE,
+        ]
+        assert published[1].precondition_issue_ids == ("10001",)
+        assert published[1].steps[0].action == "submit: HTTP"
+        assert published[1].steps[0].result == "The order is accepted."
+        assert [record.external_entity_id for record in saved_records] == ["10001", "10002"]
+
     async def test_when_detector_observes_drift_expect_event_and_drift_status_saved(self) -> None:
         operation = _operation()
         record = _record()
