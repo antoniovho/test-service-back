@@ -139,6 +139,7 @@ class ViewerSyncRecord:
     created_at: datetime
     operation_id: UUID | None = None
     external_entity_id: str | None = None
+    projection_hash: str | None = None
     last_synced_at: datetime | None = None
     last_checked_at: datetime | None = None
 

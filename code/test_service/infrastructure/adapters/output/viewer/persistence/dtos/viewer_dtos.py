@@ -23,6 +23,7 @@ class ViewerSyncRecordDTO(Base):
     viewer_type: Mapped[str] = mapped_column(String, nullable=False)
     external_entity_key: Mapped[str] = mapped_column(Text, nullable=False)
     external_entity_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    projection_hash: Mapped[str | None] = mapped_column(String, nullable=True)
     sync_status: Mapped[str] = mapped_column(String, nullable=False)
     operation_id: Mapped[UUID | None] = mapped_column(PostgreSQLUUID(as_uuid=True), nullable=True)
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
