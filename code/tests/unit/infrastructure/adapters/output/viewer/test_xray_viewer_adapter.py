@@ -57,7 +57,7 @@ class TestXrayViewerAdapter:
             summary="Checkout succeeds",
             description="A customer can complete checkout.",
             steps=(ViewerProjectionStep("submit: http", '{"method":"POST"}', "201 Created"),),
-            precondition_issue_ids=("10001",),
+            precondition_external_ids=("10001",),
         )
 
     async def test_when_creating_test_expect_authenticated_graphql_projection_and_identity(
@@ -117,6 +117,23 @@ class TestXrayViewerAdapter:
                     json={
                         "data": {
                             "createTest": {"test": {"issueId": "10002", "jira": {"key": "SHOP-12"}}}
+                        }
+                    },
+                )
+            if "getTests" in body["query"]:
+                return httpx.Response(
+                    200,
+                    json={
+                        "data": {
+                            "getTests": {
+                                "results": [
+                                    {
+                                        "issueId": "10002",
+                                        "steps": [],
+                                        "preconditions": {"total": 0, "results": []},
+                                    }
+                                ]
+                            }
                         }
                     },
                 )
@@ -212,7 +229,160 @@ class TestXrayViewerAdapter:
             return httpx.Response(200, json={"data": {"getTests": {"results": []}}})
 
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            observation = await XrayViewerAdapter(settings, client).check_drift(record)
+            observation = await XrayViewerAdapter(settings, client).check_drift(
+                ViewerProjection(record=record, summary="Checkout succeeds")
+            )
 
         assert observation is not None
         assert observation.drift_type is DriftType.DELETED
+
+    async def test_when_remote_managed_state_matches_expect_no_drift(
+        self, settings: XraySettings, projection: ViewerProjection
+    ) -> None:
+        published_projection = replace(
+            projection,
+            record=replace(
+                projection.record, external_entity_id="10002", external_entity_key="SHOP-12"
+            ),
+        )
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/auth":
+                return httpx.Response(200, json="xray-token")
+            return httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "getTests": {
+                            "results": [
+                                {
+                                    "issueId": "10002",
+                                    "steps": [
+                                        {
+                                            "action": "submit: http",
+                                            "data": '{"method":"POST"}',
+                                            "result": "201 Created",
+                                        }
+                                    ],
+                                    "preconditions": {
+                                        "total": 1,
+                                        "results": [{"issueId": "10001"}],
+                                    },
+                                }
+                            ]
+                        }
+                    }
+                },
+            )
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            observation = await XrayViewerAdapter(settings, client).check_drift(
+                published_projection
+            )
+
+        assert observation is None
+
+    async def test_when_remote_step_differs_expect_safe_modified_observation(
+        self, settings: XraySettings, projection: ViewerProjection
+    ) -> None:
+        published_projection = replace(
+            projection,
+            record=replace(
+                projection.record, external_entity_id="10002", external_entity_key="SHOP-12"
+            ),
+        )
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/auth":
+                return httpx.Response(200, json="xray-token")
+            return httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "getTests": {
+                            "results": [
+                                {
+                                    "issueId": "10002",
+                                    "steps": [
+                                        {
+                                            "action": "remote secret action",
+                                            "data": None,
+                                            "result": None,
+                                        }
+                                    ],
+                                    "preconditions": {
+                                        "total": 1,
+                                        "results": [{"issueId": "10001"}],
+                                    },
+                                }
+                            ]
+                        }
+                    }
+                },
+            )
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            observation = await XrayViewerAdapter(settings, client).check_drift(
+                published_projection
+            )
+
+        assert observation is not None
+        assert observation.drift_type is DriftType.MODIFIED
+        assert observation.details == {"fields": ("steps",)}
+        assert "remote secret action" not in str(observation.details)
+
+    async def test_when_preconditions_are_paginated_expect_no_drift(
+        self, settings: XraySettings, projection: ViewerProjection
+    ) -> None:
+        precondition_external_ids = tuple(str(issue_id) for issue_id in range(1, 102))
+        published_projection = replace(
+            projection,
+            record=replace(
+                projection.record, external_entity_id="10002", external_entity_key="SHOP-12"
+            ),
+            precondition_external_ids=precondition_external_ids,
+        )
+        relationship_starts: list[int] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/auth":
+                return httpx.Response(200, json="xray-token")
+            variables = json.loads(request.content)["variables"]
+            relationship_start = variables["relationshipStart"]
+            relationship_starts.append(relationship_start)
+            issue_ids = precondition_external_ids[relationship_start : relationship_start + 100]
+            return httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "getTests": {
+                            "results": [
+                                {
+                                    "issueId": "10002",
+                                    "steps": [
+                                        {
+                                            "action": "submit: http",
+                                            "data": '{"method":"POST"}',
+                                            "result": "201 Created",
+                                        }
+                                    ],
+                                    "preconditions": {
+                                        "total": len(precondition_external_ids),
+                                        "results": [
+                                            {"issueId": issue_id} for issue_id in issue_ids
+                                        ],
+                                    },
+                                }
+                            ]
+                        }
+                    }
+                },
+            )
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            observation = await XrayViewerAdapter(settings, client).check_drift(
+                published_projection
+            )
+
+        assert observation is None
+        assert relationship_starts == [0, 100]

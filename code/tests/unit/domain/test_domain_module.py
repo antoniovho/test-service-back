@@ -326,7 +326,7 @@ class _FakeViewerPublisher:
 
 
 class _FakeViewerDriftDetector:
-    async def check_drift(self, record):
+    async def check_drift(self, projection):
         return None
 
 

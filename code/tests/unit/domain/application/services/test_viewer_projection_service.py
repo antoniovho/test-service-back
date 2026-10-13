@@ -2,6 +2,8 @@ from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
+import pytest
+
 from test_service.domain.application.services.viewer_projection_service import (
     ViewerProjectionService,
 )
@@ -15,8 +17,12 @@ from test_service.domain.model.authoring.test_case import (
     TestLevel,
     TestType,
 )
+from test_service.domain.model.exceptions.viewer_projection_integrity_exception import (
+    ViewerProjectionIntegrityException,
+)
 from test_service.domain.model.lifecycle import VersionStatus
-from test_service.domain.model.viewer.projection import ViewerExternalIdentity
+from test_service.domain.model.viewer.managed_state import ViewerManagedState
+from test_service.domain.model.viewer.projection import ViewerExternalIdentity, ViewerProjection
 from test_service.domain.model.viewer.records import (
     DriftObservation,
     DriftType,
@@ -56,6 +62,27 @@ def _record(sync_status: SyncStatus = SyncStatus.SYNCED) -> ViewerSyncRecord:
 
 
 class TestViewerProjectionService:
+    async def test_when_published_snapshot_is_unavailable_expect_integrity_exception(self) -> None:
+        record = _record()
+        test_case_repository = AsyncMock()
+        test_case_repository.find_by_id.return_value = None
+        service = ViewerProjectionService(
+            AsyncMock(),
+            test_case_repository,
+            AsyncMock(),
+            AsyncMock(),
+            AsyncMock(),
+            AsyncMock(),
+            AsyncMock(),
+            AsyncMock(),
+        )
+
+        with pytest.raises(
+            ViewerProjectionIntegrityException,
+            match="published Viewer snapshot is unavailable",
+        ):
+            await service._projection_for_drift(record)
+
     async def test_when_publishing_expect_dependencies_steps_and_xray_identities_saved(
         self,
     ) -> None:
@@ -142,10 +169,14 @@ class TestViewerProjectionService:
             ViewerEntityType.PRECONDITION,
             ViewerEntityType.TEST_CASE,
         ]
-        assert published[1].precondition_issue_ids == ("10001",)
+        assert published[1].precondition_external_ids == ("10001",)
         assert published[1].steps[0].action == "submit: HTTP"
         assert published[1].steps[0].result == "The order is accepted."
         assert [record.external_entity_id for record in saved_records] == ["10001", "10002"]
+        assert [record.projection_hash for record in saved_records] == [
+            ViewerManagedState.from_projection(projection).projection_hash
+            for projection in published
+        ]
 
     async def test_when_detector_observes_drift_expect_event_and_drift_status_saved(self) -> None:
         operation = _operation()
@@ -169,6 +200,9 @@ class TestViewerProjectionService:
             AsyncMock(),
             detector,
         )
+        service._projection_for_drift = AsyncMock(
+            return_value=ViewerProjection(record=record, summary="Checkout")
+        )
 
         result = await service.process_next_operation()
 
@@ -177,6 +211,9 @@ class TestViewerProjectionService:
         event = repository.save_drift_event.await_args.args[0]
         assert event.sync_record_id == record.identifier
         assert event.drift_type is DriftType.MODIFIED
+        detector.check_drift.assert_awaited_once_with(
+            ViewerProjection(record=record, summary="Checkout")
+        )
         saved_record = repository.save_sync_record.await_args.args[0]
         assert saved_record.sync_status is SyncStatus.DRIFT_DETECTED
 
@@ -199,6 +236,9 @@ class TestViewerProjectionService:
             repository,
             AsyncMock(),
             detector,
+        )
+        service._projection_for_drift = AsyncMock(
+            return_value=ViewerProjection(record=record, summary="Checkout")
         )
 
         result = await service.process_next_operation()
