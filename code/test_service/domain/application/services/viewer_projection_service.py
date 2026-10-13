@@ -11,7 +11,13 @@ from test_service.domain.application.services.viewer_projection_builder import (
     ViewerSnapshot,
 )
 from test_service.domain.commons.pagination import MAX_PAGE_LIMIT, PaginationParams
+from test_service.domain.model.composition.test_plan import TestPlan
+from test_service.domain.model.exceptions.viewer_projection_integrity_exception import (
+    ViewerProjectionIntegrityException,
+)
 from test_service.domain.model.lifecycle import VersionStatus
+from test_service.domain.model.viewer.managed_state import ViewerManagedState
+from test_service.domain.model.viewer.projection import ViewerProjection
 from test_service.domain.model.viewer.records import (
     DriftEvent,
     DriftObservation,
@@ -176,6 +182,7 @@ class ViewerProjectionService:
                     sync_status=SyncStatus.SYNCED,
                     external_entity_id=identity.external_id,
                     external_entity_key=identity.external_key,
+                    projection_hash=ViewerManagedState.from_projection(projection).projection_hash,
                     last_synced_at=datetime.now(UTC),
                 )
                 external_ids[snapshot.identifier] = identity.external_id
@@ -229,7 +236,8 @@ class ViewerProjectionService:
         failed = 0
         for record in records:
             try:
-                observation = await self._viewer_drift_detector.check_drift(record)
+                projection = await self._projection_for_drift(record)
+                observation = await self._viewer_drift_detector.check_drift(projection)
             except Exception:
                 failed += 1
                 await self._viewer_repository.save_sync_record(
@@ -248,6 +256,53 @@ class ViewerProjectionService:
                 )
             )
         return checked, failed
+
+    async def _projection_for_drift(self, record: ViewerSyncRecord) -> ViewerProjection:
+        snapshot = await self._snapshot_for_record(record)
+        if snapshot is None:
+            raise ViewerProjectionIntegrityException("published Viewer snapshot is unavailable")
+        snapshots_by_id = {snapshot.identifier: snapshot}
+        if isinstance(snapshot, TestPlan):
+            for test_set_id in snapshot.test_set_ids:
+                test_set = await self._test_set_repository.find_by_id(test_set_id)
+                if test_set is not None:
+                    snapshots_by_id[test_set.identifier] = test_set
+        return ViewerProjectionBuilder.build(
+            record,
+            snapshot,
+            snapshots_by_id,
+            await self._external_ids_for_project(record.project_key, record.viewer_type),
+        )
+
+    async def _snapshot_for_record(self, record: ViewerSyncRecord) -> ViewerSnapshot | None:
+        repositories = {
+            ViewerEntityType.TEST_CASE: self._test_case_repository,
+            ViewerEntityType.PRECONDITION: self._precondition_repository,
+            ViewerEntityType.TEST_SET: self._test_set_repository,
+            ViewerEntityType.TEST_PLAN: self._test_plan_repository,
+        }
+        return await repositories[record.entity_type].find_by_id(record.projected_version_id)
+
+    async def _external_ids_for_project(
+        self, project_key: str, viewer_type: ViewerType
+    ) -> dict[UUID, str]:
+        offset = 0
+        external_ids: dict[UUID, str] = {}
+        while True:
+            page = await self._viewer_repository.find_sync_records_page_by_project(
+                project_key, PaginationParams(offset=offset, limit=MAX_PAGE_LIMIT), viewer_type
+            )
+            external_ids.update(
+                {
+                    record.projected_version_id: record.external_entity_id
+                    for record in page.items
+                    if record.sync_status is SyncStatus.SYNCED
+                    and record.external_entity_id is not None
+                }
+            )
+            offset += len(page.items)
+            if offset >= page.total:
+                return external_ids
 
     @staticmethod
     def _completion_status(total: int, succeeded: int) -> ViewerOperationStatus:
