@@ -1,10 +1,11 @@
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
 
+from test_service.config import ExecutionSettings
 from test_service.domain.commons.pagination import Page, PaginationParams, SortOrder
 from test_service.domain.model.execution.execution import Execution, TriggerType
 from test_service.infrastructure.adapters.output.execution.executions.execution_persistence_adapter import (  # noqa: E501
@@ -46,6 +47,9 @@ class _Repository:
     async def claim_next_created(self):
         return self.dto
 
+    async def recover_stale_running(self):
+        return 0
+
     async def find_page(self, project_key, pagination):
         return Page((self.dto,), 1)
 
@@ -68,12 +72,14 @@ class TestExecutionPersistence:
         saved = await adapter.save_execution(execution)
         found = await adapter.find_execution(execution.identifier)
         claimed = await adapter.claim_next_created()
+        recovered = await adapter.recover_stale_running()
         page = await adapter.find_page("IAG", PaginationParams())
 
         assert ExecutionPersistenceMapper.to_domain(dto) == execution
         assert saved == execution
         assert found == execution
         assert claimed == execution
+        assert recovered == 0
         assert page.items == (execution,)
 
     async def test_when_repository_operations_are_called_expect_persistence_results(self):
@@ -88,7 +94,7 @@ class TestExecutionPersistence:
         session.refresh = AsyncMock()
         session.get = AsyncMock(return_value=dto)
         session.execute = AsyncMock(side_effect=[total_result, page_result])
-        repository = ExecutionRepository(_SessionProvider(session))
+        repository = ExecutionRepository(_SessionProvider(session), ExecutionSettings())
 
         assert await repository.save(dto) is dto
         assert await repository.find_by_id(dto.id) is dto
@@ -109,7 +115,7 @@ class TestExecutionPersistence:
         session.execute = AsyncMock(return_value=claim_result)
         session.commit = AsyncMock()
         session.refresh = AsyncMock()
-        repository = ExecutionRepository(_SessionProvider(session))
+        repository = ExecutionRepository(_SessionProvider(session), ExecutionSettings())
 
         claimed = await repository.claim_next_created()
 
@@ -125,7 +131,7 @@ class TestExecutionPersistence:
         session.execute = AsyncMock(return_value=claim_result)
         session.commit = AsyncMock()
         session.refresh = AsyncMock()
-        repository = ExecutionRepository(_SessionProvider(session))
+        repository = ExecutionRepository(_SessionProvider(session), ExecutionSettings())
 
         claimed = await repository.claim_next_created()
 
@@ -134,3 +140,67 @@ class TestExecutionPersistence:
         assert execution.started_at.tzinfo is UTC
         session.commit.assert_awaited_once()
         session.refresh.assert_awaited_once_with(execution)
+
+    async def test_when_running_execution_is_stale_expect_marked_error_with_duration(self):
+        started_at = datetime.now(UTC) - timedelta(seconds=60)
+        execution = MagicMock(status="RUNNING", started_at=started_at)
+        test_plan = MagicMock(timeout_seconds=30)
+        result = MagicMock()
+        result.all.return_value = [(execution, test_plan)]
+        session = MagicMock()
+        session.execute = AsyncMock(return_value=result)
+        session.commit = AsyncMock()
+        repository = ExecutionRepository(
+            _SessionProvider(session), ExecutionSettings(recovery_timeout_seconds=30)
+        )
+
+        before_recovery = datetime.now(UTC)
+        recovered = await repository.recover_stale_running()
+        after_recovery = datetime.now(UTC)
+
+        statement = session.execute.await_args.args[0]
+        threshold = next(
+            value for value in statement.compile().params.values() if isinstance(value, datetime)
+        )
+        assert (
+            before_recovery - timedelta(seconds=30)
+            <= threshold
+            <= after_recovery - timedelta(seconds=30)
+        )
+        assert recovered == 1
+        assert execution.status == "ERROR"
+        assert execution.finished_at >= started_at
+        assert execution.duration_ms >= 60000
+        session.commit.assert_awaited_once()
+
+    async def test_when_no_running_execution_is_stale_expect_no_commit(self):
+        result = MagicMock()
+        result.all.return_value = []
+        session = MagicMock()
+        session.execute = AsyncMock(return_value=result)
+        session.commit = AsyncMock()
+        repository = ExecutionRepository(_SessionProvider(session), ExecutionSettings())
+
+        recovered = await repository.recover_stale_running()
+
+        assert recovered == 0
+        session.commit.assert_not_awaited()
+
+    async def test_when_running_execution_has_not_exceeded_plan_timeout_expect_not_recovered(self):
+        started_at = datetime.now(UTC) - timedelta(seconds=60)
+        execution = MagicMock(status="RUNNING", started_at=started_at)
+        test_plan = MagicMock(timeout_seconds=120)
+        result = MagicMock()
+        result.all.return_value = [(execution, test_plan)]
+        session = MagicMock()
+        session.execute = AsyncMock(return_value=result)
+        session.commit = AsyncMock()
+        repository = ExecutionRepository(
+            _SessionProvider(session), ExecutionSettings(recovery_timeout_seconds=30)
+        )
+
+        recovered = await repository.recover_stale_running()
+
+        assert recovered == 0
+        assert execution.status == "RUNNING"
+        session.commit.assert_not_awaited()

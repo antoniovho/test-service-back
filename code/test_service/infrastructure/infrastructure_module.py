@@ -2,7 +2,13 @@
 
 from opyoid import Module  # type: ignore
 
-from test_service.config import JiraSettings, PostgresDatabaseSettings, ViewerSettings, XraySettings
+from test_service.config import (
+    ExecutionSettings,
+    JiraSettings,
+    PostgresDatabaseSettings,
+    ViewerSettings,
+    XraySettings,
+)
 from test_service.domain.ports.output.executions.execution_cancellation_port import (
     ExecutionCancellationPort,
 )
@@ -35,6 +41,7 @@ from test_service.domain.ports.output.persistence.viewer.viewer_persistence_port
 )
 from test_service.domain.ports.output.projects.project_validation_port import ProjectValidationPort
 from test_service.domain.ports.output.runners.runner_port import RunnerPort
+from test_service.domain.ports.output.secrets.secret_resolver_port import SecretResolverPort
 from test_service.domain.ports.output.viewer.viewer_drift_detector_port import (
     ViewerDriftDetectorPort,
 )
@@ -99,6 +106,7 @@ from .adapters.output.projects.persistence.project_persistence_adapter import (
 )
 from .adapters.output.projects.persistence.repositories.project_repository import ProjectRepository
 from .adapters.output.runners.tavern.tavern_runner_adapter import TavernRunnerAdapter
+from .adapters.output.secrets.environment_secret_resolver import EnvironmentSecretResolver
 from .adapters.output.viewer.persistence.repositories.viewer_repository import ViewerRepository
 from .adapters.output.viewer.persistence.viewer_persistence_adapter import ViewerPersistenceAdapter
 from .adapters.output.viewer.xray_viewer_adapter import XrayViewerAdapter
@@ -139,6 +147,7 @@ class ExecutionModule(Module):
     """Bind persistence adapters required by execution resources."""
 
     def configure(self) -> None:
+        self.bind(ExecutionSettings, to_instance=ExecutionSettings())
         self.bind(EnvironmentRepository)
         self.bind(ExecutionRepository)
         self.bind(ExecutionResultsRepository)
@@ -146,6 +155,7 @@ class ExecutionModule(Module):
         self.bind(ExecutionPersistencePort, to_class=ExecutionPersistenceAdapter)
         self.bind(ExecutionResultsPersistencePort, to_class=ExecutionResultsPersistenceAdapter)
         self.bind(RunnerPort, to_class=TavernRunnerAdapter)
+        self.bind(SecretResolverPort, to_instance=EnvironmentSecretResolver())
         cancellations = ExecutionCancellationRegistry()
         self.bind(ExecutionCancellationRegistry, to_instance=cancellations)
         self.bind(ExecutionCancellationPort, to_instance=cancellations)

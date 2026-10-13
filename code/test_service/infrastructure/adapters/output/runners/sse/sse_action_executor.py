@@ -42,7 +42,7 @@ class SseExecutor:
         started_at = datetime.now(UTC)
         events: list[dict[str, str]] = []
         try:
-            config = render_service_variables(action.configuration, context)
+            config = render_service_variables(action.configuration, context, False)
             if not isinstance(config, dict):
                 raise ValueError("SSE action configuration must be an object")
             url = config.get("url")

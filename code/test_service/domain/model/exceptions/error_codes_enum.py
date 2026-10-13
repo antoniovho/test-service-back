@@ -19,6 +19,7 @@ class DomainError(Enum):
     PRECONDITION_ALREADY_EXISTS = ("PRECONDITION_ALREADY_EXISTS", "Precondition already exists")
     ENVIRONMENT_ALREADY_EXISTS = ("ENVIRONMENT_ALREADY_EXISTS", "Environment already exists")
     INVALID_PROJECT_DELETION = ("INVALID_PROJECT_DELETION", "Invalid project deletion metadata")
+    INVALID_PROJECT_KEY = ("INVALID_PROJECT_KEY", "Invalid project key")
     PRECONDITION_PROJECT_MISMATCH = (
         "PRECONDITION_PROJECT_MISMATCH",
         "Precondition snapshot does not belong to the requested project",
@@ -30,6 +31,10 @@ class DomainError(Enum):
     INVALID_TEST_PLAN = ("INVALID_TEST_PLAN", "Invalid test plan snapshot")
     INVALID_TEST_SET = ("INVALID_TEST_SET", "Invalid test set snapshot")
     INVALID_SECRET_REFERENCE = ("INVALID_SECRET_REFERENCE", "Invalid secret reference")
+    SECRET_RESOLUTION_FAILED = (
+        "SECRET_RESOLUTION_FAILED",
+        "Secret reference could not be resolved",
+    )
     RESOLVED_SECRET_NOT_ALLOWED = (
         "RESOLVED_SECRET_NOT_ALLOWED",
         "A resolved secret value is not allowed here",

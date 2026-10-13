@@ -46,6 +46,32 @@ class TestAction:
         with pytest.raises(TypeError):
             action.configuration["method"] = "POST"
 
+    @pytest.mark.parametrize(
+        ("configuration", "construct"),
+        [
+            ({"json": {"$ext": {"function": "os:system", "extra_args": ["id"]}}}, "$ext"),
+            ({"headers": {"X-Leak": "{tavern.env_vars.DATABASE_PASSWORD}"}}, "tavern"),
+            ({"headers": {"X-Leak": "{orderId.__class__}"}}, "__class__"),
+        ],
+        ids=["executable-directive", "reserved-template-field", "dunder-traversal"],
+    )
+    def test_when_configuration_uses_reserved_construct_expect_exception(
+        self, configuration, construct
+    ):
+        with pytest.raises(InvalidActionException) as exc:
+            _action(configuration=configuration)
+
+        assert exc.value.code == "INVALID_ACTION"
+        assert "login" in exc.value.error_description
+        assert construct in exc.value.error_description
+
+    def test_when_configuration_has_no_reserved_construct_expect_action_created(self):
+        configuration = {"url": "{{baseUrl}}/orders/{orderId}", "json": {"$ref": "#/order"}}
+
+        action = _action(configuration=configuration)
+
+        assert dict(action.configuration) == configuration
+
 
 class TestDefinition:
     def test_when_schema_version_unsupported_expect_exception(self):

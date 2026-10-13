@@ -1,13 +1,17 @@
 """SQLAlchemy repository for Execution DTOs."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import asc, desc, func, select
 
+from test_service.config import ExecutionSettings
 from test_service.domain.commons.pagination import Page, PaginationParams, SortOrder
 from test_service.infrastructure.adapters.output.commons.persistence.postgres.postgres_session_provider import (  # noqa: E501
     PostgresSessionProvider,
+)
+from test_service.infrastructure.adapters.output.composition.test_plans.persistence.dtos.test_plan_dto import (  # noqa: E501
+    TestPlanDTO,
 )
 from test_service.infrastructure.adapters.output.execution.executions.persistence.dtos.execution_dto import (  # noqa: E501
     ExecutionDTO,
@@ -25,8 +29,11 @@ class ExecutionRepository:
         "status": ExecutionDTO.status,
     }
 
-    def __init__(self, session_provider: PostgresSessionProvider) -> None:
+    def __init__(
+        self, session_provider: PostgresSessionProvider, settings: ExecutionSettings
+    ) -> None:
         self._session_provider = session_provider
+        self._settings = settings
 
     async def save(self, execution: ExecutionDTO) -> ExecutionDTO:
         """Insert or update an Execution DTO and return its stored state."""
@@ -59,6 +66,40 @@ class ExecutionRepository:
             await session.commit()
             await session.refresh(execution)
             return execution
+
+    async def recover_stale_running(self) -> int:
+        """Mark expired RUNNING leases as ERROR without re-running their work."""
+        recovered_at = datetime.now(UTC)
+        stale_before = recovered_at - timedelta(seconds=self._settings.recovery_timeout_seconds)
+        async with self._session_provider.session() as session:
+            result = await session.execute(
+                select(ExecutionDTO, TestPlanDTO)
+                .join(TestPlanDTO, TestPlanDTO.id == ExecutionDTO.test_plan_id)
+                .where(
+                    (ExecutionDTO.status == "RUNNING") & (ExecutionDTO.started_at < stale_before)
+                )
+                .with_for_update(of=ExecutionDTO, skip_locked=True)
+            )
+            executions = tuple(
+                (execution, started_at)
+                for execution, test_plan in result.all()
+                if (started_at := execution.started_at) is not None
+                and started_at
+                < recovered_at
+                - timedelta(
+                    seconds=max(
+                        self._settings.recovery_timeout_seconds,
+                        test_plan.timeout_seconds,
+                    )
+                )
+            )
+            for execution, started_at in executions:
+                execution.status = "ERROR"
+                execution.finished_at = recovered_at
+                execution.duration_ms = int((recovered_at - started_at).total_seconds() * 1000)
+            if executions:
+                await session.commit()
+            return len(executions)
 
     async def find_page(self, project_key: str, pagination: PaginationParams) -> Page[ExecutionDTO]:
         """Return a deterministically ordered page for one project."""

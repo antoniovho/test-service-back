@@ -6,6 +6,9 @@ from test_service.domain.model.exceptions.error_origin_enum import ErrorOrigin
 from test_service.domain.model.exceptions.invalid_project_deletion_exception import (
     InvalidProjectDeletionException,
 )
+from test_service.domain.model.exceptions.invalid_project_key_exception import (
+    InvalidProjectKeyException,
+)
 from test_service.domain.model.exceptions.project_already_deleted_exception import (
     ProjectAlreadyDeletedException,
 )
@@ -21,6 +24,86 @@ def _project(**overrides: object) -> Project:
     }
     fields.update(overrides)
     return Project(**fields)
+
+
+class TestProjectKey:
+    @pytest.mark.parametrize(
+        "key",
+        [
+            "../myself",
+            "IAG/../../myself",
+            "IAG?expand=lead",
+            "IAG#fragment",
+            "IAG\n",
+            " IAG",
+            "IAG ",
+            "iag",
+            "Iag",
+            "I",
+            "",
+            "1AB",
+            "_AB",
+            "IAG-1",
+            "IAG.1",
+            "IAG%2F",
+            "IÁG",
+            "A" * 21,
+        ],
+        ids=[
+            "parent-traversal",
+            "nested-traversal",
+            "query-string",
+            "fragment",
+            "trailing-newline",
+            "leading-space",
+            "trailing-space",
+            "lowercase",
+            "mixed-case",
+            "single-character",
+            "empty",
+            "leading-digit",
+            "leading-underscore",
+            "hyphen",
+            "dot",
+            "percent-encoding",
+            "non-ascii",
+            "too-long",
+        ],
+    )
+    def test_when_key_is_not_a_valid_project_key_expect_exception(self, key):
+        with pytest.raises(InvalidProjectKeyException) as exc:
+            _project(key=key)
+
+        assert exc.value.code == "INVALID_PROJECT_KEY"
+        assert exc.value.origin is ErrorOrigin.USER
+
+    @pytest.mark.parametrize(
+        "key",
+        ["IA", "IAG", "SHOP_1", "A1", "A_B_C", "A" + "B" * 19],
+        ids=[
+            "two-letters",
+            "three-letters",
+            "underscore-digit",
+            "letter-digit",
+            "underscores",
+            "max",
+        ],
+    )
+    def test_when_key_is_a_valid_project_key_expect_project_created(self, key):
+        project = _project(key=key)
+
+        assert project.key == key
+
+    def test_when_key_is_invalid_expect_message_without_the_rejected_value(self):
+        with pytest.raises(InvalidProjectKeyException) as exc:
+            _project(key="../myself")
+
+        assert "myself" not in exc.value.error_description
+        assert "uppercase" in exc.value.error_description
+
+    def test_when_key_is_not_text_expect_exception(self):
+        with pytest.raises(InvalidProjectKeyException):
+            _project(key=None)
 
 
 class TestProjectInvariants:

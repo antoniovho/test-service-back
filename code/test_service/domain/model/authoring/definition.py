@@ -4,6 +4,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 from test_service.domain.commons.immutable import freeze_mapping
+from test_service.domain.commons.reserved_constructs import find_reserved_construct
 from test_service.domain.model.exceptions.invalid_action_exception import (
     InvalidActionException,
 )
@@ -38,13 +39,21 @@ class Action:
         """Validate Action fields and freeze the mutable configuration mapping.
 
         Raises:
-            InvalidActionException: If a required text field is empty.
+            InvalidActionException: If a required text field is empty or the
+                configuration uses a construct reserved by the runner.
         """
         self._validate_text(self.identifier, "action identifier")
         self._validate_text(self.action_type, "action type")
 
         if self.source is not None:
             self._validate_text(self.source, "action source")
+
+        reserved = find_reserved_construct(self.configuration)
+        if reserved is not None:
+            raise InvalidActionException(
+                f"action '{self.identifier}' configuration uses {reserved}, "
+                "which is reserved by the runner"
+            )
 
         object.__setattr__(
             self,

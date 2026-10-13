@@ -66,3 +66,89 @@ class TestCreateApp:
             await worker(service)
 
         getattr(service, service_method).assert_awaited_once()
+
+
+class TestWorkerSupervision:
+    @pytest.fixture
+    def sleeps(self, monkeypatch) -> list[float]:
+        delays: list[float] = []
+
+        async def record_sleep(delay):
+            delays.append(delay)
+
+        monkeypatch.setattr(main.asyncio, "sleep", record_sleep)
+        return delays
+
+    @pytest.mark.parametrize(
+        ("worker", "service_method"),
+        [
+            (main._process_viewer_operations, "process_next_operation"),
+            (main._process_executions, "execute"),
+        ],
+        ids=["viewer", "execution"],
+    )
+    async def test_when_worker_step_fails_once_expect_error_logged_and_processing_resumed(
+        self, sleeps, caplog, worker, service_method
+    ) -> None:
+        service = MagicMock()
+        method = AsyncMock(side_effect=[RuntimeError("database down"), asyncio.CancelledError()])
+        setattr(service, service_method, method)
+
+        with pytest.raises(asyncio.CancelledError):
+            await worker(service)
+
+        assert method.await_count == 2
+        assert sleeps == [1.0]
+        assert "failed 1 consecutive time(s)" in caplog.text
+        assert isinstance(caplog.records[-1].exc_info[1], RuntimeError)
+
+    async def test_when_step_keeps_failing_expect_exponential_backoff_capped(self, sleeps) -> None:
+        step = AsyncMock(side_effect=[RuntimeError()] * 7 + [asyncio.CancelledError()])
+
+        with pytest.raises(asyncio.CancelledError):
+            await main._supervise("worker", step)
+
+        assert sleeps == [1.0, 2.0, 4.0, 8.0, 16.0, 30.0, 30.0]
+
+    async def test_when_step_succeeds_after_failures_expect_backoff_reset(self, sleeps) -> None:
+        step = AsyncMock(
+            side_effect=[
+                RuntimeError(),
+                RuntimeError(),
+                object(),
+                RuntimeError(),
+                asyncio.CancelledError(),
+            ]
+        )
+
+        with pytest.raises(asyncio.CancelledError):
+            await main._supervise("worker", step)
+
+        assert sleeps == [1.0, 2.0, 1.0]
+
+    async def test_when_step_processes_work_expect_next_step_without_sleeping(self, sleeps) -> None:
+        step = AsyncMock(side_effect=[object(), object(), asyncio.CancelledError()])
+
+        with pytest.raises(asyncio.CancelledError):
+            await main._supervise("worker", step)
+
+        assert step.await_count == 3
+        assert sleeps == []
+
+    async def test_when_worker_is_cancelled_during_step_expect_cancellation_propagated_unlogged(
+        self, caplog
+    ) -> None:
+        started = asyncio.Event()
+
+        async def step():
+            started.set()
+            await asyncio.Future()
+
+        task = asyncio.create_task(main._supervise("worker", step))
+        await started.wait()
+
+        task.cancel()
+
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert caplog.records == []

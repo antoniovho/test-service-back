@@ -1,10 +1,16 @@
 import pytest
 from opyoid import Injector
 
+from test_service.domain.application.use_cases.execution.executions.process_next_execution_use_case import (  # noqa: E501
+    ProcessNextExecutionUseCaseImpl,
+)
 from test_service.domain.application.use_cases.projects.create_project_use_case import (
     CreateProjectUseCaseImpl,
 )
 from test_service.domain.domain_module import DomainModule
+from test_service.domain.ports.input.use_cases.execution.executions.process_next_execution_use_case import (  # noqa: E501
+    ProcessNextExecutionUseCase,
+)
 from test_service.domain.ports.input.use_cases.projects.create_project_use_case import (
     CreateProjectUseCase,
 )
@@ -23,6 +29,7 @@ from test_service.domain.ports.output.persistence.executions.execution_results_p
 from test_service.domain.ports.output.persistence.projects.project_persistence_port import (
     ProjectPersistencePort,
 )
+from test_service.domain.ports.output.secrets.secret_resolver_port import SecretResolverPort
 from test_service.domain.ports.output.viewer.viewer_publisher_port import ViewerPublisherPort
 from test_service.infrastructure.adapters.output.execution.environments.environment_persistence_adapter import (  # noqa: E501
     EnvironmentPersistenceAdapter,
@@ -38,6 +45,9 @@ from test_service.infrastructure.adapters.output.execution.executions.execution_
 )
 from test_service.infrastructure.adapters.output.projects.persistence.project_persistence_adapter import (  # noqa: E501
     ProjectPersistenceAdapter,
+)
+from test_service.infrastructure.adapters.output.secrets.environment_secret_resolver import (
+    EnvironmentSecretResolver,
 )
 from test_service.infrastructure.adapters.output.viewer.xray_viewer_adapter import XrayViewerAdapter
 from test_service.infrastructure.infrastructure_module import InfrastructureModule
@@ -122,3 +132,23 @@ class TestInfrastructureModule:
         publisher = injector.inject(ViewerPublisherPort)
 
         assert isinstance(publisher, XrayViewerAdapter)
+
+    def test_when_infrastructure_is_installed_expect_secret_resolver_resolves(
+        self,
+        postgres_settings_env: None,
+    ) -> None:
+        injector = Injector([DomainModule, InfrastructureModule])
+
+        resolver = injector.inject(SecretResolverPort)
+
+        assert isinstance(resolver, EnvironmentSecretResolver)
+
+    def test_when_infrastructure_is_installed_expect_execution_processor_resolves(
+        self,
+        postgres_settings_env: None,
+    ) -> None:
+        injector = Injector([DomainModule, InfrastructureModule])
+
+        processor = injector.inject(ProcessNextExecutionUseCase)
+
+        assert isinstance(processor, ProcessNextExecutionUseCaseImpl)

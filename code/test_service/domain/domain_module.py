@@ -5,6 +5,9 @@ from opyoid import Module  # type: ignore
 from test_service.domain.application.services.execution.definition_compiler import (
     DefinitionCompiler,
 )
+from test_service.domain.application.services.execution.execution_variables_resolver import (
+    ExecutionVariablesResolver,
+)
 from test_service.domain.application.services.resolvers.execution_access_resolver import (
     ExecutionAccessResolver,
 )
@@ -440,6 +443,7 @@ class ExecutionsModule(Module):
 
     def configure(self) -> None:
         self.bind(DefinitionCompiler)
+        self.bind(ExecutionVariablesResolver)
         self.bind(ExecutionAccessResolver)
         self.bind(ExecutionResultAccessResolver)
         self.bind(ExecutionManifestResolver)

@@ -27,16 +27,17 @@ class CreateProjectUseCaseImpl(CreateProjectUseCase):
         """Register a project, rejecting keys already present in the catalog.
 
         Raises:
+            InvalidProjectKeyException: If the key does not follow the accepted key format.
             ProjectAlreadyExistsException: If a project with the same key already exists.
         """
-        existing = await self._project_repository.find_by_key(request.key)
-        if existing is not None:
-            raise ProjectAlreadyExistsException(f"project with key '{request.key}' already exists")
-        await self._project_validation.validate(request.key)
         project = Project(
             key=request.key,
             name=request.name,
             created_at=request.requested_at,
             created_by=request.requested_by,
         )
+        existing = await self._project_repository.find_by_key(project.key)
+        if existing is not None:
+            raise ProjectAlreadyExistsException(f"project with key '{project.key}' already exists")
+        await self._project_validation.validate(project.key)
         return await self._project_repository.save(project)

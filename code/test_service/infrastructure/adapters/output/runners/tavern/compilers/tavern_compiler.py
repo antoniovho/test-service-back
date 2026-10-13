@@ -2,6 +2,7 @@
 
 from collections.abc import Mapping
 
+from test_service.domain.commons.reserved_constructs import find_reserved_construct
 from test_service.domain.ports.output.runners.runner_dtos import CompiledAction
 from test_service.infrastructure.adapters.output.runners.tavern.variable_renderer import (
     render_service_variables,
@@ -23,9 +24,14 @@ class TavernCompiler:
     @staticmethod
     def _compile_stage(action: CompiledAction, variables: Mapping[str, str]) -> dict[str, object]:
         """Compile one neutral HTTP action into a named Tavern stage."""
-        configuration = render_service_variables(action.configuration, variables)
+        configuration = render_service_variables(
+            action.configuration, variables, escape_braces=True
+        )
         if not isinstance(configuration, dict):
             raise ValueError("HTTP action configuration must be an object")
+        reserved = find_reserved_construct(configuration)
+        if reserved is not None:
+            raise ValueError(f"HTTP action '{action.identifier}' uses {reserved}")
         request = {
             key: configuration[key]
             for key in ("url", "method", "headers", "params", "json")

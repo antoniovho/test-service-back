@@ -1,9 +1,10 @@
+from types import MappingProxyType
+
+import pytest
+
 from test_service.domain.ports.output.runners.runner_dtos import CompiledAction
 from test_service.infrastructure.adapters.output.runners.tavern.compilers.tavern_compiler import (
     TavernCompiler,
-)
-from test_service.infrastructure.adapters.output.runners.tavern.variable_renderer import (
-    render_service_variables,
 )
 
 
@@ -57,14 +58,55 @@ class TestTavernCompiler:
 
         assert document["stages"][0]["request"]["url"] == "{{baseUrl}}/health"
 
+    def test_when_configuration_is_immutable_expect_service_variables_rendered(self) -> None:
+        action = CompiledAction(
+            "get-order",
+            "HTTP",
+            0,
+            MappingProxyType({"url": "{{baseUrl}}/orders", "headers": {"X-Tenant": "{{t}}"}}),
+        )
 
-def test_render_service_variables_recursively_preserves_tavern_placeholders() -> None:
-    rendered = render_service_variables(
-        {"urls": ["{{baseUrl}}/events/{eventId}"], "enabled": True},
-        {"baseUrl": "https://api.example.test"},
+        document = TavernCompiler().compile((action,), {"baseUrl": "https://api.test", "t": "acme"})
+
+        assert document["stages"][0]["request"] == {
+            "url": "https://api.test/orders",
+            "headers": {"X-Tenant": "acme"},
+        }
+
+    def test_when_variable_value_contains_tavern_placeholder_expect_value_made_literal(
+        self,
+    ) -> None:
+        action = CompiledAction(
+            "get-order", "HTTP", 0, {"url": "https://api.test", "headers": {"X-Id": "{{id}}"}}
+        )
+
+        document = TavernCompiler().compile((action,), {"id": "{tavern.env_vars.SECRET}"})
+
+        assert document["stages"][0]["request"]["headers"] == {"X-Id": "{{tavern.env_vars.SECRET}}"}
+
+    @pytest.mark.parametrize(
+        ("configuration", "construct"),
+        [
+            ({"url": "https://api.test", "json": {"$ext": {"function": "os:system"}}}, "$ext"),
+            ({"url": "https://api.test", "save": {"$ext": {"function": "os:system"}}}, "$ext"),
+            ({"url": "https://api.test", "headers": {"X": "{tavern.env_vars.SECRET}"}}, "tavern"),
+            ({"url": "https://api.test?k={tavern.env_vars.SECRET}"}, "tavern"),
+            ({"url": "https://api.test", "headers": {"X": "{id.__class__}"}}, "__class__"),
+        ],
+        ids=["ext-in-json", "ext-in-save", "tavern-in-header", "tavern-in-url", "dunder"],
     )
+    def test_when_configuration_uses_reserved_construct_expect_value_error(
+        self, configuration, construct
+    ) -> None:
+        action = CompiledAction("get-order", "HTTP", 0, configuration)
 
-    assert rendered == {
-        "urls": ["https://api.example.test/events/{eventId}"],
-        "enabled": True,
-    }
+        with pytest.raises(ValueError, match="get-order") as exc:
+            TavernCompiler().compile((action,), {})
+
+        assert construct in str(exc.value)
+
+    def test_when_configuration_is_not_an_object_expect_value_error(self) -> None:
+        action = CompiledAction("get-order", "HTTP", 0, "not-a-mapping")
+
+        with pytest.raises(ValueError, match="must be an object"):
+            TavernCompiler().compile((action,), {})

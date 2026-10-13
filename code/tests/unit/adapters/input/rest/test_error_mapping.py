@@ -36,6 +36,9 @@ from test_service.domain.model.exceptions.invalid_precondition_exception import 
 from test_service.domain.model.exceptions.invalid_project_deletion_exception import (
     InvalidProjectDeletionException,
 )
+from test_service.domain.model.exceptions.invalid_project_key_exception import (
+    InvalidProjectKeyException,
+)
 from test_service.domain.model.exceptions.invalid_secret_reference_exception import (
     InvalidSecretReferenceException,
 )
@@ -195,6 +198,7 @@ class TestExceptionStatusMap:
             InvalidExecutionTransitionException: HTTPStatus.UNPROCESSABLE_ENTITY,
             InvalidLifecycleTransitionException: HTTPStatus.UNPROCESSABLE_ENTITY,
             InvalidPreconditionException: HTTPStatus.UNPROCESSABLE_ENTITY,
+            InvalidProjectKeyException: HTTPStatus.UNPROCESSABLE_ENTITY,
             InvalidSecretReferenceException: HTTPStatus.UNPROCESSABLE_ENTITY,
             InvalidTestCaseException: HTTPStatus.UNPROCESSABLE_ENTITY,
             InvalidTestPlanException: HTTPStatus.UNPROCESSABLE_ENTITY,

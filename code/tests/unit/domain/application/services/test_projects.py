@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
@@ -24,6 +25,9 @@ from test_service.domain.application.use_cases.projects.list_projects_use_case i
 from test_service.domain.commons.pagination import Page, PaginationParams
 from test_service.domain.model.exceptions.entity_not_found_exception import (
     EntityNotFoundException,
+)
+from test_service.domain.model.exceptions.invalid_project_key_exception import (
+    InvalidProjectKeyException,
 )
 from test_service.domain.model.exceptions.project_already_deleted_exception import (
     ProjectAlreadyDeletedException,
@@ -116,6 +120,29 @@ class TestCreateProjectUseCaseImpl:
             await use_case.execute(request)
 
         assert exception.value.code == "PROJECT_ALREADY_EXISTS"
+
+    @pytest.mark.parametrize(
+        "key",
+        ["../myself", "IAG/../../myself", "IAG?expand=lead", "iag"],
+        ids=["traversal", "nested-traversal", "query-string", "lowercase"],
+    )
+    async def test_when_key_is_invalid_expect_exception_before_any_external_call(self, key):
+        repository = InMemoryProjectRepository()
+        validation = AsyncMock()
+        use_case = CreateProjectUseCaseImpl(repository, validation)
+        request = CreateProjectCommand(
+            key=key,
+            name="AI Gateway",
+            requested_by="admin@example.com",
+            requested_at=datetime(2026, 1, 1, tzinfo=UTC),
+        )
+
+        with pytest.raises(InvalidProjectKeyException) as exception:
+            await use_case.execute(request)
+
+        assert exception.value.code == "INVALID_PROJECT_KEY"
+        validation.validate.assert_not_awaited()
+        assert await repository.find_by_key(key) is None
 
 
 class TestGetProjectUseCaseImpl:

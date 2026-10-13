@@ -15,8 +15,8 @@ class AuthSettings(BaseSettings):
 
     Args:
         mock_enabled: When true, bypasses signature verification and returns a
-            fixed demo identity. Defaults to true so the service is usable
-            without a configured identity provider.
+            fixed demo identity. Defaults to false and must only be enabled
+            explicitly for local development or tests.
         issuer: Expected `iss` claim. When unset, the issuer is not checked.
         audience: Expected `aud` claim. When unset, the audience is not checked.
         jwks_url: JWKS endpoint used to resolve signing keys. Required when
@@ -25,7 +25,7 @@ class AuthSettings(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="AUTH_")
 
-    mock_enabled: bool = True
+    mock_enabled: bool = False
     issuer: str | None = None
     audience: str | None = None
     jwks_url: str | None = None
@@ -98,6 +98,19 @@ class ViewerSettings(BaseSettings):
     )
 
     operation_recovery_timeout_seconds: int = Field(default=1800, gt=0)
+
+
+class ExecutionSettings(BaseSettings):
+    """Configuration for durable execution processing."""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        env_prefix="EXECUTION_",
+        extra="ignore",
+    )
+
+    recovery_timeout_seconds: int = Field(default=1800, gt=0)
 
 
 class JiraSettings(BaseSettings):
