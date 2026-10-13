@@ -1,10 +1,15 @@
 """Shared projection and project access behavior for Viewer use cases."""
 
+import logging
 from dataclasses import replace
 from datetime import UTC, datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from test_service.domain.application.services.resolvers.project_resolver import ProjectResolver
+from test_service.domain.application.services.viewer_projection_builder import (
+    ViewerProjectionBuilder,
+    ViewerSnapshot,
+)
 from test_service.domain.commons.pagination import MAX_PAGE_LIMIT, PaginationParams
 from test_service.domain.model.lifecycle import VersionStatus
 from test_service.domain.model.viewer.records import (
@@ -38,6 +43,8 @@ from test_service.domain.ports.output.viewer.viewer_drift_detector_port import (
     ViewerDriftDetectorPort,
 )
 from test_service.domain.ports.output.viewer.viewer_publisher_port import ViewerPublisherPort
+
+logger = logging.getLogger(__name__)
 
 
 class ViewerProjectionService:
@@ -89,6 +96,9 @@ class ViewerProjectionService:
                 return await self._publish(operation)
             return await self._check_drift(operation)
         except Exception:
+            logger.exception(
+                "Viewer operation failed", extra={"operation_id": str(operation.identifier)}
+            )
             return await self._viewer_repository.save_operation(
                 replace(
                     operation,
@@ -119,30 +129,56 @@ class ViewerProjectionService:
     async def _publish(self, operation: ViewerOperation) -> ViewerOperation:
         records: list[ViewerSyncRecord] = []
         snapshots = await self._active_snapshots(operation.project_key)
-        for entity_type, entity_key, identifier in snapshots:
+        snapshots_by_id: dict[UUID, ViewerSnapshot] = {
+            snapshot.identifier: snapshot for _, snapshot in snapshots
+        }
+        external_ids: dict[UUID, str] = {}
+        for entity_type, snapshot in snapshots:
+            operation = await self._heartbeat(operation)
+            entity_key = snapshot.logical_key
+            existing = await self._viewer_repository.find_sync_record(
+                operation.project_key, entity_type, entity_key, operation.viewer_type
+            )
             record = ViewerSyncRecord(
-                identifier=uuid4(),
+                identifier=existing.identifier if existing is not None else uuid4(),
                 project_key=operation.project_key,
                 entity_type=entity_type,
                 entity_key=entity_key,
-                projected_version_id=identifier,
+                projected_version_id=snapshot.identifier,
                 viewer_type=operation.viewer_type,
-                external_entity_key=entity_key,
+                external_entity_key=(
+                    existing.external_entity_key if existing is not None else entity_key
+                ),
                 sync_status=SyncStatus.PENDING,
-                created_at=datetime.now(UTC),
+                created_at=existing.created_at if existing is not None else datetime.now(UTC),
                 operation_id=operation.identifier,
+                external_entity_id=existing.external_entity_id if existing is not None else None,
             )
             persisted_record = await self._viewer_repository.save_sync_record(record)
             try:
-                await self._viewer_publisher.publish(persisted_record)
+                projection = ViewerProjectionBuilder.build(
+                    persisted_record, snapshot, snapshots_by_id, external_ids
+                )
+                identity = await self._viewer_publisher.publish(projection)
             except Exception:
+                logger.exception(
+                    "Viewer projection failed",
+                    extra={
+                        "operation_id": str(operation.identifier),
+                        "entity_type": entity_type.value,
+                        "entity_key": entity_key,
+                    },
+                )
                 persisted_record = replace(persisted_record, sync_status=SyncStatus.ERROR)
             else:
                 persisted_record = replace(
                     persisted_record,
                     sync_status=SyncStatus.SYNCED,
+                    external_entity_id=identity.external_id,
+                    external_entity_key=identity.external_key,
                     last_synced_at=datetime.now(UTC),
                 )
+                external_ids[snapshot.identifier] = identity.external_id
             records.append(await self._viewer_repository.save_sync_record(persisted_record))
         succeeded = sum(record.sync_status is SyncStatus.SYNCED for record in records)
         failed = len(records) - succeeded
@@ -164,32 +200,14 @@ class ViewerProjectionService:
         checked = 0
         failed = 0
         while True:
+            operation = await self._heartbeat(operation)
             pagination = PaginationParams(offset=offset, limit=MAX_PAGE_LIMIT)
             page = await self._viewer_repository.find_sync_records_page_by_project(
                 operation.project_key, pagination, operation.viewer_type
             )
-            for record in page.items:
-                try:
-                    observation = await self._viewer_drift_detector.check_drift(record)
-                except Exception:
-                    failed += 1
-                    await self._viewer_repository.save_sync_record(
-                        replace(record, sync_status=SyncStatus.ERROR)
-                    )
-                else:
-                    checked += 1
-                    await self._persist_drift_observation(record, observation)
-                    await self._viewer_repository.save_sync_record(
-                        replace(
-                            record,
-                            sync_status=(
-                                SyncStatus.DRIFT_DETECTED
-                                if observation is not None
-                                else SyncStatus.SYNCED
-                            ),
-                            last_checked_at=datetime.now(UTC),
-                        )
-                    )
+            page_checked, page_failed = await self._check_drift_page(page.items)
+            checked += page_checked
+            failed += page_failed
             offset += len(page.items)
             if offset >= page.total:
                 return await self._viewer_repository.save_operation(
@@ -205,6 +223,31 @@ class ViewerProjectionService:
                         else None,
                     )
                 )
+
+    async def _check_drift_page(self, records: tuple[ViewerSyncRecord, ...]) -> tuple[int, int]:
+        checked = 0
+        failed = 0
+        for record in records:
+            try:
+                observation = await self._viewer_drift_detector.check_drift(record)
+            except Exception:
+                failed += 1
+                await self._viewer_repository.save_sync_record(
+                    replace(record, sync_status=SyncStatus.ERROR)
+                )
+                continue
+            checked += 1
+            await self._persist_drift_observation(record, observation)
+            await self._viewer_repository.save_sync_record(
+                replace(
+                    record,
+                    sync_status=(
+                        SyncStatus.DRIFT_DETECTED if observation is not None else SyncStatus.SYNCED
+                    ),
+                    last_checked_at=datetime.now(UTC),
+                )
+            )
+        return checked, failed
 
     @staticmethod
     def _completion_status(total: int, succeeded: int) -> ViewerOperationStatus:
@@ -238,19 +281,15 @@ class ViewerProjectionService:
         test_sets = await self._all_active(self._test_set_repository, project_key)
         test_plans = await self._all_active(self._test_plan_repository, project_key)
         return (
-            tuple(
-                (ViewerEntityType.TEST_CASE, item.test_key, item.identifier) for item in test_cases
-            )
-            + tuple(
-                (ViewerEntityType.PRECONDITION, item.precondition_key, item.identifier)
-                for item in preconditions
-            )
-            + tuple(
-                (ViewerEntityType.TEST_SET, item.set_key, item.identifier) for item in test_sets
-            )
-            + tuple(
-                (ViewerEntityType.TEST_PLAN, item.plan_key, item.identifier) for item in test_plans
-            )
+            tuple((ViewerEntityType.PRECONDITION, item) for item in preconditions)
+            + tuple((ViewerEntityType.TEST_CASE, item) for item in test_cases)
+            + tuple((ViewerEntityType.TEST_SET, item) for item in test_sets)
+            + tuple((ViewerEntityType.TEST_PLAN, item) for item in test_plans)
+        )
+
+    async def _heartbeat(self, operation: ViewerOperation) -> ViewerOperation:
+        return await self._viewer_repository.save_operation(
+            replace(operation, started_at=datetime.now(UTC))
         )
 
     @staticmethod

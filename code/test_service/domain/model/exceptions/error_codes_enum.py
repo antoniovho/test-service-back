@@ -58,6 +58,10 @@ class DomainError(Enum):
     INVALID_LIFECYCLE_TRANSITION = ("INVALID_LIFECYCLE_TRANSITION", "Invalid lifecycle transition")
     INVALID_TEMPORAL_DATA = ("INVALID_TEMPORAL_DATA", "Invalid temporal data")
     INVALID_ARTIFACT_STORAGE = ("INVALID_ARTIFACT_STORAGE", "Invalid artifact storage metadata")
+    VIEWER_PROJECTION_INVALID = (
+        "VIEWER_PROJECTION_INVALID",
+        "Viewer projection cannot be built",
+    )
 
     @property
     def code(self) -> str:
