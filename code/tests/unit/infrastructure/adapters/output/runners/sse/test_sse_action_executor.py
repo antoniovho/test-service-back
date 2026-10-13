@@ -45,7 +45,8 @@ async def test_when_receiving_expected_event_expect_normalized_passed_outcome() 
     assert requests[0].headers["X-Tenant"] == "acme"
     assert outcome.status is ResultStatus.PASSED
     assert outcome.expected == {"event": "order-created"}
-    assert outcome.actual == {"events": [{"event": "order-created", "data": "first\nsecond"}]}
+    assert outcome.actual["events"] == [{"event": "order-created", "data": "first\nsecond"}]
+    assert outcome.actual["responseTimeMs"] >= 0
 
 
 async def test_when_expected_event_is_not_received_expect_failed_outcome() -> None:
@@ -91,6 +92,28 @@ async def test_when_posting_and_expected_data_is_received_expect_passed_outcome(
     assert json.loads(requests[0].content) == {"jobId": "42"}
     assert outcome.status is ResultStatus.PASSED
     assert outcome.expected == {"data": "[DONE]", "done": True}
+
+
+async def test_when_response_exceeds_maximum_time_expect_failed_outcome(monkeypatch) -> None:
+    ticks = iter((0.0, 0.1))
+    monkeypatch.setattr(
+        "test_service.infrastructure.adapters.output.runners.sse.sse_action_executor.perf_counter",
+        lambda: next(ticks),
+    )
+    action = CompiledAction(
+        "await-order",
+        "SSE",
+        0,
+        {"url": "https://api.example.test/events", "maxResponseTimeMs": 50},
+    )
+    transport = httpx.MockTransport(
+        lambda request: httpx.Response(200, content=b"event: order-created\n\n")
+    )
+    async with httpx.AsyncClient(transport=transport) as client:
+        outcome = await SseExecutor().execute(client, action, {}, asyncio.Event())
+
+    assert outcome.status is ResultStatus.FAILED
+    assert outcome.error_code == "SSE_RESPONSE_TIME_EXCEEDED"
 
 
 async def test_when_stream_is_cancelled_expect_skipped_outcome() -> None:

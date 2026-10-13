@@ -4,9 +4,11 @@ import json
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from functools import lru_cache
 from pathlib import Path
 from uuid import UUID, uuid4
 
+from jsonschema import Draft202012Validator
 from pydantic import ValidationError
 
 from test_service.domain.application.commands.authoring import (
@@ -256,6 +258,11 @@ def load_document(path: Path) -> CorpusDocument:
         raise ValueError(f"cannot read corpus document '{path}'") from exc
     if not isinstance(payload, dict):
         raise ValueError(f"corpus document '{path}' must be a JSON object")
+    validation_error = next(_corpus_validator().iter_errors(payload), None)
+    if validation_error is not None:
+        raise ValueError(
+            f"corpus document '{path}' does not satisfy corpus contract: {validation_error.message}"
+        )
     try:
         if payload.get("kind") == "precondition":
             return PreconditionCorpusDocument.model_validate(payload)
@@ -268,6 +275,16 @@ def _load_documents(directory: Path) -> Iterable[CorpusDocument]:
     if not directory.is_dir():
         raise ValueError(f"corpus directory '{directory}' does not exist")
     yield from (load_document(path) for path in sorted(directory.rglob("*.json")))
+
+
+@lru_cache
+def _corpus_validator() -> Draft202012Validator:
+    schema_path = Path(__file__).parents[5] / "contracts/corpus/test-corpus-1.1.0.schema.json"
+    try:
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError("cannot load corpus contract schema") from exc
+    return Draft202012Validator(schema)
 
 
 def _definition(document: CorpusDefinition) -> Definition:

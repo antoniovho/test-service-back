@@ -3,6 +3,7 @@
 import asyncio
 from collections.abc import Mapping
 from datetime import UTC, datetime
+from time import perf_counter
 
 import httpx
 
@@ -54,6 +55,7 @@ class SseExecutor:
             if method not in {"GET", "POST"}:
                 raise ValueError("SSE action method must be GET or POST")
             params = config.get("query", config.get("params"))
+            request_started_at = perf_counter()
             async with client.stream(
                 method,
                 url,
@@ -64,6 +66,7 @@ class SseExecutor:
             ) as response:
                 response.raise_for_status()
                 events, cancelled = await self._read_events(response, max_events, cancellation)
+            response_time_ms = round((perf_counter() - request_started_at) * 1000)
             if cancelled:
                 return RunnerActionOutcome(
                     action.identifier,
@@ -71,7 +74,7 @@ class SseExecutor:
                     ResultStatus.SKIPPED,
                     started_at,
                     datetime.now(UTC),
-                    actual={"events": events},
+                    actual={"events": events, "responseTimeMs": response_time_ms},
                     error_code="CANCELLED",
                     error_message="SSE stream cancelled",
                 )
@@ -93,6 +96,14 @@ class SseExecutor:
                 return self._failed(action, started_at, "SSE_DONE_NOT_RECEIVED", {"events": events})
             if expected_done is False and done_received:
                 return self._failed(action, started_at, "SSE_UNEXPECTED_DONE", {"events": events})
+            max_response_time_ms = config.get("maxResponseTimeMs")
+            if max_response_time_ms is not None and response_time_ms > max_response_time_ms:
+                return self._failed(
+                    action,
+                    started_at,
+                    "SSE_RESPONSE_TIME_EXCEEDED",
+                    {"events": events, "responseTimeMs": response_time_ms},
+                )
             expected = {}
             if expected_event:
                 expected["event"] = expected_event
@@ -100,6 +111,8 @@ class SseExecutor:
                 expected["data"] = expected_data
             if expected_done is not None:
                 expected["done"] = expected_done
+            if max_response_time_ms is not None:
+                expected["maxResponseTimeMs"] = max_response_time_ms
             return RunnerActionOutcome(
                 action.identifier,
                 action.action_type,
@@ -107,7 +120,7 @@ class SseExecutor:
                 started_at,
                 datetime.now(UTC),
                 expected=expected,
-                actual={"events": events},
+                actual={"events": events, "responseTimeMs": response_time_ms},
             )
         except (httpx.HTTPError, ValueError, TypeError) as exc:
             return self._failed(action, started_at, "SSE_TRANSPORT_ERROR", error=str(exc))

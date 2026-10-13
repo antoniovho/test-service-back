@@ -58,6 +58,26 @@ class TestTavernCompiler:
 
         assert document["stages"][0]["request"]["url"] == "{{baseUrl}}/health"
 
+    def test_when_headers_and_captures_are_configured_expect_tavern_response_mapping(self) -> None:
+        action = CompiledAction(
+            "create-order",
+            "HTTP",
+            0,
+            {
+                "url": "https://api.example.test/orders",
+                "expectedHeaders": {"Content-Type": "application/json"},
+                "capture": {"orderId": "$.id"},
+            },
+        )
+
+        document = TavernCompiler().compile((action,), {})
+
+        assert document["stages"][0]["response"] == {
+            "status_code": 200,
+            "headers": {"Content-Type": "application/json"},
+            "save": {"json": {"orderId": "$.id"}},
+        }
+
     def test_when_configuration_is_immutable_expect_service_variables_rendered(self) -> None:
         action = CompiledAction(
             "get-order",

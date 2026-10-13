@@ -68,6 +68,15 @@ class TestLoadDocument:
         with pytest.raises(ValueError, match="sensitive header 'Authorization'"):
             load_document(path)
 
+    def test_when_document_violates_contract_expect_document_rejected(self, tmp_path) -> None:
+        document = _valid_document()
+        document["metadata"] = {"labels": ["duplicate", "duplicate"]}
+        path = tmp_path / "invalid-contract.json"
+        path.write_text(json.dumps(document), encoding="utf-8")
+
+        with pytest.raises(ValueError, match="does not satisfy corpus contract"):
+            load_document(path)
+
 
 class TestCorpusImporter:
     async def test_when_dry_run_references_new_precondition_expect_simulated_import(

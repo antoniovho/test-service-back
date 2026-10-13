@@ -42,6 +42,10 @@ class TavernCompiler:
         response: dict[str, object] = {"status_code": configuration.get("expectedStatus", 200)}
         if "expectedJson" in configuration:
             response["json"] = configuration["expectedJson"]
+        if "expectedHeaders" in configuration:
+            response["headers"] = configuration["expectedHeaders"]
         if "save" in configuration:
             response["save"] = configuration["save"]
+        if "capture" in configuration:
+            response["save"] = {"json": configuration["capture"]}
         return {"name": action.identifier, "request": request, "response": response}
