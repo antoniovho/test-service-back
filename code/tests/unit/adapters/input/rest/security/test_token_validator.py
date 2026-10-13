@@ -47,6 +47,15 @@ class TestMockTokenValidator:
 
 
 class TestGetTokenValidator:
+    def test_when_mock_is_not_explicitly_enabled_expect_jwks_configuration_required(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.delenv("AUTH_MOCK_ENABLED", raising=False)
+        monkeypatch.delenv("AUTH_JWKS_URL", raising=False)
+
+        with pytest.raises(ValueError, match="AUTH_JWKS_URL"):
+            get_token_validator()
+
     def test_when_mock_enabled_expect_mock_token_validator(self, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.setenv("AUTH_MOCK_ENABLED", "true")
 
