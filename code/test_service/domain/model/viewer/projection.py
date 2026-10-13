@@ -22,8 +22,8 @@ class ViewerProjection:
     summary: str
     description: str | None = None
     steps: tuple[ViewerProjectionStep, ...] = ()
-    precondition_issue_ids: tuple[str, ...] = ()
-    test_issue_ids: tuple[str, ...] = ()
+    precondition_external_ids: tuple[str, ...] = ()
+    test_external_ids: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
