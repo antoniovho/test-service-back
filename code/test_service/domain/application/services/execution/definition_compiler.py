@@ -18,6 +18,41 @@ class DefinitionCompiler:
     """Validate the V1 HTTP/SSE action vocabulary before scheduling work."""
 
     _SUPPORTED_ACTIONS = frozenset({"HTTP", "SSE"})
+    _SUPPORTED_CONFIGURATION_KEYS = {
+        "HTTP": frozenset(
+            {
+                "url",
+                "method",
+                "headers",
+                "params",
+                "query",
+                "json",
+                "expectedStatus",
+                "expectedJson",
+                "save",
+                "expectedHeaders",
+                "expectedJsonSchema",
+                "maxResponseTimeMs",
+                "capture",
+            }
+        ),
+        "SSE": frozenset(
+            {
+                "url",
+                "method",
+                "headers",
+                "params",
+                "query",
+                "json",
+                "expectedEvent",
+                "expectedData",
+                "expectedDone",
+                "maxEvents",
+                "receiveTimeoutSeconds",
+                "maxResponseTimeMs",
+            }
+        ),
+    }
 
     def compile(
         self,
@@ -47,6 +82,12 @@ class DefinitionCompiler:
         """Validate one supported action and translate it to runner-ready work."""
         if action_type not in self._SUPPORTED_ACTIONS:
             raise InvalidDefinitionException(f"unsupported runner action type '{action_type}'")
+        unsupported_keys = set(configuration) - self._SUPPORTED_CONFIGURATION_KEYS[action_type]
+        if unsupported_keys:
+            raise InvalidDefinitionException(
+                f"{action_type} action '{identifier}' has unsupported configuration keys "
+                f"{sorted(unsupported_keys)}"
+            )
         url = configuration.get("url")
         if not isinstance(url, str) or not url:
             raise InvalidDefinitionException(f"action '{identifier}' must define a non-empty url")
@@ -55,5 +96,11 @@ class DefinitionCompiler:
             if not isinstance(method, str) or not method:
                 raise InvalidDefinitionException(
                     f"HTTP action '{identifier}' has an invalid method"
+                )
+        if action_type == "SSE":
+            method = configuration.get("method", "GET")
+            if method not in {"GET", "POST"}:
+                raise InvalidDefinitionException(
+                    f"SSE action '{identifier}' method must be GET or POST"
                 )
         return CompiledAction(identifier, action_type, position, configuration)

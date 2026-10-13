@@ -13,7 +13,10 @@ from test_service.domain.model.exceptions.invalid_definition_exception import (
 )
 
 DEFINITION_SCHEMA_VERSION = "1.0"
-SUPPORTED_DEFINITION_SCHEMA_VERSIONS = frozenset({DEFINITION_SCHEMA_VERSION})
+CORPUS_DEFINITION_SCHEMA_VERSION = "1.1"
+SUPPORTED_DEFINITION_SCHEMA_VERSIONS = frozenset(
+    {DEFINITION_SCHEMA_VERSION, CORPUS_DEFINITION_SCHEMA_VERSION}
+)
 
 
 @dataclass(frozen=True, slots=True)
