@@ -106,9 +106,17 @@ class _Executions:
     def __init__(self, execution: Execution) -> None:
         self._execution = execution
         self.saved: list[Execution] = []
+        self.recovery_calls = 0
+        self.calls: list[str] = []
 
     async def claim_next_created(self) -> Execution | None:
+        self.calls.append("claim")
         return self._execution
+
+    async def recover_stale_running(self) -> int:
+        self.recovery_calls += 1
+        self.calls.append("recover")
+        return 0
 
     async def save_execution(self, execution: Execution) -> Execution:
         self.saved.append(execution)
@@ -232,6 +240,27 @@ def _use_case(
 
 
 class TestProcessNextExecutionUseCase:
+    async def test_when_processing_next_execution_expect_stale_executions_recovered_first(self):
+        test_case = _test_case()
+        execution = _execution(test_case.identifier)
+        executions = _Executions(execution)
+        use_case = ProcessNextExecutionUseCaseImpl(
+            executions,
+            _Results(),
+            _TestCases(test_case),
+            _Preconditions(),
+            _TestPlans(_test_plan()),
+            DefinitionCompiler(),
+            _Runner(),
+            _Cancellations(),
+            ExecutionVariablesResolver(_SecretResolver()),
+        )
+
+        await use_case.execute(None)
+
+        assert executions.recovery_calls == 1
+        assert executions.calls[:2] == ["recover", "claim"]
+
     async def test_when_pinned_test_case_is_deprecated_expect_execution_uses_snapshot(self):
         test_case = _test_case()
         execution = _execution(test_case.identifier)
