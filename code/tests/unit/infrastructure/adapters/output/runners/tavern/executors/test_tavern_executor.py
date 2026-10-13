@@ -161,6 +161,27 @@ class TestTavernExecutor:
         assert cancelled is True
         assert signals == [tavern_executor.signal.SIGTERM]
 
+    async def test_when_waiting_task_is_cancelled_expect_process_group_killed(
+        self, monkeypatch
+    ) -> None:
+        process = _BlockingProcess()
+        signals: list[int] = []
+
+        def terminate_process_group(terminated_process, signal):
+            signals.append(signal)
+            terminated_process.returncode = -9
+            terminated_process.completed.set()
+
+        monkeypatch.setattr(tavern_executor, "_terminate_process_group", terminate_process_group)
+        waiting = asyncio.create_task(TavernExecutor._wait_for_process(process, asyncio.Event()))
+        await asyncio.sleep(0)
+
+        waiting.cancel()
+
+        with pytest.raises(asyncio.CancelledError):
+            await waiting
+        assert signals == [tavern_executor.signal.SIGKILL]
+
     @pytest.mark.parametrize(
         "name",
         [

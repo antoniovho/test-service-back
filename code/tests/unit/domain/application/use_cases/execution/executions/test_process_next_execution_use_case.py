@@ -1,4 +1,5 @@
 import asyncio
+from dataclasses import replace
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -18,6 +19,8 @@ from test_service.domain.model.authoring.test_case import (
     TestLevel,
     TestType,
 )
+from test_service.domain.model.composition.test_plan import ExecutionMode, TestPlan
+from test_service.domain.model.exceptions.entity_not_found_exception import EntityNotFoundException
 from test_service.domain.model.exceptions.execution_runner_unavailable_exception import (
     ExecutionRunnerUnavailableException,
 )
@@ -41,7 +44,7 @@ _STARTED_AT = datetime(2026, 1, 1, 10, tzinfo=UTC)
 _FINISHED_AT = datetime(2026, 1, 1, 10, 0, 1, tzinfo=UTC)
 
 
-def _test_case(variables: dict[str, str] | None = None) -> TestCase:
+def _test_case(variables: dict[str, str] | None = None, timeout_seconds: int = 60) -> TestCase:
     return TestCase(
         identifier=uuid4(),
         project_key="IAG",
@@ -57,10 +60,25 @@ def _test_case(variables: dict[str, str] | None = None) -> TestCase:
             variables=variables or {},
             actions=(Action("request", "HTTP", {"url": "https://example.test"}),),
         ),
-        timeout_seconds=60,
+        timeout_seconds=timeout_seconds,
         created_at=_STARTED_AT,
         created_by="author@example.test",
         status=VersionStatus.DEPRECATED,
+    )
+
+
+def _test_plan(timeout_seconds: int = 3600) -> TestPlan:
+    return TestPlan(
+        identifier=uuid4(),
+        project_key="IAG",
+        plan_key="smoke",
+        version=1,
+        name="Smoke",
+        execution_mode=ExecutionMode.SEQUENTIAL,
+        timeout_seconds=timeout_seconds,
+        created_at=_STARTED_AT,
+        created_by="author@example.test",
+        status=VersionStatus.ACTIVE,
     )
 
 
@@ -106,11 +124,19 @@ class _Results:
 
 
 class _TestCases:
-    def __init__(self, test_case: TestCase) -> None:
-        self._test_case = test_case
+    def __init__(self, *test_cases: TestCase) -> None:
+        self._test_cases = {test_case.identifier: test_case for test_case in test_cases}
 
     async def find_by_id(self, identifier):
-        return self._test_case if identifier == self._test_case.identifier else None
+        return self._test_cases.get(identifier)
+
+
+class _TestPlans:
+    def __init__(self, test_plan: TestPlan | None) -> None:
+        self._test_plan = test_plan
+
+    async def find_by_id(self, identifier):
+        return self._test_plan
 
 
 class _Preconditions:
@@ -145,6 +171,21 @@ class _Runner:
         return self._outcome
 
 
+class _HangingRunner(_Runner):
+    """Runner whose first calls never finish on their own, like a stuck request."""
+
+    def __init__(self, hanging_calls: int = 1) -> None:
+        super().__init__()
+        self.calls = 0
+        self._hanging_calls = hanging_calls
+
+    async def execute(self, test_case, cancellation: asyncio.Event) -> RunnerTestCaseOutcome:
+        self.calls += 1
+        if self.calls <= self._hanging_calls:
+            await asyncio.Event().wait()
+        return await super().execute(test_case, cancellation)
+
+
 class _SecretResolver:
     def __init__(self, values: dict[str, str] | None = None) -> None:
         self._values = values or {}
@@ -174,12 +215,15 @@ def _use_case(
     runner: _Runner,
     results: _Results | None = None,
     secrets: dict[str, str] | None = None,
+    test_plans: _TestPlans | None = None,
+    other_test_cases: tuple[TestCase, ...] = (),
 ) -> ProcessNextExecutionUseCaseImpl:
     return ProcessNextExecutionUseCaseImpl(
         _Executions(execution),
         results or _Results(),
-        _TestCases(test_case),
+        _TestCases(test_case, *other_test_cases),
         _Preconditions(),
+        test_plans or _TestPlans(_test_plan()),
         DefinitionCompiler(),
         runner,
         _Cancellations(),
@@ -200,6 +244,7 @@ class TestProcessNextExecutionUseCase:
             results,
             _TestCases(test_case),
             _Preconditions(),
+            _TestPlans(_test_plan()),
             DefinitionCompiler(),
             runner,
             cancellations,
@@ -310,3 +355,72 @@ class TestProcessNextExecutionUseCase:
         assert runner.executed_test_case_ids == []
         assert results.saved == []
         assert isinstance(caplog.records[-1].exc_info[1], SecretResolutionException)
+
+    async def test_when_test_case_exceeds_its_timeout_expect_error_result_and_next_case_runs(
+        self,
+    ):
+        slow_case = _test_case(timeout_seconds=1)
+        next_case = _test_case()
+        execution = replace(
+            _execution(slow_case.identifier),
+            test_case_ids=(slow_case.identifier, next_case.identifier),
+        )
+        runner = _HangingRunner()
+        results = _Results()
+        use_case = _use_case(execution, slow_case, runner, results, other_test_cases=(next_case,))
+
+        processed = await use_case.execute(None)
+
+        timed_out, _, _ = results.saved[0]
+        passed, _, _ = results.saved[1]
+        assert timed_out.test_case_id == slow_case.identifier
+        assert timed_out.status is ResultStatus.ERROR
+        assert timed_out.error_code == "TEST_TIMEOUT"
+        assert timed_out.error_message == "Test Case exceeded its timeout of 1 seconds"
+        assert passed.status is ResultStatus.PASSED
+        assert processed is not None
+        assert processed.status is ExecutionStatus.PARTIALLY_FAILED
+
+    async def test_when_plan_timeout_elapses_expect_remaining_test_cases_not_run(self):
+        first_case = _test_case()
+        second_case = _test_case()
+        execution = replace(
+            _execution(first_case.identifier),
+            test_case_ids=(first_case.identifier, second_case.identifier),
+        )
+        runner = _HangingRunner()
+        results = _Results()
+        use_case = _use_case(
+            execution,
+            first_case,
+            runner,
+            results,
+            test_plans=_TestPlans(_test_plan(timeout_seconds=1)),
+            other_test_cases=(second_case,),
+        )
+
+        processed = await use_case.execute(None)
+
+        assert [result.test_case_id for result, _, _ in results.saved] == [
+            first_case.identifier,
+            second_case.identifier,
+        ]
+        assert {result.status for result, _, _ in results.saved} == {ResultStatus.ERROR}
+        assert {result.error_code for result, _, _ in results.saved} == {"TEST_TIMEOUT"}
+        assert results.saved[0][0].error_message == "Test Plan exceeded its timeout of 1 seconds"
+        assert runner.calls == 1
+        assert processed is not None
+        assert processed.status is ExecutionStatus.FAILED
+
+    async def test_when_test_plan_is_missing_expect_error_execution_without_running(self, caplog):
+        test_case = _test_case()
+        execution = _execution(test_case.identifier)
+        runner = _Runner()
+        use_case = _use_case(execution, test_case, runner, test_plans=_TestPlans(None))
+
+        processed = await use_case.execute(None)
+
+        assert processed is not None
+        assert processed.status is ExecutionStatus.ERROR
+        assert runner.executed_test_case_ids == []
+        assert isinstance(caplog.records[-1].exc_info[1], EntityNotFoundException)
