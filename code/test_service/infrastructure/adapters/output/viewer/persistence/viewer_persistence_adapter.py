@@ -5,6 +5,7 @@ from uuid import UUID
 from test_service.domain.commons.pagination import Page, PaginationParams
 from test_service.domain.model.viewer.records import (
     DriftEvent,
+    ViewerEntityType,
     ViewerOperation,
     ViewerSyncRecord,
     ViewerType,
@@ -72,6 +73,18 @@ class ViewerPersistenceAdapter(ViewerPersistencePort):
                 ViewerPersistenceMapper.sync_record_to_dto(record)
             )
         )
+
+    async def find_sync_record(
+        self,
+        project_key: str,
+        entity_type: ViewerEntityType,
+        entity_key: str,
+        viewer_type: ViewerType,
+    ) -> ViewerSyncRecord | None:
+        record = await self._repository.find_sync_record(
+            project_key, entity_type, entity_key, viewer_type
+        )
+        return ViewerPersistenceMapper.sync_record_to_domain(record) if record is not None else None
 
     async def save_drift_event(self, event: DriftEvent) -> DriftEvent:
         return ViewerPersistenceMapper.drift_event_to_domain(

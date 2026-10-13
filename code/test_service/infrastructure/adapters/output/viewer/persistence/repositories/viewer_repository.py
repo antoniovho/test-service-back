@@ -7,7 +7,7 @@ from sqlalchemy import asc, desc, func, or_, select
 
 from test_service.config import ViewerSettings
 from test_service.domain.commons.pagination import Page, PaginationParams, SortOrder
-from test_service.domain.model.viewer.records import ViewerType
+from test_service.domain.model.viewer.records import ViewerEntityType, ViewerType
 from test_service.infrastructure.adapters.output.commons.persistence.postgres.postgres_session_provider import (  # noqa: E501
     PostgresSessionProvider,
 )
@@ -111,6 +111,23 @@ class ViewerRepository:
             await session.commit()
             await session.refresh(persisted)
             return persisted
+
+    async def find_sync_record(
+        self,
+        project_key: str,
+        entity_type: ViewerEntityType,
+        entity_key: str,
+        viewer_type: ViewerType,
+    ) -> ViewerSyncRecordDTO | None:
+        async with self._session_provider.session() as session:
+            return await session.scalar(
+                select(ViewerSyncRecordDTO).where(
+                    ViewerSyncRecordDTO.project_key == project_key,
+                    ViewerSyncRecordDTO.entity_type == entity_type.value,
+                    ViewerSyncRecordDTO.entity_key == entity_key,
+                    ViewerSyncRecordDTO.viewer_type == viewer_type.value,
+                )
+            )
 
     async def save_drift_event(self, event: DriftEventDTO) -> DriftEventDTO:
         async with self._session_provider.session() as session:
