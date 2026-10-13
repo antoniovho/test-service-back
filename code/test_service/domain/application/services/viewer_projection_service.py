@@ -166,7 +166,7 @@ class ViewerProjectionService:
                     persisted_record, snapshot, snapshots_by_id, external_ids
                 )
                 identity = await self._viewer_publisher.publish(projection)
-            except Exception:
+            except Exception as error:
                 logger.exception(
                     "Viewer projection failed",
                     extra={
@@ -175,7 +175,11 @@ class ViewerProjectionService:
                         "entity_key": entity_key,
                     },
                 )
-                persisted_record = replace(persisted_record, sync_status=SyncStatus.ERROR)
+                persisted_record = replace(
+                    persisted_record,
+                    sync_status=SyncStatus.ERROR,
+                    error=self._sync_error(error),
+                )
             else:
                 persisted_record = replace(
                     persisted_record,
@@ -183,6 +187,7 @@ class ViewerProjectionService:
                     external_entity_id=identity.external_id,
                     external_entity_key=identity.external_key,
                     projection_hash=ViewerManagedState.from_projection(projection).projection_hash,
+                    error=None,
                     last_synced_at=datetime.now(UTC),
                 )
                 external_ids[snapshot.identifier] = identity.external_id
@@ -238,10 +243,14 @@ class ViewerProjectionService:
             try:
                 projection = await self._projection_for_drift(record)
                 observation = await self._viewer_drift_detector.check_drift(projection)
-            except Exception:
+            except Exception as error:
                 failed += 1
                 await self._viewer_repository.save_sync_record(
-                    replace(record, sync_status=SyncStatus.ERROR)
+                    replace(
+                        record,
+                        sync_status=SyncStatus.ERROR,
+                        error=self._sync_error(error),
+                    )
                 )
                 continue
             checked += 1
@@ -252,6 +261,7 @@ class ViewerProjectionService:
                     sync_status=(
                         SyncStatus.DRIFT_DETECTED if observation is not None else SyncStatus.SYNCED
                     ),
+                    error=None,
                     last_checked_at=datetime.now(UTC),
                 )
             )
@@ -311,6 +321,10 @@ class ViewerProjectionService:
         if succeeded == 0:
             return ViewerOperationStatus.FAILED
         return ViewerOperationStatus.PARTIALLY_SUCCEEDED
+
+    @staticmethod
+    def _sync_error(error: Exception) -> str:
+        return f"{type(error).__name__}: {error}"[:500]
 
     async def _persist_drift_observation(
         self, record: ViewerSyncRecord, observation: DriftObservation | None

@@ -247,3 +247,31 @@ class TestViewerProjectionService:
         repository.save_drift_event.assert_not_awaited()
         saved_record = repository.save_sync_record.await_args.args[0]
         assert saved_record.sync_status is SyncStatus.SYNCED
+
+    async def test_when_drift_check_fails_expect_error_cause_saved_on_sync_record(self) -> None:
+        operation = _operation()
+        record = _record()
+        repository = AsyncMock()
+        repository.claim_next_operation.return_value = operation
+        repository.find_sync_records_page_by_project.return_value = Page((record,), 1)
+        repository.save_operation.side_effect = lambda value: value
+        repository.save_sync_record.side_effect = lambda value: value
+        service = ViewerProjectionService(
+            AsyncMock(),
+            AsyncMock(),
+            AsyncMock(),
+            AsyncMock(),
+            AsyncMock(),
+            repository,
+            AsyncMock(),
+            AsyncMock(),
+        )
+        service._projection_for_drift = AsyncMock(side_effect=RuntimeError("Xray timed out"))
+
+        result = await service.process_next_operation()
+
+        assert result is not None
+        assert result.status is ViewerOperationStatus.FAILED
+        saved_record = repository.save_sync_record.await_args.args[0]
+        assert saved_record.sync_status is SyncStatus.ERROR
+        assert saved_record.error == "RuntimeError: Xray timed out"

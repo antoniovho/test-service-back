@@ -29,6 +29,7 @@ def _sync_record() -> ViewerSyncRecord:
         external_entity_key="LOGIN",
         external_entity_id="external-1",
         projection_hash="a" * 64,
+        error="XrayTransportError: request failed",
         sync_status=SyncStatus.SYNCED,
         last_synced_at=datetime(2026, 1, 2, tzinfo=UTC),
         last_checked_at=datetime(2026, 1, 3, tzinfo=UTC),
