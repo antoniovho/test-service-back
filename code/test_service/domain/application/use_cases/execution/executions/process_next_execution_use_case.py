@@ -4,6 +4,7 @@
 
 import asyncio
 import logging
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -17,6 +18,7 @@ from test_service.domain.application.services.execution.execution_variables_reso
 from test_service.domain.application.services.execution.secret_redactor import (
     redact_test_case_outcome,
 )
+from test_service.domain.model.exceptions.entity_not_found_exception import EntityNotFoundException
 from test_service.domain.model.exceptions.execution_manifest_integrity_exception import (
     ExecutionManifestIntegrityException,
 )
@@ -48,9 +50,30 @@ from test_service.domain.ports.output.persistence.preconditions.precondition_per
 from test_service.domain.ports.output.persistence.test_cases.test_case_persistence_port import (
     TestCasePersistencePort,
 )
+from test_service.domain.ports.output.persistence.test_plans.test_plan_persistence_port import (
+    TestPlanPersistencePort,
+)
+from test_service.domain.ports.output.runners.runner_dtos import (
+    CompiledTestCase,
+    RunnerTestCaseOutcome,
+)
 from test_service.domain.ports.output.runners.runner_port import RunnerPort
 
 logger = logging.getLogger(__name__)
+
+TEST_TIMEOUT_ERROR_CODE = "TEST_TIMEOUT"
+
+
+@dataclass(frozen=True, slots=True, order=True)
+class _Deadline:
+    """Event-loop clock instant after which a run must stop, and the limit that set it."""
+
+    at: float
+    message: str = field(compare=False)
+
+
+def _clock() -> float:
+    return asyncio.get_running_loop().time()
 
 
 class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
@@ -62,6 +85,7 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
         results: ExecutionResultsPersistencePort,
         test_cases: TestCasePersistencePort,
         preconditions: PreconditionPersistencePort,
+        test_plans: TestPlanPersistencePort,
         compiler: DefinitionCompiler,
         runner: RunnerPort,
         cancellations: ExecutionCancellationPort,
@@ -71,6 +95,7 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
         self._results = results
         self._test_cases = test_cases
         self._preconditions = preconditions
+        self._test_plans = test_plans
         self._compiler = compiler
         self._runner = runner
         self._cancellations = cancellations
@@ -137,6 +162,14 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
         if not execution.test_case_ids:
             raise ExecutionManifestIntegrityException(execution.identifier)
 
+        test_plan = await self._test_plans.find_by_id(execution.test_plan_id)
+        if test_plan is None:
+            raise EntityNotFoundException("Test plan", str(execution.test_plan_id))
+        plan_deadline = _Deadline(
+            _clock() + test_plan.timeout_seconds,
+            f"Test Plan exceeded its timeout of {test_plan.timeout_seconds} seconds",
+        )
+
         statuses: list[ResultStatus] = []
 
         for identifier in execution.test_case_ids:
@@ -148,11 +181,19 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
             if test_case is None:
                 raise ExecutionManifestIntegrityException(execution.identifier, identifier)
 
+            deadline = min(
+                plan_deadline,
+                _Deadline(
+                    _clock() + test_case.timeout_seconds,
+                    f"Test Case exceeded its timeout of {test_case.timeout_seconds} seconds",
+                ),
+            )
             status = await self._execute_test_case(
                 execution,
                 test_case,
                 cancellation,
                 variables,
+                deadline,
             )
 
             statuses.append(status)
@@ -165,8 +206,9 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
         test_case,
         cancellation: asyncio.Event,
         variables: ExecutionVariables,
+        deadline: _Deadline,
     ) -> ResultStatus:
-        """Run a Test Case and persist its outcome or a blocking precondition failure."""
+        """Run a Test Case and persist its outcome, a blocking precondition failure or a timeout."""
         started_at = datetime.now(UTC)
 
         for reference in test_case.preconditions:
@@ -204,10 +246,12 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
                     f"does not support precondition '{reference.identifier}'.",
                 )
 
-            outcome = await self._runner.execute(
-                compiled,
-                cancellation,
-            )
+            outcome = await self._run(compiled, cancellation, deadline)
+
+            if outcome is None:
+                return await self._save_timed_out(
+                    execution, test_case.identifier, started_at, deadline
+                )
 
             if outcome.status is not ResultStatus.PASSED:
                 return await self._save_blocked(
@@ -241,7 +285,11 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
                 error_message,
             )
 
-        test_case_outcome = await self._runner.execute(compiled, cancellation)
+        test_case_outcome = await self._run(compiled, cancellation, deadline)
+
+        if test_case_outcome is None:
+            return await self._save_timed_out(execution, test_case.identifier, started_at, deadline)
+
         # Redact sensitive information from the test case outcome before persisting it.
         outcome = redact_test_case_outcome(
             test_case_outcome,
@@ -288,6 +336,21 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
 
         return outcome.status
 
+    async def _run(
+        self, compiled: CompiledTestCase, cancellation: asyncio.Event, deadline: _Deadline
+    ) -> RunnerTestCaseOutcome | None:
+        """Run the runner until the deadline; return None when the deadline stopped it."""
+        if _clock() >= deadline.at:
+            return None
+        limit = asyncio.timeout_at(deadline.at)
+        try:
+            async with limit:
+                return await self._runner.execute(compiled, cancellation)
+        except TimeoutError:
+            if limit.expired():
+                return None
+            raise
+
     async def _save_blocked(
         self,
         execution: Execution,
@@ -297,6 +360,33 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
         error_message: str,
     ) -> ResultStatus:
         """Persist a blocked Test Case result with its normalized failure context."""
+        return await self._save_without_actions(
+            execution, test_case_id, started_at, ResultStatus.BLOCKED, error_code, error_message
+        )
+
+    async def _save_timed_out(
+        self, execution: Execution, test_case_id, started_at: datetime, deadline: _Deadline
+    ) -> ResultStatus:
+        """Persist an ERROR Test Case result for a run stopped by its deadline."""
+        return await self._save_without_actions(
+            execution,
+            test_case_id,
+            started_at,
+            ResultStatus.ERROR,
+            TEST_TIMEOUT_ERROR_CODE,
+            deadline.message,
+        )
+
+    async def _save_without_actions(
+        self,
+        execution: Execution,
+        test_case_id,
+        started_at: datetime,
+        status: ResultStatus,
+        error_code: str,
+        error_message: str,
+    ) -> ResultStatus:
+        """Persist a Test Case result that has no action evidence."""
         finished_at = datetime.now(UTC)
 
         await self._results.save_results(
@@ -304,7 +394,7 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
                 uuid4(),
                 execution.identifier,
                 test_case_id,
-                ResultStatus.BLOCKED,
+                status,
                 started_at,
                 started_at,
                 finished_at,
@@ -315,7 +405,7 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
             (),
         )
 
-        return ResultStatus.BLOCKED
+        return status
 
     @staticmethod
     def _execution_status(

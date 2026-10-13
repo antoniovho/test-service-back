@@ -1,5 +1,6 @@
 import asyncio
-from collections.abc import AsyncGenerator
+import logging
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI
@@ -43,6 +44,13 @@ from test_service.infrastructure.adapters.output.commons.persistence.postgres.po
     PostgresDatabaseConfiguration,
 )
 
+logger = logging.getLogger(__name__)
+
+_IDLE_SECONDS = 0.1
+_BACKOFF_BASE_SECONDS = 1.0
+_BACKOFF_MAX_SECONDS = 30.0
+_BACKOFF_MAX_DOUBLINGS = 10
+
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
@@ -64,20 +72,39 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
         await database_configuration.dispose()
 
 
+async def _supervise(name: str, step: Callable[[], Awaitable[object | None]]) -> None:
+    """Run ``step`` until cancelled, idling when it has no work and backing off when it fails."""
+    failures = 0
+    while True:
+        try:
+            processed = await step()
+        except Exception:
+            failures += 1
+            delay = min(
+                _BACKOFF_BASE_SECONDS * 2 ** min(failures - 1, _BACKOFF_MAX_DOUBLINGS),
+                _BACKOFF_MAX_SECONDS,
+            )
+            logger.exception(
+                "Worker '%s' failed %d consecutive time(s); retrying in %.1f seconds.",
+                name,
+                failures,
+                delay,
+            )
+            await asyncio.sleep(delay)
+            continue
+        failures = 0
+        if processed is None:
+            await asyncio.sleep(_IDLE_SECONDS)
+
+
 async def _process_viewer_operations(service: ViewerProjectionService) -> None:
     """Process persisted Viewer operations without retaining request state."""
-    while True:
-        operation = await service.process_next_operation()
-        if operation is None:
-            await asyncio.sleep(0.1)
+    await _supervise("viewer-operations", service.process_next_operation)
 
 
 async def _process_executions(processor: ProcessNextExecutionUseCase) -> None:
     """Claim and execute durable work without retaining HTTP request state."""
-    while True:
-        execution = await processor.execute(None)
-        if execution is None:
-            await asyncio.sleep(0.1)
+    await _supervise("executions", lambda: processor.execute(None))
 
 
 def create_app() -> FastAPI:

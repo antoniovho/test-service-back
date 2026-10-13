@@ -110,6 +110,10 @@ class TavernExecutor:
         Returns:
             A pair containing the process exit code and whether cancellation
             caused termination.
+
+        Raises:
+            asyncio.CancelledError: If the awaiting task is cancelled; the process
+                group is killed first.
         """
         process_wait = asyncio.create_task(process.wait())
         cancellation_wait = asyncio.create_task(cancellation.wait())
@@ -126,6 +130,11 @@ class TavernExecutor:
                     await process_wait
                 return process.returncode if process.returncode is not None else 130, True
             return process.returncode if process.returncode is not None else 0, False
+        except asyncio.CancelledError:
+            # The caller's deadline or a shutdown stopped us: no Tavern group may outlive it.
+            _terminate_process_group(process, signal.SIGKILL)
+            await process_wait
+            raise
         finally:
             if not cancellation_wait.done():
                 cancellation_wait.cancel()
