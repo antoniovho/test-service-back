@@ -45,7 +45,7 @@ class ViewerProjectionBuilder:
                     )
                     for action in snapshot.definition.actions
                 ),
-                precondition_issue_ids=cls._external_ids(
+                precondition_external_ids=cls._external_ids(
                     (reference.identifier for reference in snapshot.preconditions), external_ids
                 ),
             )
@@ -62,7 +62,7 @@ class ViewerProjectionBuilder:
                 record=record,
                 summary=snapshot.name,
                 description=snapshot.description,
-                test_issue_ids=cls._external_ids(snapshot.items, external_ids),
+                test_external_ids=cls._external_ids(snapshot.items, external_ids),
             )
         # Test Plan
         test_case_ids = list(snapshot.test_case_ids)
@@ -82,7 +82,7 @@ class ViewerProjectionBuilder:
             record=record,
             summary=snapshot.name,
             description=snapshot.description,
-            test_issue_ids=cls._external_ids(included_ids, external_ids),
+            test_external_ids=cls._external_ids(included_ids, external_ids),
         )
 
     @staticmethod
