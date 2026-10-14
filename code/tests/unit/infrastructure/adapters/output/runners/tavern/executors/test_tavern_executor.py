@@ -30,7 +30,7 @@ class _Response:
         self.text = "response-body"
 
     def json(self) -> dict[str, str]:
-        return {"token": "response-secret"}
+        return {"token": "response-secret", "key": "sk-response-secret"}
 
 
 class _Process:
@@ -294,6 +294,7 @@ class TestTavernExecutor:
                     "X-Api-Key": "request-secret",
                     "X-Trace": "trace-value",
                 },
+                "params": {"key": "request-secret", "page": 1},
                 "json": {"password": "request-secret"},
             }
         )
@@ -311,6 +312,7 @@ class TestTavernExecutor:
                 "X-Api-Key": "[REDACTED]",
                 "X-Trace": "trace-value",
             },
+            "params": {"key": "[REDACTED]", "page": 1},
         }
         assert "request-secret" not in serialized
 
@@ -328,7 +330,7 @@ class TestTavernExecutor:
 
         assert response["headers"]["Authorization"] == "[REDACTED]"
         assert response["headers"]["Set-Cookie"] == "[REDACTED]"
-        assert response["body"] == {"token": "[REDACTED]"}
+        assert response["body"] == {"token": "[REDACTED]", "key": "[REDACTED]"}
         assert "response-secret" not in serialized
 
     def test_when_response_body_exceeds_limit_expect_truncated_evidence(self) -> None:

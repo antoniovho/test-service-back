@@ -78,6 +78,143 @@ class TestTavernCompiler:
             "save": {"json": {"orderId": "$.id"}},
         }
 
+    def test_when_json_schema_is_configured_expect_tavern_validation_hook(self) -> None:
+        action = CompiledAction(
+            "get-order",
+            "HTTP",
+            0,
+            {
+                "url": "https://api.example.test/orders",
+                "expectedJsonSchema": {
+                    "type": "object",
+                    "required": ["id"],
+                    "properties": {"id": {"type": "string"}},
+                },
+            },
+        )
+
+        document = TavernCompiler().compile((action,), {})
+
+        assert document["stages"][0]["response"]["verify_response_with"] == {
+            "function": (
+                "test_service.infrastructure.adapters.output.runners.tavern."
+                "json_schema_validator:validate_json_schema"
+            ),
+            "extra_kwargs": {"schema": action.configuration["expectedJsonSchema"]},
+        }
+
+    def test_when_json_schema_is_not_an_object_expect_value_error(self) -> None:
+        action = CompiledAction(
+            "get-order",
+            "HTTP",
+            0,
+            {"url": "https://api.example.test/orders", "expectedJsonSchema": "invalid"},
+        )
+
+        with pytest.raises(ValueError, match="expectedJsonSchema must be an object"):
+            TavernCompiler().compile((action,), {})
+
+    def test_when_expected_text_is_configured_expect_tavern_validation_hook(self) -> None:
+        action = CompiledAction(
+            "health-check",
+            "HTTP",
+            0,
+            {"url": "https://api.example.test/health", "expectedText": "I'm alive!"},
+        )
+
+        document = TavernCompiler().compile((action,), {})
+
+        assert document["stages"][0]["response"]["verify_response_with"] == {
+            "function": (
+                "test_service.infrastructure.adapters.output.runners.tavern."
+                "json_schema_validator:validate_response_text"
+            ),
+            "extra_kwargs": {"expected_text": "I'm alive!"},
+        }
+
+    def test_when_expected_header_names_are_configured_expect_tavern_validation_hook(
+        self,
+    ) -> None:
+        action = CompiledAction(
+            "chat-completion",
+            "HTTP",
+            0,
+            {
+                "url": "https://api.example.test/chat/completions",
+                "expectedHeaderNames": ["x-litellm-call-id"],
+            },
+        )
+
+        document = TavernCompiler().compile((action,), {})
+
+        assert document["stages"][0]["response"]["verify_response_with"] == {
+            "function": (
+                "test_service.infrastructure.adapters.output.runners.tavern."
+                "json_schema_validator:validate_response_header_names"
+            ),
+            "extra_kwargs": {"expected_header_names": ["x-litellm-call-id"]},
+        }
+
+    def test_when_forbidden_text_is_configured_expect_tavern_validation_hook(self) -> None:
+        action = CompiledAction(
+            "auth-error",
+            "HTTP",
+            0,
+            {
+                "url": "https://api.example.test/chat/completions",
+                "forbiddenText": ["invalid-key", "Traceback"],
+            },
+        )
+
+        document = TavernCompiler().compile((action,), {})
+
+        assert document["stages"][0]["response"].get("verify_response_with") == {
+            "function": (
+                "test_service.infrastructure.adapters.output.runners.tavern."
+                "json_schema_validator:validate_response_excludes_text"
+            ),
+            "extra_kwargs": {"forbidden_texts": ["invalid-key", "Traceback"]},
+        }
+
+    def test_when_expected_text_substring_is_configured_expect_tavern_validation_hook(
+        self,
+    ) -> None:
+        action = CompiledAction(
+            "search-observability",
+            "HTTP",
+            0,
+            {
+                "url": "https://logs.example.test/query",
+                "expectedTextContains": ["security-test-42", 'requested_model="gpt-test"'],
+            },
+        )
+
+        document = TavernCompiler().compile((action,), {})
+
+        assert document["stages"][0]["response"].get("verify_response_with") == {
+            "function": (
+                "test_service.infrastructure.adapters.output.runners.tavern."
+                "json_schema_validator:validate_response_contains_text"
+            ),
+            "extra_kwargs": {"expected_texts": ["security-test-42", 'requested_model="gpt-test"']},
+        }
+
+    def test_when_multiple_response_assertions_are_configured_expect_all_hooks(self) -> None:
+        action = CompiledAction(
+            "get-order",
+            "HTTP",
+            0,
+            {
+                "url": "https://api.example.test/orders",
+                "expectedJsonSchema": {"type": "object"},
+                "expectedText": "response",
+            },
+        )
+
+        document = TavernCompiler().compile((action,), {})
+
+        assert len(document["stages"][0]["response"]["verify_response_with"]) == 2
+
     def test_when_configuration_is_immutable_expect_service_variables_rendered(self) -> None:
         action = CompiledAction(
             "get-order",

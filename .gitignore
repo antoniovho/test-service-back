@@ -21,3 +21,4 @@ nosetests.xml
 coverage.xml
 openapitools.json
 pect
+data/

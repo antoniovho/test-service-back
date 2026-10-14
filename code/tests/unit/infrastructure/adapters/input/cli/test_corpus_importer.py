@@ -68,6 +68,38 @@ class TestLoadDocument:
         with pytest.raises(ValueError, match="sensitive header 'Authorization'"):
             load_document(path)
 
+    def test_when_sensitive_header_uses_captured_variable_expect_document_accepted(
+        self, tmp_path
+    ) -> None:
+        document = _valid_document()
+        action = document["definition"]["actions"][0]
+        action["configuration"]["headers"] = {"Authorization": "Bearer {generated_api_key}"}
+        path = tmp_path / "captured-secret.json"
+        path.write_text(json.dumps(document), encoding="utf-8")
+
+        loaded = load_document(path)
+
+        assert (
+            loaded.definition.actions[0].configuration["headers"]["Authorization"]
+            == "Bearer {generated_api_key}"
+        )
+
+    def test_when_forbidden_text_assertion_is_valid_expect_document_accepted(
+        self, tmp_path
+    ) -> None:
+        document = _valid_document()
+        action = document["definition"]["actions"][0]
+        action["configuration"]["forbiddenText"] = ["secret-key", "Traceback"]
+        path = tmp_path / "forbidden-text.json"
+        path.write_text(json.dumps(document), encoding="utf-8")
+
+        loaded = load_document(path)
+
+        assert loaded.definition.actions[0].configuration["forbiddenText"] == [
+            "secret-key",
+            "Traceback",
+        ]
+
     def test_when_document_violates_contract_expect_document_rejected(self, tmp_path) -> None:
         document = _valid_document()
         document["metadata"] = {"labels": ["duplicate", "duplicate"]}
