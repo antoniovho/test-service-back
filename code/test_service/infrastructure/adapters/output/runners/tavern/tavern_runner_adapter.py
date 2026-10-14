@@ -65,13 +65,19 @@ class TavernRunnerAdapter:
         """Execute ordered HTTP blocks and SSE actions with fail-fast semantics."""
         started_at = datetime.now(UTC)
         context = dict(test_case.variables)
+        saved_variables: dict[str, str] = {}
         outcomes: list[RunnerActionOutcome] = []
         async with httpx.AsyncClient() as client:
             index = 0
             while index < len(test_case.actions):
                 if cancellation.is_set():
                     return self._build_test_case_outcome(
-                        ResultStatus.SKIPPED, started_at, outcomes, "CANCELLED", "Cancelled"
+                        ResultStatus.SKIPPED,
+                        started_at,
+                        outcomes,
+                        "CANCELLED",
+                        "Cancelled",
+                        saved_variables,
                     )
                 action = test_case.actions[index]
                 if action.action_type == "HTTP":
@@ -81,6 +87,7 @@ class TavernRunnerAdapter:
                     )
                     outcomes.extend(block_outcomes)
                     context.update(variables)
+                    saved_variables.update(variables)
                 else:
                     outcome = await self._sse_executor.execute(
                         client, action, context, cancellation
@@ -89,7 +96,12 @@ class TavernRunnerAdapter:
                     index += 1
                 if cancellation.is_set():
                     return self._build_test_case_outcome(
-                        ResultStatus.SKIPPED, started_at, outcomes, "CANCELLED", "Cancelled"
+                        ResultStatus.SKIPPED,
+                        started_at,
+                        outcomes,
+                        "CANCELLED",
+                        "Cancelled",
+                        saved_variables,
                     )
                 terminal_issue = next(
                     (
@@ -106,8 +118,11 @@ class TavernRunnerAdapter:
                         outcomes,
                         terminal_issue.error_code,
                         terminal_issue.error_message,
+                        saved_variables,
                     )
-        return self._build_test_case_outcome(ResultStatus.PASSED, started_at, outcomes)
+        return self._build_test_case_outcome(
+            ResultStatus.PASSED, started_at, outcomes, variables=saved_variables
+        )
 
     @staticmethod
     def _http_block(
@@ -174,8 +189,16 @@ class TavernRunnerAdapter:
         )
 
     @staticmethod
-    def _build_test_case_outcome(status, started_at, actions, code=None, message=None):
+    def _build_test_case_outcome(
+        status, started_at, actions, code=None, message=None, variables=None
+    ):
         """Build the aggregate result for a compiled Test Case."""
         return RunnerTestCaseOutcome(
-            status, started_at, datetime.now(UTC), tuple(actions), code, message
+            status,
+            started_at,
+            datetime.now(UTC),
+            tuple(actions),
+            code,
+            message,
+            variables or {},
         )
