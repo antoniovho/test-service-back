@@ -1,6 +1,7 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 from typing import cast
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
@@ -19,9 +20,14 @@ from test_service.infrastructure.adapters.output.viewer.persistence.dtos.viewer_
     ViewerOperationDTO,
     ViewerSyncRecordDTO,
 )
+from test_service.infrastructure.adapters.output.viewer.persistence.repositories import (
+    viewer_repository,
+)
 from test_service.infrastructure.adapters.output.viewer.persistence.repositories.viewer_repository import (  # noqa: E501
     ViewerRepository,
 )
+
+_FIXED_NOW = datetime(2026, 1, 1, 12, tzinfo=UTC)
 
 
 class _SessionProvider(PostgresSessionProvider):
@@ -105,7 +111,7 @@ class TestViewerRepository:
         assert record.created_at == current.created_at
 
     async def test_when_claiming_operation_expect_configured_stale_timeout_used(
-        self, settings: ViewerSettings
+        self, settings: ViewerSettings, monkeypatch
     ) -> None:
         operation = _operation_dto()
         result = MagicMock()
@@ -115,18 +121,17 @@ class TestViewerRepository:
         session.commit = AsyncMock()
         session.refresh = AsyncMock()
         repository = ViewerRepository(_SessionProvider(session), settings)
+        monkeypatch.setattr(
+            viewer_repository, "datetime", SimpleNamespace(now=lambda _: _FIXED_NOW)
+        )
 
-        before_claim = datetime.now(UTC)
         await repository.claim_next_operation()
-        after_claim = datetime.now(UTC)
 
         statement = session.execute.await_args.args[0]
         threshold = next(
             value for value in statement.compile().params.values() if isinstance(value, datetime)
         )
-        assert (
-            before_claim - timedelta(seconds=60) <= threshold <= after_claim - timedelta(seconds=60)
-        )
+        assert threshold == _FIXED_NOW - timedelta(seconds=60)
         assert operation.status == "RUNNING"
 
     async def test_when_saving_new_sync_and_drift_expect_persisted_dtos(self) -> None:

@@ -80,6 +80,11 @@ class _MalformedExecutor:
         raise TavernResultInvalidError("Tavern result report is invalid")
 
 
+class _VariableExecutor:
+    async def execute(self, document, stage_identifiers, cancellation):
+        return TavernExecutionResult(0, False, (), {"sessionToken": "saved-token"})
+
+
 class TestTavernRunnerAdapter:
     async def test_when_http_block_returns_runner_error_expect_error_test_case_outcome(
         self,
@@ -120,6 +125,14 @@ class TestTavernRunnerAdapter:
         assert outcomes[0].status is ResultStatus.ERROR
         assert outcomes[0].error_code == "TAVERN_RUNNER_ERROR"
         assert variables == {}
+
+    async def test_when_tavern_saves_variables_expect_variables_returned_in_outcome(self):
+        adapter = TavernRunnerAdapter(_Compiler(), _VariableExecutor(), _PassingResultMapper())
+        test_case = CompiledTestCase("case-id", {}, (CompiledAction("first", "HTTP", 0, {}),))
+
+        outcome = await adapter.execute(test_case, asyncio.Event())
+
+        assert outcome.variables == {"sessionToken": "saved-token"}
 
     async def test_when_tavern_report_is_malformed_expect_invalid_result_error(self) -> None:
         adapter = TavernRunnerAdapter(executor=_MalformedExecutor())

@@ -22,3 +22,4 @@ coverage.xml
 openapitools.json
 pect
 data/
+code/mutants/

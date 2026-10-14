@@ -37,19 +37,12 @@ from test_service.domain.model.execution.execution import (
     StorageType,
     TestResult,
     TestResultArtifact,
-    TriggerType,
 )
+from tests.mothers.execution_mother import an_execution
 
 
 def _execution(project_key: str = "IAG") -> Execution:
-    return Execution(
-        identifier=uuid4(),
-        project_key=project_key,
-        test_plan_id=uuid4(),
-        environment_id=uuid4(),
-        trigger_type=TriggerType.API,
-        created_at=datetime(2026, 1, 1, tzinfo=UTC),
-    )
+    return an_execution(project_key=project_key)
 
 
 def _result(execution_id) -> TestResult:

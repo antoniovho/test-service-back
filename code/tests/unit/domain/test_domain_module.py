@@ -248,6 +248,9 @@ class _FakeExecutionRepository:
     async def save_execution(self, execution):
         return execution
 
+    async def transition_execution(self, execution, expected_statuses):
+        return execution
+
     async def find_execution(self, identifier):
         return None
 

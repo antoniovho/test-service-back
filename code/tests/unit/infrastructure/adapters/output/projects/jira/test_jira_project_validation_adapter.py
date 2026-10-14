@@ -80,16 +80,26 @@ class TestJiraProjectValidationAdapter:
         assert requests[0].url.raw_path == raw_path
         assert requests[0].url.query == b""
 
-    @pytest.mark.parametrize("status", [httpx.codes.NOT_FOUND, httpx.codes.FORBIDDEN])
-    async def test_when_project_is_not_accessible_expect_not_found_error(
-        self, settings: JiraSettings, status: int
+    async def test_when_jira_returns_not_found_expect_project_not_found_error(
+        self, settings: JiraSettings
     ) -> None:
         async with httpx.AsyncClient(
-            transport=httpx.MockTransport(lambda request: httpx.Response(status))
+            transport=httpx.MockTransport(lambda request: httpx.Response(httpx.codes.NOT_FOUND))
         ) as client:
             adapter = JiraProjectValidationAdapter(settings, client)
 
             with pytest.raises(ExternalProjectNotFoundException):
+                await adapter.validate("SHOP")
+
+    async def test_when_jira_forbids_project_access_expect_provider_exception(
+        self, settings: JiraSettings
+    ) -> None:
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(lambda request: httpx.Response(httpx.codes.FORBIDDEN))
+        ) as client:
+            adapter = JiraProjectValidationAdapter(settings, client)
+
+            with pytest.raises(ExternalProjectProviderException):
                 await adapter.validate("SHOP")
 
     async def test_when_jira_returns_provider_error_expect_provider_exception(

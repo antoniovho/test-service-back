@@ -35,6 +35,8 @@ from test_service.domain.model.viewer.records import (
     ViewerType,
 )
 
+_CREATED_AT = datetime(2026, 1, 1, tzinfo=UTC)
+
 
 def _operation() -> ViewerOperation:
     return ViewerOperation(
@@ -43,7 +45,7 @@ def _operation() -> ViewerOperation:
         viewer_type=ViewerType.XRAY,
         operation_type=ViewerOperationType.DRIFT_CHECK,
         status=ViewerOperationStatus.RUNNING,
-        created_at=datetime.now(UTC),
+        created_at=_CREATED_AT,
     )
 
 
@@ -57,7 +59,7 @@ def _record(sync_status: SyncStatus = SyncStatus.SYNCED) -> ViewerSyncRecord:
         viewer_type=ViewerType.XRAY,
         external_entity_key="SHOP-101",
         sync_status=sync_status,
-        created_at=datetime.now(UTC),
+        created_at=_CREATED_AT,
     )
 
 
