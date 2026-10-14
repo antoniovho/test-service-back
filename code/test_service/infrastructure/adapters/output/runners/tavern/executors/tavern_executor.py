@@ -239,7 +239,8 @@ SENSITIVE_HEADERS = frozenset({{
     "authorization", "cookie", "proxy-authorization", "set-cookie", "x-api-key",
 }})
 SENSITIVE_FIELDS = frozenset({{
-    "access_token", "api_key", "authorization", "password", "refresh_token", "secret", "token",
+    "access_token", "api_key", "authorization", "key", "password",
+    "refresh_token", "secret", "token",
 }})
 MAX_RESPONSE_BODY_CHARS = 4096
 
@@ -262,7 +263,8 @@ def redact_headers(headers):
 
 def request_evidence(request_args):
     """Keep request metadata without retaining potentially sensitive request bodies."""
-    return {{key: safe(request_args[key])
+    return {{key: safe(redact_fields(request_args[key]))
+            if key == "params" else safe(request_args[key])
             for key in ("method", "url", "params") if key in request_args}} | {{
                 "headers": redact_headers(request_args.get("headers", {{}}))
             }}
