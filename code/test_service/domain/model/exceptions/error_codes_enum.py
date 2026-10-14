@@ -7,6 +7,7 @@ class DomainError(Enum):
     """One entry per domain exception type: (code, default description)."""
 
     ENTITY_NOT_FOUND = ("ENTITY_NOT_FOUND", "Entity not found")
+    ENTITY_FORBIDDEN = ("ENTITY_FORBIDDEN", "Access to the entity is forbidden")
     PROJECT_ALREADY_EXISTS = ("PROJECT_ALREADY_EXISTS", "Project already exists")
     PROJECT_ALREADY_DELETED = ("PROJECT_ALREADY_DELETED", "Project is already deleted")
     TEST_CASE_VERSION_ALREADY_EXISTS = (

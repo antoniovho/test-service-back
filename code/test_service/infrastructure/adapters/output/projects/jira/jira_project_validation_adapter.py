@@ -7,8 +7,13 @@ from urllib.parse import quote
 import httpx
 
 from test_service.config import JiraSettings
+from test_service.domain.model.exceptions.external_project_access_forbidden_exception import (
+    ExternalProjectForbiddenException,
+)
 from test_service.domain.model.exceptions.external_project_not_found_exception import (
     ExternalProjectNotFoundException,
+)
+from test_service.domain.model.exceptions.external_project_provider_exception import (
     ExternalProjectProviderException,
 )
 from test_service.domain.ports.output.projects.project_validation_port import ProjectValidationPort
@@ -33,11 +38,13 @@ class JiraProjectValidationAdapter(ProjectValidationPort):
                         self._project_url(project_key), headers=self._headers()
                     )
         except httpx.HTTPError as exc:
-            raise ExternalProjectProviderException() from exc
+            raise ExternalProjectProviderException(provider_name="JIRA") from exc
+        if response.status_code == httpx.codes.FORBIDDEN:
+            raise ExternalProjectForbiddenException(provider_name="JIRA")
         if response.status_code == httpx.codes.NOT_FOUND:
-            raise ExternalProjectNotFoundException(project_key)
+            raise ExternalProjectNotFoundException(project_key, provider_name="JIRA")
         if response.is_error:
-            raise ExternalProjectProviderException()
+            raise ExternalProjectProviderException(provider_name="JIRA")
 
     def _project_url(self, project_key: str) -> str:
         return f"{self._settings.base_url.rstrip('/')}/rest/api/3/project/{quote(project_key, safe='')}"
