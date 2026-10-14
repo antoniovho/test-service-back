@@ -1,5 +1,6 @@
 """Strict Pydantic DTOs for the first-load corpus format."""
 
+import re
 from collections.abc import Mapping
 from typing import Any, Literal
 
@@ -9,6 +10,9 @@ from test_service.domain.model.authoring.test_case import Priority, TestLevel, T
 
 _SENSITIVE_HEADER_NAMES = frozenset({"authorization", "cookie", "proxy-authorization", "x-api-key"})
 _IDENTIFIER_PATTERN = r"^[A-Za-z][A-Za-z0-9_-]{0,99}$"
+_SECRET_REFERENCE_PATTERN = re.compile(
+    r"^(?:[A-Za-z][A-Za-z0-9_-]*\s+)?(?:\{\{[A-Za-z_]\w*\}\}|\{[A-Za-z_]\w*\})$"
+)
 
 
 class _CorpusModel(BaseModel):
@@ -24,7 +28,17 @@ class HttpConfiguration(_CorpusModel):
     json_body: Any = Field(default=None, alias="json")
     expected_status: int | None = Field(default=None, alias="expectedStatus", ge=100, le=599)
     expected_json: Any = Field(default=None, alias="expectedJson")
+    expected_text: str | None = Field(default=None, alias="expectedText", max_length=16384)
+    expected_text_contains: str | list[str] | None = Field(
+        default=None, alias="expectedTextContains"
+    )
+    forbidden_text: list[str] | None = Field(
+        default=None, alias="forbiddenText", min_length=1, max_length=50
+    )
     expected_headers: dict[str, str] | None = Field(default=None, alias="expectedHeaders")
+    expected_header_names: list[str] | None = Field(
+        default=None, alias="expectedHeaderNames", max_length=50
+    )
     expected_json_schema: dict[str, Any] | None = Field(default=None, alias="expectedJsonSchema")
     max_response_time_ms: int | None = Field(default=None, alias="maxResponseTimeMs", ge=1)
     capture: dict[str, str] | None = None
@@ -39,6 +53,19 @@ class SseConfiguration(_CorpusModel):
     json_body: Any = Field(default=None, alias="json")
     expected_event: str | None = Field(default=None, alias="expectedEvent", min_length=1)
     expected_data: str | None = Field(default=None, alias="expectedData")
+    expected_data_json_schema: dict[str, Any] | None = Field(
+        default=None, alias="expectedDataJsonSchema"
+    )
+    expected_final_data_json_schema: dict[str, Any] | None = Field(
+        default=None, alias="expectedFinalDataJsonSchema"
+    )
+    expected_concatenated_content: str | None = Field(
+        default=None, alias="expectedConcatenatedContent", max_length=16384
+    )
+    expected_content_type: str | None = Field(
+        default=None, alias="expectedContentType", min_length=1, max_length=200
+    )
+    validate_usage_totals: bool | None = Field(default=None, alias="validateUsageTotals")
     expected_done: bool | None = Field(default=None, alias="expectedDone")
     max_events: int | None = Field(default=None, alias="maxEvents", ge=1)
     receive_timeout_seconds: float | None = Field(default=None, alias="receiveTimeoutSeconds", gt=0)
@@ -104,6 +131,8 @@ def _validate_sensitive_headers(configuration: Mapping[str, object]) -> None:
         return
     for name, value in headers.items():
         if name.lower() in _SENSITIVE_HEADER_NAMES and (
-            not isinstance(value, str) or "{{" not in value or "}}" not in value
+            not isinstance(value, str) or _SECRET_REFERENCE_PATTERN.fullmatch(value) is None
         ):
-            raise ValueError(f"sensitive header '{name}' must use a service variable reference")
+            raise ValueError(
+                f"sensitive header '{name}' must use a service or captured variable reference"
+            )
