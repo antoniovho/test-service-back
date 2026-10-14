@@ -4,7 +4,7 @@ from typing import Protocol
 from uuid import UUID
 
 from test_service.domain.commons.pagination import Page, PaginationParams
-from test_service.domain.model.execution.execution import Execution
+from test_service.domain.model.execution.execution import Execution, ExecutionStatus
 
 
 class ExecutionPersistencePort(Protocol):
@@ -12,6 +12,16 @@ class ExecutionPersistencePort(Protocol):
 
     async def save_execution(self, execution: Execution) -> Execution:
         """Persist an execution."""
+        ...
+
+    async def transition_execution(
+        self, execution: Execution, expected_statuses: tuple[ExecutionStatus, ...]
+    ) -> Execution | None:
+        """Persist a lifecycle transition only if its current status is expected.
+
+        Returns the persisted execution, including the current state when the
+        transition loses a race, or ``None`` if the execution no longer exists.
+        """
         ...
 
     async def find_execution(self, identifier: UUID) -> Execution | None:

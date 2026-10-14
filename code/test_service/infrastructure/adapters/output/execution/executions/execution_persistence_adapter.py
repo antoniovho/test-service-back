@@ -3,7 +3,7 @@
 from uuid import UUID
 
 from test_service.domain.commons.pagination import Page, PaginationParams
-from test_service.domain.model.execution.execution import Execution
+from test_service.domain.model.execution.execution import Execution, ExecutionStatus
 from test_service.domain.ports.output.persistence.executions.execution_persistence_port import (  # noqa: E501
     ExecutionPersistencePort,
 )
@@ -25,6 +25,15 @@ class ExecutionPersistenceAdapter(ExecutionPersistencePort):
         return ExecutionPersistenceMapper.to_domain(
             await self._repository.save(ExecutionPersistenceMapper.to_dto(execution))
         )
+
+    async def transition_execution(
+        self, execution: Execution, expected_statuses: tuple[ExecutionStatus, ...]
+    ) -> Execution | None:
+        persisted = await self._repository.transition(
+            ExecutionPersistenceMapper.to_dto(execution),
+            tuple(status.value for status in expected_statuses),
+        )
+        return ExecutionPersistenceMapper.to_domain(persisted) if persisted is not None else None
 
     async def find_execution(self, identifier: UUID) -> Execution | None:
         execution = await self._repository.find_by_id(identifier)

@@ -3,7 +3,7 @@
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import asc, desc, func, select
+from sqlalchemy import asc, desc, func, select, update
 
 from test_service.config import ExecutionSettings
 from test_service.domain.commons.pagination import Page, PaginationParams, SortOrder
@@ -42,6 +42,29 @@ class ExecutionRepository:
             await session.commit()
             await session.refresh(persisted_execution)
             return persisted_execution
+
+    async def transition(
+        self, execution: ExecutionDTO, expected_statuses: tuple[str, ...]
+    ) -> ExecutionDTO | None:
+        """Update terminal fields only while the row remains in an expected state."""
+        async with self._session_provider.session() as session:
+            result = await session.execute(
+                update(ExecutionDTO)
+                .where(
+                    (ExecutionDTO.id == execution.id) & (ExecutionDTO.status.in_(expected_statuses))
+                )
+                .values(
+                    status=execution.status,
+                    finished_at=execution.finished_at,
+                    duration_ms=execution.duration_ms,
+                )
+                .returning(ExecutionDTO)
+            )
+            transitioned = result.scalar_one_or_none()
+            if transitioned is not None:
+                await session.commit()
+                return transitioned
+            return await session.get(ExecutionDTO, execution.id)
 
     async def find_by_id(self, identifier: UUID) -> ExecutionDTO | None:
         """Find an Execution DTO by UUID."""
