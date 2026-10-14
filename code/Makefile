@@ -1,4 +1,4 @@
-.PHONY: test coverage test-coverage sonar format lint-fix lint verify super-verify integration ci clean
+.PHONY: test coverage test-coverage mutation sonar format lint-fix lint verify super-verify integration ci clean
 
 # -----------------------------------------------------------------------------
 # Tests
@@ -22,6 +22,10 @@ test-coverage:
 		--cov-report=term-missing \
 		--cov-report=xml:coverage.xml \
 		--junitxml=nosetests.xml
+
+## Ejecuta los tests de mutación configurados con mutmut.
+mutation:
+	uv run mutmut run
 
 # -----------------------------------------------------------------------------
 # Calidad
