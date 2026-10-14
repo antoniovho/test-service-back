@@ -34,7 +34,7 @@ class JiraProjectValidationAdapter(ProjectValidationPort):
                     )
         except httpx.HTTPError as exc:
             raise ExternalProjectProviderException() from exc
-        if response.status_code in {httpx.codes.NOT_FOUND, httpx.codes.FORBIDDEN}:
+        if response.status_code == httpx.codes.NOT_FOUND:
             raise ExternalProjectNotFoundException(project_key)
         if response.is_error:
             raise ExternalProjectProviderException()
