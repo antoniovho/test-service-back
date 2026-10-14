@@ -10,6 +10,9 @@ from test_service.domain.ports.output.runners.runner_dtos import (
 from test_service.infrastructure.adapters.output.runners.tavern.dtos.tavern_dtos import (
     TavernExecutionResult,
 )
+from test_service.infrastructure.adapters.output.runners.tavern.tavern_exceptions import (
+    TavernResultInvalidError,
+)
 from test_service.infrastructure.adapters.output.runners.tavern.tavern_runner_adapter import (
     TavernRunnerAdapter,
 )
@@ -72,6 +75,11 @@ class _FailingCompiler:
         raise ValueError("invalid HTTP action")
 
 
+class _MalformedExecutor:
+    async def execute(self, document, stage_identifiers, cancellation):
+        raise TavernResultInvalidError("Tavern result report is invalid")
+
+
 class TestTavernRunnerAdapter:
     async def test_when_http_block_returns_runner_error_expect_error_test_case_outcome(
         self,
@@ -103,12 +111,22 @@ class TestTavernRunnerAdapter:
         assert outcome.status is ResultStatus.PASSED
         assert outcome.actions[0].status is ResultStatus.PASSED
 
-    async def test_when_http_compilation_fails_expect_failed_action_outcome(self) -> None:
+    async def test_when_http_compilation_fails_expect_error_action_outcome(self) -> None:
         adapter = TavernRunnerAdapter(compiler=_FailingCompiler())
         action = CompiledAction("first", "HTTP", 0, {})
 
         outcomes, variables = await adapter._tavern_http_block((action,), {}, asyncio.Event())
 
-        assert outcomes[0].status is ResultStatus.FAILED
+        assert outcomes[0].status is ResultStatus.ERROR
         assert outcomes[0].error_code == "TAVERN_RUNNER_ERROR"
+        assert variables == {}
+
+    async def test_when_tavern_report_is_malformed_expect_invalid_result_error(self) -> None:
+        adapter = TavernRunnerAdapter(executor=_MalformedExecutor())
+        action = CompiledAction("first", "HTTP", 0, {})
+
+        outcomes, variables = await adapter._tavern_http_block((action,), {}, asyncio.Event())
+
+        assert outcomes[0].status is ResultStatus.ERROR
+        assert outcomes[0].error_code == "TAVERN_RESULT_INVALID"
         assert variables == {}

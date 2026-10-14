@@ -2,9 +2,11 @@ import asyncio
 import json
 import stat
 from datetime import UTC, datetime
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
+from tavern._core.exceptions import TestFailError as TavernAssertionError
 
 from test_service.infrastructure.adapters.output.runners.tavern.executors import (
     tavern_executor,
@@ -261,6 +263,13 @@ class TestTavernExecutor:
         assert result.stages[0].identifier == "request-account"
         assert result.variables == {"sessionId": "123"}
 
+    def test_when_reading_malformed_report_expect_value_error(self, tmp_path) -> None:
+        result_file = tmp_path / "result.json"
+        result_file.write_text(json.dumps({"stages": [{"status": "PASSED"}]}))
+
+        with pytest.raises(ValueError, match="Tavern result report is invalid"):
+            _read_result(result_file, 0)
+
     def test_when_no_result_file_exists_expect_empty_result(self, tmp_path) -> None:
         result = _read_result(tmp_path / "missing.json", 2)
 
@@ -288,7 +297,7 @@ class TestTavernExecutor:
         namespace["pytest_tavern_beta_before_every_request"](
             {
                 "method": "POST",
-                "url": "https://api.example.test/accounts",
+                "url": "https://api.example.test/accounts?access_token=url-secret&page=2",
                 "headers": {
                     "Authorization": "Bearer request-secret",
                     "X-Api-Key": "request-secret",
@@ -306,7 +315,7 @@ class TestTavernExecutor:
 
         assert request == {
             "method": "POST",
-            "url": "https://api.example.test/accounts",
+            "url": "https://api.example.test/accounts?access_token=%5BREDACTED%5D&page=2",
             "headers": {
                 "Authorization": "[REDACTED]",
                 "X-Api-Key": "[REDACTED]",
@@ -315,13 +324,53 @@ class TestTavernExecutor:
             "params": {"key": "[REDACTED]", "page": 1},
         }
         assert "request-secret" not in serialized
+        assert "url-secret" not in serialized
+
+    def test_when_reporter_records_tavern_assertion_expect_failed_with_redacted_error(
+        self,
+    ) -> None:
+        namespace: dict[str, object] = {}
+        exec(_reporter_source(("request-account",)), namespace)
+        namespace["pytest_tavern_beta_before_every_request"]({})
+        call = SimpleNamespace(
+            when="call",
+            excinfo=SimpleNamespace(
+                value=TavernAssertionError('HTTP 400: {"access_token": "response-secret"}')
+            ),
+        )
+
+        namespace["pytest_runtest_makereport"](None, call)
+
+        stage = namespace["result"]["stages"][0]
+        assert stage["status"] == "FAILED"
+        assert stage["errorCode"] == "TAVERN_ASSERTION_FAILED"
+        assert "response-secret" not in stage["errorMessage"]
+
+    def test_when_reporter_records_technical_error_expect_error_and_truncated_message(
+        self,
+    ) -> None:
+        namespace: dict[str, object] = {}
+        exec(_reporter_source(("request-account",)), namespace)
+        namespace["pytest_tavern_beta_before_every_request"]({})
+        message = 'HTTP 500: {"token": "response-secret"} ' + "x" * 2000
+        call = SimpleNamespace(when="call", excinfo=SimpleNamespace(value=RuntimeError(message)))
+
+        namespace["pytest_runtest_makereport"](None, call)
+
+        stage = namespace["result"]["stages"][0]
+        assert stage["status"] == "ERROR"
+        assert stage["errorCode"] == "TAVERN_EXECUTION_ERROR"
+        assert len(stage["errorMessage"]) <= 1024
+        assert "response-secret" not in stage["errorMessage"]
 
     def test_when_reporter_records_response_expect_sensitive_evidence_redacted(self) -> None:
         namespace: dict[str, object] = {}
         exec(_reporter_source(("request-account",)), namespace)
 
         namespace["pytest_tavern_beta_before_every_request"]({})
-        namespace["pytest_tavern_beta_after_every_response"]({}, _Response())
+        namespace["pytest_tavern_beta_after_every_response"](
+            {"verify_response_with": {"forbiddenText": "response-secret"}}, _Response()
+        )
         namespace["complete"]("PASSED")
 
         stage = namespace["result"]["stages"][0]
@@ -331,6 +380,7 @@ class TestTavernExecutor:
         assert response["headers"]["Authorization"] == "[REDACTED]"
         assert response["headers"]["Set-Cookie"] == "[REDACTED]"
         assert response["body"] == {"token": "[REDACTED]", "key": "[REDACTED]"}
+        assert stage["expected"]["verify_response_with"]["forbiddenText"] == "[REDACTED]"
         assert "response-secret" not in serialized
 
     def test_when_response_body_exceeds_limit_expect_truncated_evidence(self) -> None:

@@ -54,6 +54,41 @@ class TestTavernResultMapper:
         assert outcomes[0].status is ResultStatus.ERROR
         assert outcomes[0].error_code == "TAVERN_PROCESS_FAILED"
 
+    def test_when_failed_stages_include_technical_and_assertion_errors_expect_only_assertion_failed(
+        self,
+    ) -> None:
+        timestamp = datetime(2026, 1, 1, tzinfo=UTC)
+        actions = _http_actions()
+        result = TavernExecutionResult(
+            1,
+            False,
+            (
+                TavernStageResult(
+                    "first",
+                    "FAILED",
+                    timestamp,
+                    timestamp,
+                    error_code="TAVERN_EXECUTION_ERROR",
+                ),
+                TavernStageResult(
+                    "second",
+                    "FAILED",
+                    timestamp,
+                    timestamp,
+                    error_code="TAVERN_ASSERTION_FAILED",
+                ),
+            ),
+            {},
+        )
+
+        outcomes = TavernResultMapper().map(actions, result)
+
+        assert [outcome.status for outcome in outcomes] == [
+            ResultStatus.ERROR,
+            ResultStatus.FAILED,
+        ]
+        assert outcomes[0].error_code == "TAVERN_EXECUTION_ERROR"
+
 
 def _http_actions() -> tuple[CompiledAction, ...]:
     return (
