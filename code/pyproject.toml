@@ -24,7 +24,7 @@ dev = [
   "pytest>=8.3,<10.0",
   "pytest-asyncio>=0.25,<2.0",
   "ruff>=0.9,<1.0",
-  "openapi-contract-toolkit @ https://github.com/antoniovho/openapi-contract-toolkit/releases/download/v0.1.1/openapi_contract_toolkit-0.1.1-py3-none-any.whl",
+  "openapi-contract-toolkit @ https://github.com/antoniovho/openapi-contract-toolkit/releases/download/v0.1.2/openapi_contract_toolkit-0.1.2-py3-none-any.whl",
   "pysonar==1.9.0.5762",
   "pytest-cov>=7.1.0",
   "mutmut>=3,<4",
