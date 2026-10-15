@@ -15,7 +15,7 @@ from test_service.domain.application.commands.authoring import (
     CreatePreconditionCommand,
     CreateTestCaseCommand,
 )
-from test_service.domain.commons.pagination import PaginationParams, SortOrder
+from test_service.domain.application.queries.pagination import PaginationParams, SortOrder
 from test_service.domain.model.authoring.definition import Action, Definition
 from test_service.domain.model.exceptions.precondition_already_exists_exception import (
     PreconditionAlreadyExistsException,

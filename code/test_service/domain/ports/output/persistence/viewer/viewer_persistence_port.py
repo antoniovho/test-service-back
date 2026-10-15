@@ -3,7 +3,7 @@
 from typing import Protocol
 from uuid import UUID
 
-from test_service.domain.commons.pagination import Page, PaginationParams
+from test_service.domain.application.queries.pagination import Page, PaginationParams
 from test_service.domain.model.viewer.records import (
     DriftEvent,
     ViewerEntityType,

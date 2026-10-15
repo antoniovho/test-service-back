@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from test_service.domain.commons.pagination import Page, PaginationParams
+from test_service.domain.application.queries.pagination import Page, PaginationParams
 from test_service.domain.model.composition.test_plan import TestPlan
 from test_service.domain.model.lifecycle import VersionStatus
 from test_service.domain.ports.output.persistence.test_plans.test_plan_persistence_port import (

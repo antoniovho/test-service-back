@@ -4,7 +4,7 @@ from uuid import uuid4
 from test_service_server.models.create_test_set_request import CreateTestSetRequest
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 
-from test_service.domain.commons.pagination import Page, SortOrder
+from test_service.domain.application.queries.pagination import Page, SortOrder
 from test_service.domain.model.composition.test_set import TestSet
 from test_service.domain.model.lifecycle import VersionStatus
 from test_service.infrastructure.adapters.input.rest.composition.test_sets.test_set_mapper import (

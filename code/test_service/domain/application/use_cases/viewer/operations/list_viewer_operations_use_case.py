@@ -1,7 +1,7 @@
 """Use case implementation: list asynchronous Viewer operations."""
 
+from test_service.domain.application.queries.pagination import Page
 from test_service.domain.application.queries.viewer import ListViewerOperationsQuery
-from test_service.domain.commons.pagination import Page
 from test_service.domain.model.viewer.records import ViewerOperation
 from test_service.domain.ports.input.use_cases.viewer.operations.list_viewer_operations_use_case import (  # noqa: E501
     ListViewerOperationsUseCase,

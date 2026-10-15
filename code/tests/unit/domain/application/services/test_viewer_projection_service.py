@@ -4,10 +4,10 @@ from uuid import uuid4
 
 import pytest
 
+from test_service.domain.application.queries.pagination import Page
 from test_service.domain.application.services.viewer_projection_service import (
     ViewerProjectionService,
 )
-from test_service.domain.commons.pagination import Page
 from test_service.domain.model.authoring.definition import Action, Definition
 from test_service.domain.model.authoring.precondition import Precondition
 from test_service.domain.model.authoring.test_case import (

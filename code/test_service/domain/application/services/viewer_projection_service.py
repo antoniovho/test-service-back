@@ -5,12 +5,12 @@ from dataclasses import replace
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
+from test_service.domain.application.queries.pagination import MAX_PAGE_LIMIT, PaginationParams
 from test_service.domain.application.services.resolvers.project_resolver import ProjectResolver
 from test_service.domain.application.services.viewer_projection_builder import (
     ViewerProjectionBuilder,
     ViewerSnapshot,
 )
-from test_service.domain.commons.pagination import MAX_PAGE_LIMIT, PaginationParams
 from test_service.domain.model.composition.test_plan import TestPlan
 from test_service.domain.model.exceptions.viewer_projection_integrity_exception import (
     ViewerProjectionIntegrityException,

@@ -5,7 +5,7 @@ from uuid import UUID
 from sqlalchemy import asc, desc, func, select
 from sqlalchemy.orm import selectinload
 
-from test_service.domain.commons.pagination import Page, PaginationParams, SortOrder
+from test_service.domain.application.queries.pagination import Page, PaginationParams, SortOrder
 from test_service.domain.model.lifecycle import VersionStatus
 from test_service.infrastructure.adapters.output.authoring.test_cases.persistence.dtos.test_case_dto import (  # noqa: E501
     TestCaseDTO,

@@ -8,7 +8,7 @@ import pytest
 from sqlalchemy.dialects import postgresql
 
 from test_service.config import ExecutionSettings
-from test_service.domain.commons.pagination import Page, PaginationParams, SortOrder
+from test_service.domain.application.queries.pagination import Page, PaginationParams, SortOrder
 from test_service.domain.model.execution.execution import Execution, ExecutionStatus
 from test_service.infrastructure.adapters.output.execution.executions.execution_persistence_adapter import (  # noqa: E501
     ExecutionPersistenceAdapter,

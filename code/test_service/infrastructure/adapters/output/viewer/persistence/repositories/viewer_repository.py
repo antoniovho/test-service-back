@@ -6,7 +6,7 @@ from uuid import UUID
 from sqlalchemy import asc, desc, func, or_, select
 
 from test_service.config import ViewerSettings
-from test_service.domain.commons.pagination import Page, PaginationParams, SortOrder
+from test_service.domain.application.queries.pagination import Page, PaginationParams, SortOrder
 from test_service.domain.model.viewer.records import ViewerEntityType, ViewerType
 from test_service.infrastructure.adapters.output.commons.persistence.postgres.postgres_session_provider import (  # noqa: E501
     PostgresSessionProvider,

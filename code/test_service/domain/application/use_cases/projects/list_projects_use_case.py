@@ -1,7 +1,7 @@
 """Use case implementation: list projects."""
 
+from test_service.domain.application.queries.pagination import Page
 from test_service.domain.application.queries.projects import ListProjectsQuery
-from test_service.domain.commons.pagination import Page
 from test_service.domain.model.projects.project import Project
 from test_service.domain.ports.input.use_cases.projects.list_projects_use_case import (
     ListProjectsUseCase,

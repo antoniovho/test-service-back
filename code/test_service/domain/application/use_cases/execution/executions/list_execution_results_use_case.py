@@ -1,10 +1,10 @@
 """Use case implementation: list execution results."""
 
 from test_service.domain.application.queries.execution import ListExecutionResultsQuery
+from test_service.domain.application.queries.pagination import Page
 from test_service.domain.application.services.resolvers.execution_access_resolver import (
     ExecutionAccessResolver,
 )
-from test_service.domain.commons.pagination import Page
 from test_service.domain.model.execution.execution import TestResult
 from test_service.domain.ports.input.use_cases.execution.executions.list_execution_results_use_case import (  # noqa: E501
     ListExecutionResultsUseCase,

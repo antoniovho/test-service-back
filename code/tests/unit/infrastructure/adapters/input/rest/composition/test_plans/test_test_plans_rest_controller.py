@@ -7,7 +7,7 @@ from test_service_server.models.action_request import ActionRequest
 from test_service_server.models.create_test_plan_request import CreateTestPlanRequest
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 
-from test_service.domain.commons.pagination import Page
+from test_service.domain.application.queries.pagination import Page
 from test_service.domain.model.composition.test_plan import ExecutionMode, TestPlan
 from test_service.domain.ports.input.use_cases.composition.test_plans.activate_test_plan_use_case import (  # noqa: E501
     ActivateTestPlanUseCase,

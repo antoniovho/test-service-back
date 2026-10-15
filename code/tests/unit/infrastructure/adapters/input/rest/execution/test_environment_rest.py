@@ -7,7 +7,7 @@ from test_service_server.models.action_request import ActionRequest
 from test_service_server.models.create_environment_request import CreateEnvironmentRequest
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 
-from test_service.domain.commons.pagination import Page
+from test_service.domain.application.queries.pagination import Page
 from test_service.domain.model.execution.environment import Environment, SecretReference
 from test_service.domain.ports.input.use_cases.execution.environments.activate_environment_use_case import (  # noqa: E501
     ActivateEnvironmentUseCase,

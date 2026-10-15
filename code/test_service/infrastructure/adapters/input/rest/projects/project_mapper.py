@@ -13,9 +13,9 @@ from test_service.domain.application.commands.projects import (
     CreateProjectCommand,
     DeleteProjectCommand,
 )
+from test_service.domain.application.queries.pagination import Page, PaginationParams
+from test_service.domain.application.queries.pagination import SortOrder as DomainSortOrder
 from test_service.domain.application.queries.projects import GetProjectQuery, ListProjectsQuery
-from test_service.domain.commons.pagination import Page, PaginationParams
-from test_service.domain.commons.pagination import SortOrder as DomainSortOrder
 from test_service.domain.model.projects.project import Project
 
 _BASE_SORT_FIELDS: MappingProxyType = MappingProxyType(

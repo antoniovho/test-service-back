@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from test_service.domain.commons.pagination import Page, PaginationParams
+from test_service.domain.application.queries.pagination import Page, PaginationParams
 from test_service.domain.model.authoring.precondition import Precondition
 from test_service.domain.model.lifecycle import VersionStatus
 from test_service.domain.ports.output.persistence.preconditions.precondition_persistence_port import (  # noqa: E501

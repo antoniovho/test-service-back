@@ -10,7 +10,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from test_service.config import ViewerSettings
-from test_service.domain.commons.pagination import PaginationParams, SortOrder
+from test_service.domain.application.queries.pagination import PaginationParams, SortOrder
 from test_service.domain.model.viewer.records import ViewerType
 from test_service.infrastructure.adapters.output.commons.persistence.postgres.postgres_session_provider import (  # noqa: E501
     PostgresSessionProvider,

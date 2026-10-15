@@ -7,7 +7,7 @@ from test_service_server.models.action_request import ActionRequest
 from test_service_server.models.create_test_set_request import CreateTestSetRequest
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 
-from test_service.domain.commons.pagination import Page
+from test_service.domain.application.queries.pagination import Page
 from test_service.domain.model.composition.test_set import TestSet
 from test_service.domain.ports.input.use_cases.composition.test_sets.activate_test_set_use_case import (  # noqa: E501
     ActivateTestSetUseCase,

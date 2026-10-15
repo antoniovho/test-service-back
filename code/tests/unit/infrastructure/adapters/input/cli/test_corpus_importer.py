@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 
-from test_service.domain.commons.pagination import Page
+from test_service.domain.application.queries.pagination import Page
 from test_service.infrastructure.adapters.input.cli.corpus_importer import (
     CorpusImporter,
     load_document,

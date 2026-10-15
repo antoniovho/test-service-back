@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 
-from test_service.domain.commons.pagination import Page, PaginationParams
+from test_service.domain.application.queries.pagination import Page, PaginationParams
 from test_service.domain.model.execution.execution import ArtifactType, ResultStatus, StorageType
 from test_service.infrastructure.adapters.output.execution.executions.execution_results_persistence_adapter import (  # noqa: E501
     ExecutionResultsPersistenceAdapter,

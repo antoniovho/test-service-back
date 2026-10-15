@@ -9,7 +9,7 @@ from test_service_server.models.create_precondition_request import CreatePrecond
 from test_service_server.models.definition import Definition as ApiDefinition
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 
-from test_service.domain.commons.pagination import Page
+from test_service.domain.application.queries.pagination import Page
 from test_service.domain.model.authoring.definition import Action, Definition
 from test_service.domain.model.authoring.precondition import Precondition
 from test_service.domain.ports.input.use_cases.authoring.preconditions.activate_precondition_use_case import (  # noqa: E501

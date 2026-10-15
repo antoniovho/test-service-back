@@ -9,6 +9,7 @@ from test_service.domain.application.queries.execution import (
     ListExecutionResultArtifactsQuery,
     ListExecutionResultsQuery,
 )
+from test_service.domain.application.queries.pagination import Page, PaginationParams
 from test_service.domain.application.services.resolvers.execution_access_resolver import (
     ExecutionAccessResolver,
 )
@@ -27,7 +28,6 @@ from test_service.domain.application.use_cases.execution.executions.list_executi
 from test_service.domain.application.use_cases.execution.executions.list_execution_results_use_case import (  # noqa: E501
     ListExecutionResultsUseCaseImpl,
 )
-from test_service.domain.commons.pagination import Page, PaginationParams
 from test_service.domain.model.exceptions.entity_not_found_exception import EntityNotFoundException
 from test_service.domain.model.execution.execution import (
     ActionResult,

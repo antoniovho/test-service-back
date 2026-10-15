@@ -12,6 +12,7 @@ from test_service.domain.application.queries.composition import (
     ListTestSetsQuery,
     TestSetQuery,
 )
+from test_service.domain.application.queries.pagination import Page, PaginationParams
 from test_service.domain.application.services.resolvers.project_resolver import ProjectResolver
 from test_service.domain.application.services.resolvers.test_case_snapshot_resolver import (
     TestCaseSnapshotResolver,
@@ -31,7 +32,6 @@ from test_service.domain.application.use_cases.composition.test_sets.get_test_se
 from test_service.domain.application.use_cases.composition.test_sets.list_test_sets_use_case import (  # noqa: E501
     ListTestSetsUseCaseImpl,
 )
-from test_service.domain.commons.pagination import Page, PaginationParams
 from test_service.domain.model.authoring.definition import Action, Definition
 from test_service.domain.model.authoring.test_case import Priority, TestCase, TestLevel, TestType
 from test_service.domain.model.composition.test_set import TestSet

@@ -8,6 +8,7 @@ from test_service.domain.application.commands.projects import (
     CreateProjectCommand,
     DeleteProjectCommand,
 )
+from test_service.domain.application.queries.pagination import Page, PaginationParams
 from test_service.domain.application.queries.projects import GetProjectQuery, ListProjectsQuery
 from test_service.domain.application.services.resolvers.project_resolver import ProjectResolver
 from test_service.domain.application.use_cases.projects.create_project_use_case import (
@@ -22,7 +23,6 @@ from test_service.domain.application.use_cases.projects.get_project_use_case imp
 from test_service.domain.application.use_cases.projects.list_projects_use_case import (
     ListProjectsUseCaseImpl,
 )
-from test_service.domain.commons.pagination import Page, PaginationParams
 from test_service.domain.model.exceptions.entity_not_found_exception import (
     EntityNotFoundException,
 )

@@ -6,7 +6,7 @@ from uuid import UUID
 from sqlalchemy import asc, desc, func, select, update
 
 from test_service.config import ExecutionSettings
-from test_service.domain.commons.pagination import Page, PaginationParams, SortOrder
+from test_service.domain.application.queries.pagination import Page, PaginationParams, SortOrder
 from test_service.infrastructure.adapters.output.commons.persistence.postgres.postgres_session_provider import (  # noqa: E501
     PostgresSessionProvider,
 )

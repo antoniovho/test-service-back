@@ -3,7 +3,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
-from test_service.domain.commons.pagination import Page, PaginationParams
+from test_service.domain.application.queries.pagination import Page, PaginationParams
 from test_service.domain.model.viewer.records import (
     DriftEvent,
     DriftType,

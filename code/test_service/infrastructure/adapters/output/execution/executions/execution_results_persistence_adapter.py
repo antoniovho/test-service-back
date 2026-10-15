@@ -3,7 +3,7 @@
 
 from uuid import UUID
 
-from test_service.domain.commons.pagination import Page, PaginationParams
+from test_service.domain.application.queries.pagination import Page, PaginationParams
 from test_service.domain.model.execution.execution import (
     ActionResult,
     TestResult,

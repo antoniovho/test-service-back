@@ -9,6 +9,7 @@ from test_service.domain.application.commands.execution import (
     ScheduleExecutionCommand,
 )
 from test_service.domain.application.queries.execution import ExecutionQuery, ListExecutionsQuery
+from test_service.domain.application.queries.pagination import Page, PaginationParams
 from test_service.domain.application.services.execution.definition_compiler import (
     DefinitionCompiler,
 )
@@ -31,7 +32,6 @@ from test_service.domain.application.use_cases.execution.executions.list_executi
 from test_service.domain.application.use_cases.execution.executions.schedule_execution_use_case import (  # noqa: E501
     ScheduleExecutionUseCaseImpl,
 )
-from test_service.domain.commons.pagination import Page, PaginationParams
 from test_service.domain.model.authoring.test_case import (
     TestCase,
 )
