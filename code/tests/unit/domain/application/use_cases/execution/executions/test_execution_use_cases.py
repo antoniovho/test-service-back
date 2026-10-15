@@ -113,6 +113,8 @@ class _ExecutionRepository:
         self.saved: Execution | None = None
         self.expected_statuses = ()
         self.transition_result: Execution | None = None
+        self.transition_returns_none = False
+        self.find_requested_ids = []
 
     async def save_execution(self, execution: Execution) -> Execution:
         self.saved = execution
@@ -120,6 +122,8 @@ class _ExecutionRepository:
 
     async def transition_execution(self, execution: Execution, expected_statuses):
         self.expected_statuses = expected_statuses
+        if self.transition_returns_none:
+            return None
         if self.transition_result is not None:
             return self.transition_result
         self.saved = execution
@@ -127,6 +131,7 @@ class _ExecutionRepository:
         return execution
 
     async def find_execution(self, identifier):
+        self.find_requested_ids.append(identifier)
         return self.execution
 
     async def find_page(self, project_key: str, pagination):
@@ -327,6 +332,7 @@ class TestExecutionUseCases:
         assert result.status is ExecutionStatus.CANCELLED
         assert repository.saved == result
         assert repository.expected_statuses == (ExecutionStatus.CREATED, ExecutionStatus.RUNNING)
+        assert repository.find_requested_ids == [execution.identifier]
         assert cancellation.cancelled == [execution.identifier]
 
     async def test_when_execution_finishes_before_cancel_persists_expect_transition_rejected(self):
@@ -337,10 +343,14 @@ class TestExecutionUseCases:
             ExecutionStatus.PASSED, datetime(2026, 1, 1, 0, 0, 1, tzinfo=UTC)
         )
         cancellation = _CancellationRegistry()
+        use_case = CancelExecutionUseCaseImpl(repository, cancellation)
 
-        with pytest.raises(InvalidExecutionTransitionException):
-            await CancelExecutionUseCaseImpl(repository, cancellation).execute(command)
+        with pytest.raises(InvalidExecutionTransitionException) as error:
+            await use_case.execute(command)
 
+        assert error.value.error_description == (
+            "execution state changed before cancellation could be persisted"
+        )
         assert cancellation.cancelled == []
 
     async def test_when_cancelling_foreign_execution_expect_not_found(self):
@@ -350,8 +360,44 @@ class TestExecutionUseCases:
             _ExecutionRepository(execution), _CancellationRegistry()
         )
 
-        with pytest.raises(EntityNotFoundException):
+        with pytest.raises(EntityNotFoundException) as error:
             await use_case.execute(command)
+
+        assert error.value.error_description == (
+            f"execution '{execution.identifier}' was not found in project 'IAG'."
+        )
+
+    async def test_when_execution_is_missing_expect_not_found_without_cancellation(self):
+        identifier = uuid4()
+        command = CancelExecutionCommand("IAG", identifier)
+        repository = _ExecutionRepository()
+        cancellation = _CancellationRegistry()
+        use_case = CancelExecutionUseCaseImpl(repository, cancellation)
+
+        with pytest.raises(EntityNotFoundException) as error:
+            await use_case.execute(command)
+
+        assert error.value.error_description == (
+            f"execution '{identifier}' was not found in project 'IAG'."
+        )
+        assert repository.find_requested_ids == [identifier]
+        assert repository.saved is None
+        assert cancellation.cancelled == []
+
+    async def test_when_cancellation_transition_is_missing_expect_not_found_without_signal(self):
+        execution = _execution()
+        command = CancelExecutionCommand("IAG", execution.identifier)
+        repository = _ExecutionRepository(execution)
+        repository.transition_returns_none = True
+        cancellation = _CancellationRegistry()
+        use_case = CancelExecutionUseCaseImpl(repository, cancellation)
+
+        with pytest.raises(EntityNotFoundException) as error:
+            await use_case.execute(command)
+
+        assert error.value.error_description == f"execution '{execution.identifier}' was not found"
+        assert repository.expected_statuses == (ExecutionStatus.CREATED, ExecutionStatus.RUNNING)
+        assert cancellation.cancelled == []
 
 
 async def _async_result(value):

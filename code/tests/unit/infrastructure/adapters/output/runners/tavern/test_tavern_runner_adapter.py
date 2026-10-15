@@ -106,6 +106,20 @@ class _SseExecutor:
         )
 
 
+class _FailingSseExecutor:
+    async def execute(self, client, action, context, cancellation):
+        timestamp = datetime(2026, 1, 1, tzinfo=UTC)
+        return RunnerActionOutcome(
+            action.identifier,
+            action.action_type,
+            ResultStatus.ERROR,
+            timestamp,
+            timestamp,
+            error_code="SSE_TRANSPORT_ERROR",
+            error_message="SSE stream could not be opened",
+        )
+
+
 class _RecordingSseExecutor:
     def __init__(self, cancellation: asyncio.Event | None = None) -> None:
         self._cancellation = cancellation
@@ -201,6 +215,13 @@ class TestTavernRunnerAdapter:
 
         assert outcome.status is ResultStatus.ERROR
         assert outcome.error_code == "TAVERN_PROCESS_FAILED"
+        assert outcome.error_message == (
+            "Tavern process exited with code 2 before reporting this stage"
+        )
+        assert outcome.started_at.tzinfo is UTC
+        assert outcome.finished_at.tzinfo is UTC
+        assert outcome.actions[0].action_id == "first"
+        assert outcome.actions[0].action_type == "HTTP"
 
     async def test_when_cancelled_before_execution_expect_skipped_test_case_outcome(self) -> None:
         cancellation = asyncio.Event()
@@ -211,6 +232,11 @@ class TestTavernRunnerAdapter:
 
         assert outcome.status is ResultStatus.SKIPPED
         assert outcome.error_code == "CANCELLED"
+        assert outcome.error_message == "Cancelled"
+        assert outcome.actions == ()
+        assert outcome.variables == {}
+        assert outcome.started_at.tzinfo is UTC
+        assert outcome.finished_at.tzinfo is UTC
 
     async def test_when_cancelled_after_http_block_expect_skipped_outcome_with_saved_variables(
         self,
@@ -237,6 +263,37 @@ class TestTavernRunnerAdapter:
 
         assert outcome.status is ResultStatus.PASSED
         assert outcome.actions[0].status is ResultStatus.PASSED
+
+    async def test_when_sse_action_errors_expect_later_actions_not_executed(self) -> None:
+        compiler = _RecordingCompiler()
+        adapter = TavernRunnerAdapter(compiler=compiler, sse_executor=_FailingSseExecutor())
+        test_case = CompiledTestCase(
+            "case-id",
+            {},
+            (
+                CompiledAction("failing-event", "SSE", 0, {}),
+                CompiledAction("later-http", "HTTP", 1, {}),
+            ),
+        )
+
+        outcome = await adapter.execute(test_case, asyncio.Event())
+
+        assert outcome.status is ResultStatus.ERROR
+        assert outcome.error_code == "SSE_TRANSPORT_ERROR"
+        assert outcome.error_message == "SSE stream could not be opened"
+        assert [action.action_id for action in outcome.actions] == ["failing-event"]
+        assert compiler.calls == []
+
+    async def test_when_compiled_test_case_has_no_actions_expect_empty_passed_outcome(self) -> None:
+        test_case = CompiledTestCase("case-id", {"tenant": "acme"}, ())
+
+        outcome = await TavernRunnerAdapter().execute(test_case, asyncio.Event())
+
+        assert outcome.status is ResultStatus.PASSED
+        assert outcome.actions == ()
+        assert outcome.error_code is None
+        assert outcome.error_message is None
+        assert outcome.variables == {}
 
     async def test_when_http_blocks_are_separated_by_sse_expect_grouping_order_and_context(
         self,
@@ -342,6 +399,10 @@ class TestTavernRunnerAdapter:
 
         assert outcomes[0].status is ResultStatus.ERROR
         assert outcomes[0].error_code == "TAVERN_RUNNER_ERROR"
+        assert outcomes[0].action_id == "first"
+        assert outcomes[0].action_type == "HTTP"
+        assert outcomes[0].started_at.tzinfo is UTC
+        assert outcomes[0].finished_at.tzinfo is UTC
         assert variables == {}
 
     async def test_when_tavern_saves_variables_expect_variables_returned_in_outcome(self) -> None:
@@ -388,5 +449,30 @@ class TestTavernRunnerAdapter:
             "Tavern runner execution failed",
             "Tavern runner execution failed",
         ]
+        assert [outcome.action_id for outcome in outcomes] == ["first", "second"]
+        assert [outcome.action_type for outcome in outcomes] == ["HTTP", "HTTP"]
+        assert all(outcome.started_at.tzinfo is UTC for outcome in outcomes)
+        assert all(outcome.finished_at.tzinfo is UTC for outcome in outcomes)
         assert "details" not in str(outcomes)
         assert variables == {}
+
+    def test_when_building_test_case_outcome_expect_all_supplied_fields_preserved(self) -> None:
+        timestamp = datetime(2026, 1, 1, tzinfo=UTC)
+        action = RunnerActionOutcome("request", "HTTP", ResultStatus.PASSED, timestamp, timestamp)
+
+        outcome = TavernRunnerAdapter._build_test_case_outcome(
+            ResultStatus.ERROR,
+            timestamp,
+            [action],
+            "PARTIAL_FAILURE",
+            "One action failed",
+            {"session": "saved"},
+        )
+
+        assert outcome.status is ResultStatus.ERROR
+        assert outcome.started_at == timestamp
+        assert outcome.finished_at.tzinfo is UTC
+        assert outcome.actions == (action,)
+        assert outcome.error_code == "PARTIAL_FAILURE"
+        assert outcome.error_message == "One action failed"
+        assert outcome.variables == {"session": "saved"}

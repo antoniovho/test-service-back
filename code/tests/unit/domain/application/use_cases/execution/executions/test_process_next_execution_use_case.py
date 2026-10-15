@@ -2,7 +2,9 @@ import asyncio
 from dataclasses import replace
 from datetime import UTC, datetime
 from typing import cast
-from uuid import uuid4
+from uuid import UUID, uuid4
+
+import pytest
 
 from test_service.domain.application.services.execution.definition_compiler import (
     DefinitionCompiler,
@@ -25,6 +27,9 @@ from test_service.domain.model.authoring.test_case import (
 )
 from test_service.domain.model.composition.test_plan import ExecutionMode, TestPlan
 from test_service.domain.model.exceptions.entity_not_found_exception import EntityNotFoundException
+from test_service.domain.model.exceptions.execution_manifest_integrity_exception import (
+    ExecutionManifestIntegrityException,
+)
 from test_service.domain.model.exceptions.execution_runner_unavailable_exception import (
     ExecutionRunnerUnavailableException,
 )
@@ -111,7 +116,7 @@ def _execution(
 
 
 class _Executions:
-    def __init__(self, execution: Execution) -> None:
+    def __init__(self, execution: Execution | None) -> None:
         self._execution = execution
         self.current = execution
         self.saved: list[Execution] = []
@@ -164,8 +169,10 @@ class _TestCases:
 class _TestPlans:
     def __init__(self, test_plan: TestPlan | None) -> None:
         self._test_plan = test_plan
+        self.requested_ids = []
 
     async def find_by_id(self, identifier):
+        self.requested_ids.append(identifier)
         return self._test_plan
 
 
@@ -215,6 +222,19 @@ class _SequenceRunner(_Runner):
         self.executed_test_case_ids.append(test_case.test_case_id)
         self.executed_variables.append(dict(test_case.variables))
         return self._outcomes.pop(0)
+
+
+class _ActionAwareRunner(_SequenceRunner):
+    def __init__(
+        self, supported_action_types: frozenset[str], *outcomes: RunnerTestCaseOutcome
+    ) -> None:
+        super().__init__(*outcomes)
+        self.supported_action_types = supported_action_types
+        self.requested_action_types: list[frozenset[str]] = []
+
+    def supports(self, action_types: frozenset[str]) -> bool:
+        self.requested_action_types.append(action_types)
+        return action_types == self.supported_action_types
 
 
 class _ConcurrentCancellationRunner(_Runner):
@@ -335,6 +355,28 @@ def _use_case(
 
 
 class TestProcessNextExecutionUseCase:
+    async def test_when_no_execution_is_queued_expect_none_after_stale_recovery(self):
+        test_case = _test_case()
+        executions = _Executions(None)
+        cancellations = _Cancellations()
+        use_case = _process_next_execution_use_case(
+            executions,
+            _Results(),
+            _TestCases(test_case),
+            _Preconditions(),
+            _TestPlans(_test_plan()),
+            _Runner(),
+            cancellations,
+            ExecutionVariablesResolver(_SecretResolver()),
+        )
+
+        processed = await use_case.execute(None)
+
+        assert processed is None
+        assert executions.calls == ["recover", "claim"]
+        assert cancellations.registered == []
+        assert cancellations.unregistered == []
+
     async def test_when_processing_next_execution_expect_stale_executions_recovered_first(self):
         test_case = _test_case()
         execution = _execution(test_case.identifier)
@@ -504,10 +546,11 @@ class TestProcessNextExecutionUseCase:
             variables={"sessionToken": "temporary-token"},
         )
         execution = _execution(test_case.identifier)
+        runner = _SequenceRunner(precondition_outcome)
         use_case = _use_case(
             execution,
             test_case,
-            _SequenceRunner(precondition_outcome),
+            runner,
             preconditions=(precondition,),
         )
 
@@ -522,6 +565,7 @@ class TestProcessNextExecutionUseCase:
         assert outcome.variables == {"environment": "value", "sessionToken": "temporary-token"}
         assert outcome.secrets == frozenset({"environment-secret", "temporary-token"})
         assert len(outcome.evidence) == 2
+        assert runner.executed_variables == [{"environment": "value"}]
         assert outcome.terminal_result == (
             ResultStatus.BLOCKED,
             "PRECONDITION_MISSING",
@@ -633,6 +677,65 @@ class TestProcessNextExecutionUseCase:
         assert runner.executed_test_case_ids == [str(precondition_id)]
         assert actions[0].action_id == f"precondition:{precondition_id}"
         assert actions[0].status is ResultStatus.FAILED
+
+    async def test_when_executing_test_case_expect_cancellation_is_forwarded_to_preconditions(
+        self, monkeypatch
+    ):
+        test_case = _test_case()
+        execution = _execution(test_case.identifier)
+        results = _Results()
+        use_case = _use_case(execution, test_case, _Runner(), results)
+        cancellation = asyncio.Event()
+        received_cancellations: list[asyncio.Event] = []
+
+        async def execute_preconditions(*arguments):
+            received_cancellations.append(arguments[2])
+            return process_next_execution_use_case._PreconditionOutcome(
+                {},
+                frozenset(),
+                (),
+                (ResultStatus.BLOCKED, "PRECONDITION_MISSING", "missing prerequisite"),
+            )
+
+        monkeypatch.setattr(use_case, "_execute_preconditions", execute_preconditions)
+
+        status = await use_case._execute_test_case(
+            execution,
+            test_case,
+            cancellation,
+            ExecutionVariables({}, frozenset()),
+            process_next_execution_use_case._Deadline(float("inf"), "not reached"),
+        )
+
+        assert status is ResultStatus.BLOCKED
+        assert received_cancellations == [cancellation]
+        assert results.saved[0][0].error_code == "PRECONDITION_MISSING"
+
+    async def test_when_saving_terminal_result_expect_generated_result_identifier(self):
+        test_case = _test_case()
+        execution = _execution(test_case.identifier)
+        results = _Results()
+        use_case = _use_case(execution, test_case, _Runner(), results)
+
+        status = await use_case._save_terminal_result(
+            execution,
+            test_case.identifier,
+            _STARTED_AT,
+            ResultStatus.BLOCKED,
+            "PRECONDITION_MISSING",
+            "missing prerequisite",
+        )
+
+        result, actions, artifacts = results.saved[0]
+        assert status is ResultStatus.BLOCKED
+        assert isinstance(result.identifier, UUID)
+        assert result.execution_id == execution.identifier
+        assert result.test_case_id == test_case.identifier
+        assert result.status is ResultStatus.BLOCKED
+        assert result.error_code == "PRECONDITION_MISSING"
+        assert result.error_message == "missing prerequisite"
+        assert actions == ()
+        assert artifacts == ()
 
     async def test_when_cancel_wins_during_runner_expect_worker_preserves_cancelled_state(self):
         test_case = _test_case()
@@ -937,3 +1040,318 @@ class TestProcessNextExecutionUseCase:
         assert processed.status is ExecutionStatus.ERROR
         assert runner.executed_test_case_ids == []
         assert isinstance(caplog.records[-1].exc_info[1], EntityNotFoundException)
+
+    async def test_when_execution_manifest_has_no_test_cases_expect_error_without_running(self):
+        test_case = _test_case()
+        execution = replace(_execution(test_case.identifier), test_case_ids=())
+        runner = _Runner()
+        results = _Results()
+
+        processed = await _use_case(execution, test_case, runner, results).execute(None)
+
+        assert processed is not None
+        assert processed.status is ExecutionStatus.ERROR
+        assert runner.executed_test_case_ids == []
+        assert results.saved == []
+
+    async def test_when_manifest_has_no_test_cases_expect_integrity_error_names_execution(self):
+        test_case = _test_case()
+        execution = replace(_execution(test_case.identifier), test_case_ids=())
+        use_case = _use_case(execution, test_case, _Runner())
+        cancellation = asyncio.Event()
+        variables = ExecutionVariables({}, frozenset())
+
+        with pytest.raises(ExecutionManifestIntegrityException, match=str(execution.identifier)):
+            await use_case._execute(
+                execution,
+                cancellation,
+                variables,
+            )
+
+    async def test_when_execution_references_unknown_test_case_expect_error_without_running(self):
+        test_case = _test_case()
+        execution = _execution(uuid4())
+        runner = _Runner()
+        results = _Results()
+
+        processed = await _use_case(execution, test_case, runner, results).execute(None)
+
+        assert processed is not None
+        assert processed.status is ExecutionStatus.ERROR
+        assert runner.executed_test_case_ids == []
+        assert results.saved == []
+
+    async def test_when_test_plan_is_missing_expect_exact_lookup_and_exception_context(self):
+        test_case = _test_case()
+        execution = _execution(test_case.identifier)
+        test_plans = _TestPlans(None)
+        use_case = _use_case(execution, test_case, _Runner(), test_plans=test_plans)
+        cancellation = asyncio.Event()
+        variables = ExecutionVariables({}, frozenset())
+
+        with pytest.raises(
+            EntityNotFoundException,
+            match=f"Test plan '{execution.test_plan_id}' was not found",
+        ):
+            await use_case._execute(execution, cancellation, variables)
+
+        assert test_plans.requested_ids == [execution.test_plan_id]
+
+    async def test_when_manifest_references_missing_case_expect_exact_integrity_context(self):
+        missing_test_case_id = uuid4()
+        test_case = _test_case()
+        execution = _execution(missing_test_case_id)
+        use_case = _use_case(execution, test_case, _Runner())
+        cancellation = asyncio.Event()
+        variables = ExecutionVariables({}, frozenset())
+
+        with pytest.raises(
+            ExecutionManifestIntegrityException,
+            match=(
+                f"execution '{execution.identifier}' references missing test case snapshot "
+                f"'{missing_test_case_id}'"
+            ),
+        ):
+            await use_case._execute(execution, cancellation, variables)
+
+    async def test_when_test_case_completes_expect_complete_result_metadata_and_action_linkage(
+        self,
+    ):
+        test_case = _test_case()
+        execution = _execution(test_case.identifier)
+        outcome = RunnerTestCaseOutcome(
+            status=ResultStatus.FAILED,
+            started_at=_STARTED_AT,
+            finished_at=_FINISHED_AT,
+            actions=(
+                RunnerActionOutcome(
+                    "request",
+                    "HTTP",
+                    ResultStatus.FAILED,
+                    _STARTED_AT,
+                    _FINISHED_AT,
+                    error_code="HTTP_500",
+                ),
+            ),
+            error_code="HTTP_500",
+            error_message="Service unavailable",
+        )
+        results = _Results()
+        use_case = _use_case(execution, test_case, _Runner(outcome=outcome), results)
+
+        status = await use_case._execute_test_case(
+            execution,
+            test_case,
+            asyncio.Event(),
+            ExecutionVariables({}, frozenset()),
+            process_next_execution_use_case._Deadline(float("inf"), "not reached"),
+        )
+
+        result, actions, _ = results.saved[0]
+        assert status is ResultStatus.FAILED
+        assert isinstance(result.identifier, UUID)
+        assert result.execution_id == execution.identifier
+        assert result.test_case_id == test_case.identifier
+        assert result.created_at == _STARTED_AT
+        assert result.started_at == _STARTED_AT
+        assert result.finished_at == _FINISHED_AT
+        assert result.duration_ms == 1000
+        assert result.error_code == "HTTP_500"
+        assert result.error_message == "Service unavailable"
+        assert actions[0].test_result_id == result.identifier
+
+    async def test_when_test_case_is_unsupported_after_precondition_expect_evidence_preserved(self):
+        precondition_id = uuid4()
+        precondition = Precondition(
+            identifier=precondition_id,
+            project_key="IAG",
+            precondition_key="authenticated",
+            version=1,
+            name="Authenticated session",
+            description="Creates an authenticated session",
+            validation_definition=Definition(
+                variables={},
+                actions=(Action("login", "HTTP", {"url": "https://example.test/login"}),),
+            ),
+            created_at=_STARTED_AT,
+            created_by="author@example.test",
+            status=VersionStatus.ACTIVE,
+        )
+        test_case = replace(
+            _test_case(preconditions=(PreconditionReference(precondition_id, "authenticated", 1),)),
+            definition=Definition(
+                variables={},
+                actions=(Action("verify", "SSE", {"url": "https://example.test/events"}),),
+            ),
+        )
+        execution = _execution(test_case.identifier)
+        precondition_outcome = RunnerTestCaseOutcome(
+            status=ResultStatus.PASSED,
+            started_at=_STARTED_AT,
+            finished_at=_FINISHED_AT,
+            actions=(),
+        )
+        results = _Results()
+        runner = _ActionAwareRunner(frozenset({"HTTP"}), precondition_outcome)
+        use_case = _use_case(execution, test_case, runner, results, preconditions=(precondition,))
+
+        status = await use_case._execute_test_case(
+            execution,
+            test_case,
+            asyncio.Event(),
+            ExecutionVariables({}, frozenset()),
+            process_next_execution_use_case._Deadline(float("inf"), "not reached"),
+        )
+
+        result, actions, _ = results.saved[0]
+        assert status is ResultStatus.BLOCKED
+        assert result.error_code == "RUNNER_UNSUPPORTED_TEST_CASE"
+        assert runner.requested_action_types == [frozenset({"HTTP"}), frozenset({"SSE"})]
+        assert [action.action_id for action in actions] == [f"precondition:{precondition_id}"]
+
+    async def test_when_precondition_is_unsupported_expect_original_context_is_preserved(self):
+        precondition_id = uuid4()
+        precondition = Precondition(
+            identifier=precondition_id,
+            project_key="IAG",
+            precondition_key="authenticated",
+            version=1,
+            name="Authenticated session",
+            description="Creates an authenticated session",
+            validation_definition=Definition(
+                variables={},
+                actions=(Action("login", "HTTP", {"url": "https://example.test/login"}),),
+            ),
+            created_at=_STARTED_AT,
+            created_by="author@example.test",
+            status=VersionStatus.ACTIVE,
+        )
+        test_case = _test_case(
+            preconditions=(PreconditionReference(precondition_id, "authenticated", 1),)
+        )
+        execution = _execution(test_case.identifier)
+        runner = _ActionAwareRunner(frozenset({"GRPC"}))
+        use_case = _use_case(execution, test_case, runner, preconditions=(precondition,))
+        variables = ExecutionVariables({"tenant": "zara"}, frozenset({"tenant-secret"}))
+
+        outcome = await use_case._execute_preconditions(
+            execution,
+            test_case,
+            asyncio.Event(),
+            variables,
+            process_next_execution_use_case._Deadline(float("inf"), "not reached"),
+        )
+
+        assert outcome.variables == {"tenant": "zara"}
+        assert outcome.secrets == frozenset({"tenant-secret"})
+        assert outcome.evidence == ()
+        assert outcome.terminal_result == (
+            ResultStatus.BLOCKED,
+            "RUNNER_UNSUPPORTED_PRECONDITION",
+            f"Execution '{execution.identifier}' cannot run Test Case "
+            f"'{test_case.identifier}' because runner 'runner' does not support precondition "
+            f"'{precondition_id}'.",
+        )
+        assert runner.requested_action_types == [frozenset({"HTTP"})]
+
+    async def test_when_precondition_times_out_expect_original_context_and_deadline_preserved(
+        self, monkeypatch
+    ):
+        precondition_id = uuid4()
+        precondition = Precondition(
+            identifier=precondition_id,
+            project_key="IAG",
+            precondition_key="authenticated",
+            version=1,
+            name="Authenticated session",
+            description="Creates an authenticated session",
+            validation_definition=Definition(
+                variables={},
+                actions=(Action("login", "HTTP", {"url": "https://example.test/login"}),),
+            ),
+            created_at=_STARTED_AT,
+            created_by="author@example.test",
+            status=VersionStatus.ACTIVE,
+        )
+        test_case = _test_case(
+            preconditions=(PreconditionReference(precondition_id, "authenticated", 1),)
+        )
+        execution = _execution(test_case.identifier)
+        use_case = _use_case(execution, test_case, _Runner(), preconditions=(precondition,))
+        cancellation = asyncio.Event()
+        deadline = process_next_execution_use_case._Deadline(42, "precondition deadline reached")
+        variables = ExecutionVariables({"tenant": "zara"}, frozenset({"tenant-secret"}))
+        received_cancellations: list[asyncio.Event] = []
+
+        async def timed_out_run(compiled, received_cancellation, received_deadline):
+            received_cancellations.append(received_cancellation)
+            assert received_deadline == deadline
+            return None
+
+        monkeypatch.setattr(use_case, "_run", timed_out_run)
+
+        outcome = await use_case._execute_preconditions(
+            execution, test_case, cancellation, variables, deadline
+        )
+
+        assert outcome.variables == {"tenant": "zara"}
+        assert outcome.secrets == frozenset({"tenant-secret"})
+        assert outcome.evidence == ()
+        assert outcome.terminal_result == (
+            ResultStatus.ERROR,
+            "TEST_TIMEOUT",
+            "precondition deadline reached",
+        )
+        assert received_cancellations == [cancellation]
+
+    async def test_when_precondition_fails_expect_updated_context_and_evidence_preserved(self):
+        precondition_id = uuid4()
+        precondition = Precondition(
+            identifier=precondition_id,
+            project_key="IAG",
+            precondition_key="authenticated",
+            version=1,
+            name="Authenticated session",
+            description="Creates an authenticated session",
+            validation_definition=Definition(
+                variables={},
+                actions=(Action("login", "HTTP", {"url": "https://example.test/login"}),),
+            ),
+            created_at=_STARTED_AT,
+            created_by="author@example.test",
+            status=VersionStatus.ACTIVE,
+        )
+        test_case = _test_case(
+            preconditions=(PreconditionReference(precondition_id, "authenticated", 1),)
+        )
+        execution = _execution(test_case.identifier)
+        outcome = RunnerTestCaseOutcome(
+            status=ResultStatus.FAILED,
+            started_at=_STARTED_AT,
+            finished_at=_FINISHED_AT,
+            actions=(),
+            variables={"sessionToken": "temporary-token"},
+        )
+        runner = _ActionAwareRunner(frozenset({"HTTP"}), outcome)
+        use_case = _use_case(execution, test_case, runner, preconditions=(precondition,))
+
+        precondition_outcome = await use_case._execute_preconditions(
+            execution,
+            test_case,
+            asyncio.Event(),
+            ExecutionVariables({"tenant": "zara"}, frozenset({"tenant-secret"})),
+            process_next_execution_use_case._Deadline(float("inf"), "not reached"),
+        )
+
+        assert precondition_outcome.variables == {
+            "tenant": "zara",
+            "sessionToken": "temporary-token",
+        }
+        assert precondition_outcome.secrets == frozenset({"tenant-secret", "temporary-token"})
+        assert len(precondition_outcome.evidence) == 1
+        assert precondition_outcome.terminal_result == (
+            ResultStatus.BLOCKED,
+            "PRECONDITION_FAILED",
+            f"Execution '{execution.identifier}' cannot run Test Case "
+            f"'{test_case.identifier}' because precondition '{precondition_id}' did not pass.",
+        )

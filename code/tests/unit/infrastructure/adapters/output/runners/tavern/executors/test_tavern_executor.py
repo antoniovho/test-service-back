@@ -2,8 +2,9 @@ import asyncio
 import json
 import stat
 from datetime import UTC, datetime
+from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from tavern._core.exceptions import TestFailError as TavernAssertionError
@@ -67,6 +68,7 @@ class TestTavernExecutor:
         assert result.exit_code == 0
         assert result.cancelled is False
         assert result.stages == ()
+        assert result.variables == {}
         create_subprocess.assert_awaited_once()
 
     async def test_when_tavern_execution_is_cancelled_expect_cancelled_result(
@@ -102,11 +104,67 @@ class TestTavernExecutor:
         await TavernExecutor().execute({}, ("request-account",), asyncio.Event())
 
         environment = create_subprocess.await_args.kwargs["env"]
+        arguments = create_subprocess.await_args.args
+        parameters = create_subprocess.await_args.kwargs
+        test_file = Path(arguments[1])
+
+        assert arguments[0] == "tavern-ci"
+        assert test_file.name == "test-execution.tavern.yaml"
+        assert test_file.parent.name.startswith("test-service-")
+        assert parameters["cwd"] == test_file.parent
+        assert parameters["stdout"] is asyncio.subprocess.DEVNULL
+        assert parameters["stderr"] is asyncio.subprocess.DEVNULL
+        assert parameters["start_new_session"] is True
         assert environment["PATH"] == "/usr/local/bin:/usr/bin"
         assert "database-secret" not in environment.values()
         assert "xray-secret" not in environment.values()
         assert "DATABASE_PASSWORD" not in environment
         assert "XRAY_CLIENT_SECRET" not in environment
+
+    async def test_when_launching_tavern_expect_expected_temporary_files_written(
+        self, monkeypatch
+    ) -> None:
+        document = {"stages": [{"name": "request-account"}]}
+        writes: dict[str, str] = {}
+        monkeypatch.setattr(
+            tavern_executor,
+            "_write_secure",
+            lambda path, content: writes.__setitem__(path.name, content),
+        )
+        monkeypatch.setattr(
+            tavern_executor.asyncio,
+            "create_subprocess_exec",
+            AsyncMock(return_value=_Process()),
+        )
+
+        await TavernExecutor().execute(document, ("request-account",), asyncio.Event())
+
+        assert json.loads(writes["test-execution.tavern.yaml"]) == document
+        assert 'STAGES = ["request-account"]' in writes["conftest.py"]
+
+    async def test_when_tavern_finishes_expect_report_read_from_standard_result_file(
+        self, monkeypatch
+    ) -> None:
+        process = _Process(7)
+        read_paths: list[Path] = []
+        expected = tavern_executor.TavernExecutionResult(7, False, (), {})
+
+        def read_result(path: Path, exit_code: int):
+            read_paths.append(path)
+            assert exit_code == 7
+            return expected
+
+        monkeypatch.setattr(
+            tavern_executor.asyncio,
+            "create_subprocess_exec",
+            AsyncMock(return_value=process),
+        )
+        monkeypatch.setattr(tavern_executor, "_read_result", read_result)
+
+        result = await TavernExecutor().execute({}, (), asyncio.Event())
+
+        assert result is expected
+        assert [path.name for path in read_paths] == ["result.json"]
 
     @pytest.mark.parametrize(
         ("document", "construct"),
@@ -144,6 +202,25 @@ class TestTavernExecutor:
 
         assert exit_code == 2
         assert cancelled is False
+
+    async def test_when_process_and_cancellation_complete_together_expect_no_termination(
+        self, monkeypatch
+    ) -> None:
+        process = _Process(2)
+        cancellation = asyncio.Event()
+        cancellation.set()
+        signals: list[int] = []
+        monkeypatch.setattr(
+            tavern_executor,
+            "_terminate_process_group",
+            lambda _, signal: signals.append(signal),
+        )
+
+        exit_code, cancelled = await TavernExecutor._wait_for_process(process, cancellation)
+
+        assert exit_code == 2
+        assert cancelled is False
+        assert signals == []
 
     async def test_when_cancelling_running_process_expect_termination_signal(
         self, monkeypatch
@@ -266,6 +343,42 @@ class TestTavernExecutor:
         assert path.read_text(encoding="utf-8") == "private-result"
         assert stat.S_IMODE(path.stat().st_mode) == 0o600
 
+    def test_when_writing_temporary_file_expect_utf8_stream(self, monkeypatch, tmp_path) -> None:
+        path = tmp_path / "result.json"
+        descriptor = 42
+        stream = MagicMock()
+        stream.__enter__.return_value = stream
+        monkeypatch.setattr(tavern_executor.os, "open", lambda *_: descriptor)
+        file_open = MagicMock(return_value=stream)
+        monkeypatch.setattr(tavern_executor.os, "fdopen", file_open)
+
+        _write_secure(path, "private-result")
+
+        file_open.assert_called_once_with(descriptor, "w", encoding="utf-8")
+        stream.write.assert_called_once_with("private-result")
+
+    def test_when_reading_structured_result_expect_utf8_input(self) -> None:
+        timestamp = "2026-01-01T00:00:00+00:00"
+        result_file = MagicMock()
+        result_file.exists.return_value = True
+        result_file.read_text.return_value = json.dumps(
+            {
+                "stages": [
+                    {
+                        "identifier": "request-account",
+                        "status": "PASSED",
+                        "startedAt": timestamp,
+                        "finishedAt": timestamp,
+                    }
+                ],
+                "variables": {},
+            }
+        )
+
+        _read_result(result_file, 0)
+
+        result_file.read_text.assert_called_once_with(encoding="utf-8")
+
     def test_when_reading_structured_result_expect_valid_stages_and_string_variables(
         self, tmp_path
     ) -> None:
@@ -280,6 +393,10 @@ class TestTavernExecutor:
                             "status": "PASSED",
                             "startedAt": timestamp,
                             "finishedAt": timestamp,
+                            "expected": {"status_code": 200},
+                            "actual": {"statusCode": 200, "body": {"account": "123"}},
+                            "errorCode": "NO_ERROR",
+                            "errorMessage": "request completed",
                         }
                     ],
                     "variables": {"sessionId": "123", "ignored": 123},
@@ -290,8 +407,44 @@ class TestTavernExecutor:
 
         result = _read_result(result_file, 0)
 
+        assert result.exit_code == 0
+        assert result.cancelled is False
         assert result.stages[0].identifier == "request-account"
+        assert result.stages[0].status == "PASSED"
+        assert result.stages[0].started_at == datetime.fromisoformat(timestamp)
+        assert result.stages[0].finished_at == datetime.fromisoformat(timestamp)
+        assert result.stages[0].expected == {"status_code": 200}
+        assert result.stages[0].actual == {"statusCode": 200, "body": {"account": "123"}}
+        assert result.stages[0].error_code == "NO_ERROR"
+        assert result.stages[0].error_message == "request completed"
         assert result.variables == {"sessionId": "123"}
+
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            {"stages": [], "variables": []},
+            {
+                "stages": [
+                    {
+                        "identifier": "request-account",
+                        "status": "SKIPPED",
+                        "startedAt": "2026-01-01T00:00:00+00:00",
+                        "finishedAt": "2026-01-01T00:00:00+00:00",
+                    }
+                ],
+                "variables": {},
+            },
+        ],
+        ids=["variables-not-object", "unsupported-stage-status"],
+    )
+    def test_when_reading_report_with_invalid_structure_expect_value_error(
+        self, tmp_path, payload
+    ) -> None:
+        result_file = tmp_path / "result.json"
+        result_file.write_text(json.dumps(payload), encoding="utf-8")
+
+        with pytest.raises(ValueError, match="Tavern result report is invalid"):
+            _read_result(result_file, 0)
 
     def test_when_reading_malformed_report_expect_value_error(self, tmp_path) -> None:
         result_file = tmp_path / "result.json"
@@ -311,7 +464,9 @@ class TestTavernExecutor:
         result = _read_result(tmp_path / "missing.json", 2)
 
         assert result.exit_code == 2
+        assert result.cancelled is False
         assert result.stages == ()
+        assert result.variables == {}
 
     def test_when_terminating_active_process_expect_group_signal(self, monkeypatch) -> None:
         process = _Process(None)
