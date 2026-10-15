@@ -1110,13 +1110,13 @@ wheels = [
 
 [[package]]
 name = "openapi-contract-toolkit"
-version = "0.1.0"
-source = { url = "https://github.com/antoniovho/openapi-contract-toolkit/releases/download/v0.1.0/openapi_contract_toolkit-0.1.0-py3-none-any.whl" }
+version = "0.1.1"
+source = { url = "https://github.com/antoniovho/openapi-contract-toolkit/releases/download/v0.1.1/openapi_contract_toolkit-0.1.1-py3-none-any.whl" }
 dependencies = [
     { name = "tomlkit" },
 ]
 wheels = [
-    { url = "https://github.com/antoniovho/openapi-contract-toolkit/releases/download/v0.1.0/openapi_contract_toolkit-0.1.0-py3-none-any.whl", hash = "sha256:033e70275ed4f5af3c8c6287c0210e5094fde9f6f88c2fd6e6245e229622de82" },
+    { url = "https://github.com/antoniovho/openapi-contract-toolkit/releases/download/v0.1.1/openapi_contract_toolkit-0.1.1-py3-none-any.whl", hash = "sha256:6986f78f04b20b5a8feb90865f651f689fe84e981f692ca7f89ea4d9c1f2aeda" },
 ]
 
 [package.metadata]
@@ -2071,7 +2071,7 @@ requires-dist = [
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.28,<1.0" },
     { name = "jsonschema", specifier = ">=4.26,<5.0" },
     { name = "mutmut", marker = "extra == 'dev'", specifier = ">=3,<4" },
-    { name = "openapi-contract-toolkit", marker = "extra == 'dev'", url = "https://github.com/antoniovho/openapi-contract-toolkit/releases/download/v0.1.0/openapi_contract_toolkit-0.1.0-py3-none-any.whl" },
+    { name = "openapi-contract-toolkit", marker = "extra == 'dev'", url = "https://github.com/antoniovho/openapi-contract-toolkit/releases/download/v0.1.1/openapi_contract_toolkit-0.1.1-py3-none-any.whl" },
     { name = "opyoid", specifier = ">=4.0.0" },
     { name = "pydantic-settings", specifier = ">=2.7,<3.0" },
     { name = "pyjwt", extras = ["crypto"], specifier = ">=2.15.0" },
