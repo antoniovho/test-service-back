@@ -92,6 +92,23 @@ class TestViewerRepository:
     def settings(self) -> ViewerSettings:
         return ViewerSettings(operation_recovery_timeout_seconds=60)
 
+    async def test_when_saving_and_getting_operation_expect_persisted_dto(self) -> None:
+        operation = _operation_dto()
+        session = MagicMock()
+        session.merge = AsyncMock(return_value=operation)
+        session.get = AsyncMock(return_value=operation)
+        session.commit = AsyncMock()
+        session.refresh = AsyncMock()
+        repository = ViewerRepository(_SessionProvider(session), ViewerSettings())
+
+        saved = await repository.save_operation(operation)
+        loaded = await repository.get_operation(operation.id)
+
+        assert saved is operation
+        assert loaded is operation
+        session.commit.assert_awaited_once()
+        session.refresh.assert_awaited_once_with(operation)
+
     async def test_when_saving_sync_record_expect_existing_identity_retained(self) -> None:
         record = _sync_dto()
         current = _sync_dto()
@@ -134,6 +151,19 @@ class TestViewerRepository:
         assert threshold == _FIXED_NOW - timedelta(seconds=60)
         assert operation.status == "RUNNING"
 
+    async def test_when_no_operation_is_available_expect_claim_returns_none(self) -> None:
+        result = MagicMock()
+        result.scalar_one_or_none.return_value = None
+        session = MagicMock()
+        session.execute = AsyncMock(return_value=result)
+        session.commit = AsyncMock()
+        repository = ViewerRepository(_SessionProvider(session), ViewerSettings())
+
+        operation = await repository.claim_next_operation()
+
+        assert operation is None
+        session.commit.assert_not_awaited()
+
     async def test_when_saving_new_sync_and_drift_expect_persisted_dtos(self) -> None:
         record = _sync_dto()
         event = _drift_dto(record)
@@ -149,6 +179,25 @@ class TestViewerRepository:
 
         assert saved_record is record
         assert saved_event is event
+
+    async def test_when_listing_operations_expect_global_and_project_pages(self) -> None:
+        operation = _operation_dto()
+        total = MagicMock()
+        total.scalar_one.return_value = 1
+        page = MagicMock()
+        page.scalars.return_value.all.return_value = [operation]
+        session = MagicMock()
+        session.execute = AsyncMock(side_effect=[total, page, total, page])
+        repository = ViewerRepository(_SessionProvider(session), ViewerSettings())
+        pagination = PaginationParams(order=SortOrder.DESC)
+
+        global_page = await repository.find_operations_page(pagination)
+        project_page = await repository.find_operations_page_by_project(
+            "IAG", pagination, ViewerType.XRAY
+        )
+
+        assert global_page.items == (operation,)
+        assert project_page.total == 1
 
     async def test_when_listing_sync_records_expect_global_and_project_pages(self) -> None:
         record = _sync_dto()

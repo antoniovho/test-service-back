@@ -127,9 +127,12 @@ class TestTavernExecutor:
     ) -> None:
         create_subprocess = AsyncMock(return_value=_Process())
         monkeypatch.setattr(tavern_executor.asyncio, "create_subprocess_exec", create_subprocess)
+        executor = TavernExecutor()
+        stage_identifiers = ("request-account",)
+        cancellation = asyncio.Event()
 
         with pytest.raises(ValueError, match="Tavern document uses") as exc:
-            await TavernExecutor().execute(document, ("request-account",), asyncio.Event())
+            await executor.execute(document, stage_identifiers, cancellation)
 
         assert construct in str(exc.value)
         create_subprocess.assert_not_awaited()
@@ -162,6 +165,33 @@ class TestTavernExecutor:
         assert exit_code == 143
         assert cancelled is True
         assert signals == [tavern_executor.signal.SIGTERM]
+
+    async def test_when_process_does_not_stop_gracefully_expect_forceful_termination(
+        self, monkeypatch
+    ) -> None:
+        process = _BlockingProcess()
+        cancellation = asyncio.Event()
+        cancellation.set()
+        signals: list[int] = []
+
+        def terminate_process_group(terminated_process, signal):
+            signals.append(signal)
+            if signal == tavern_executor.signal.SIGKILL:
+                terminated_process.returncode = -9
+                terminated_process.completed.set()
+
+        monkeypatch.setattr(tavern_executor, "_terminate_process_group", terminate_process_group)
+        monkeypatch.setattr(
+            tavern_executor.asyncio,
+            "wait_for",
+            AsyncMock(side_effect=TimeoutError),
+        )
+
+        exit_code, cancelled = await TavernExecutor._wait_for_process(process, cancellation)
+
+        assert exit_code == -9
+        assert cancelled is True
+        assert signals == [tavern_executor.signal.SIGTERM, tavern_executor.signal.SIGKILL]
 
     async def test_when_waiting_task_is_cancelled_expect_process_group_killed(
         self, monkeypatch
@@ -270,6 +300,13 @@ class TestTavernExecutor:
         with pytest.raises(ValueError, match="Tavern result report is invalid"):
             _read_result(result_file, 0)
 
+    def test_when_reading_invalid_json_report_expect_value_error(self, tmp_path) -> None:
+        result_file = tmp_path / "result.json"
+        result_file.write_text("not-json", encoding="utf-8")
+
+        with pytest.raises(ValueError, match="Tavern result report is invalid"):
+            _read_result(result_file, 0)
+
     def test_when_no_result_file_exists_expect_empty_result(self, tmp_path) -> None:
         result = _read_result(tmp_path / "missing.json", 2)
 
@@ -289,6 +326,19 @@ class TestTavernExecutor:
         _terminate_process_group(process, 15)
 
         assert signals == [(123, 15)]
+
+    def test_when_terminating_completed_process_expect_no_signal(self, monkeypatch) -> None:
+        process = _Process(0)
+        signals: list[tuple[int, int]] = []
+        monkeypatch.setattr(
+            tavern_executor.os,
+            "killpg",
+            lambda process_id, signal: signals.append((process_id, signal)),
+        )
+
+        _terminate_process_group(process, 15)
+
+        assert signals == []
 
     def test_when_request_fails_before_response_expect_credentials_redacted(self) -> None:
         namespace: dict[str, object] = {}

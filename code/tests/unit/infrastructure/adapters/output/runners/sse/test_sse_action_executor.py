@@ -177,6 +177,27 @@ async def test_when_sse_content_type_is_unexpected_expect_failed_outcome() -> No
     assert outcome.error_code == "SSE_CONTENT_TYPE_MISMATCH"
 
 
+async def test_when_done_marker_is_received_but_not_expected_expect_failed_outcome() -> None:
+    action = CompiledAction(
+        "stream-chat",
+        "SSE",
+        0,
+        {
+            "url": "https://api.example.test/chat/completions",
+            "expectedDone": False,
+        },
+    )
+    transport = httpx.MockTransport(
+        lambda request: httpx.Response(200, content=b"data: [DONE]\n\n")
+    )
+
+    async with httpx.AsyncClient(transport=transport) as client:
+        outcome = await SseExecutor().execute(client, action, {}, asyncio.Event())
+
+    assert outcome.status is ResultStatus.FAILED
+    assert outcome.error_code == "SSE_UNEXPECTED_DONE"
+
+
 async def test_when_sse_delta_fragments_match_expect_passed_outcome() -> None:
     chunk_schema = {
         "type": "object",
@@ -386,6 +407,39 @@ async def test_when_stream_is_cancelled_expect_skipped_outcome() -> None:
 
 
 @pytest.mark.parametrize(
+    "expected_schema",
+    [[], {"type": "unknown-json-schema-type"}],
+    ids=["not-an-object", "invalid-json-schema"],
+)
+async def test_when_expected_data_schema_is_invalid_expect_schema_failure(expected_schema) -> None:
+    action = CompiledAction(
+        "stream-chat",
+        "SSE",
+        0,
+        {
+            "url": "https://api.example.test/chat/completions",
+            "expectedDataJsonSchema": expected_schema,
+        },
+    )
+    async with httpx.AsyncClient() as client:
+        outcome = await SseExecutor().execute(client, action, {}, asyncio.Event())
+
+    assert outcome.status is ResultStatus.FAILED
+    assert outcome.error_code == "SSE_INVALID_EXPECTED_SCHEMA"
+
+
+async def test_when_sse_endpoint_returns_error_status_expect_transport_failure() -> None:
+    action = CompiledAction("await-order", "SSE", 0, {"url": "https://api.example.test/events"})
+    transport = httpx.MockTransport(lambda request: httpx.Response(503))
+
+    async with httpx.AsyncClient(transport=transport) as client:
+        outcome = await SseExecutor().execute(client, action, {}, asyncio.Event())
+
+    assert outcome.status is ResultStatus.FAILED
+    assert outcome.error_code == "SSE_TRANSPORT_ERROR"
+
+
+@pytest.mark.parametrize(
     "configuration",
     [[], {"url": ""}],
     ids=["not-an-object", "empty-url"],
@@ -397,3 +451,66 @@ async def test_when_sse_configuration_is_invalid_expect_transport_error(configur
 
     assert outcome.status is ResultStatus.FAILED
     assert outcome.error_code == "SSE_TRANSPORT_ERROR"
+
+
+async def test_when_expected_sse_data_is_not_received_expect_failed_outcome() -> None:
+    action = CompiledAction(
+        "await-order",
+        "SSE",
+        0,
+        {"url": "https://api.example.test/events", "expectedData": "expected-data"},
+    )
+    transport = httpx.MockTransport(
+        lambda request: httpx.Response(200, content=b"data: received-data\n\n")
+    )
+
+    async with httpx.AsyncClient(transport=transport) as client:
+        outcome = await SseExecutor().execute(client, action, {}, asyncio.Event())
+
+    assert outcome.status is ResultStatus.FAILED
+    assert outcome.error_code == "SSE_EXPECTED_DATA_NOT_RECEIVED"
+
+
+async def test_when_json_validation_has_only_done_marker_expect_failed_outcome() -> None:
+    action = CompiledAction(
+        "stream-chat",
+        "SSE",
+        0,
+        {
+            "url": "https://api.example.test/chat/completions",
+            "expectedDataJsonSchema": {"type": "object"},
+            "expectedDone": True,
+        },
+    )
+    transport = httpx.MockTransport(
+        lambda request: httpx.Response(200, content=b"data: [DONE]\n\n")
+    )
+
+    async with httpx.AsyncClient(transport=transport) as client:
+        outcome = await SseExecutor().execute(client, action, {}, asyncio.Event())
+
+    assert outcome.status is ResultStatus.FAILED
+    assert outcome.error_code == "SSE_NO_JSON_DATA"
+
+
+async def test_when_final_sse_chunk_violates_schema_expect_failed_outcome() -> None:
+    action = CompiledAction(
+        "stream-chat",
+        "SSE",
+        0,
+        {
+            "url": "https://api.example.test/chat/completions",
+            "expectedFinalDataJsonSchema": {"type": "object", "required": ["usage"]},
+            "expectedDone": True,
+            "maxEvents": 2,
+        },
+    )
+    transport = httpx.MockTransport(
+        lambda request: httpx.Response(200, content=b"data: {}\n\ndata: [DONE]\n\n")
+    )
+
+    async with httpx.AsyncClient(transport=transport) as client:
+        outcome = await SseExecutor().execute(client, action, {}, asyncio.Event())
+
+    assert outcome.status is ResultStatus.FAILED
+    assert outcome.error_code == "SSE_FINAL_DATA_SCHEMA_MISMATCH"
