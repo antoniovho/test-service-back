@@ -33,6 +33,22 @@ class TestTavernIsolation:
         assert result.stages[0].status == "PASSED"
         assert server.received[0]["x-probe"] == "hello"
 
+    async def test_when_server_returns_4xx_with_token_expect_failure_evidence_redacted(
+        self, server
+    ) -> None:
+        server.response.status = 401
+        server.response.body = b'{"token":"integration-token"}'
+        document = _document(server.url, {})
+
+        result = await TavernExecutor().execute(document, ("probe",), asyncio.Event())
+
+        stage = result.stages[0]
+        assert result.exit_code != 0
+        assert stage.status == "FAILED"
+        assert stage.error_code == "TAVERN_ASSERTION_FAILED"
+        assert "integration-token" not in (stage.error_message or "")
+        assert stage.actual["body"] == {"token": "[REDACTED]"}
+
     async def test_when_document_references_service_secret_expect_rejected_and_nothing_sent(
         self, server, monkeypatch
     ) -> None:
@@ -48,7 +64,7 @@ class TestTavernIsolation:
         self, server, monkeypatch
     ) -> None:
         monkeypatch.setenv(_SENTINEL_NAME, _SENTINEL_VALUE)
-        monkeypatch.setattr(tavern_executor, "find_reserved_construct", lambda document: None)
+        monkeypatch.setattr(tavern_executor, "find_unsafe_tavern_construct", lambda document: None)
         document = _document(server.url, {"X-Leak": f"{{tavern.env_vars.{_SENTINEL_NAME}}}"})
 
         await TavernExecutor().execute(document, ("probe",), asyncio.Event())

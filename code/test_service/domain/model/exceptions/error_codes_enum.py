@@ -7,6 +7,7 @@ class DomainError(Enum):
     """One entry per domain exception type: (code, default description)."""
 
     ENTITY_NOT_FOUND = ("ENTITY_NOT_FOUND", "Entity not found")
+    ENTITY_FORBIDDEN = ("ENTITY_FORBIDDEN", "Access to the entity is forbidden")
     PROJECT_ALREADY_EXISTS = ("PROJECT_ALREADY_EXISTS", "Project already exists")
     PROJECT_ALREADY_DELETED = ("PROJECT_ALREADY_DELETED", "Project is already deleted")
     TEST_CASE_VERSION_ALREADY_EXISTS = (
@@ -58,6 +59,10 @@ class DomainError(Enum):
     INVALID_LIFECYCLE_TRANSITION = ("INVALID_LIFECYCLE_TRANSITION", "Invalid lifecycle transition")
     INVALID_TEMPORAL_DATA = ("INVALID_TEMPORAL_DATA", "Invalid temporal data")
     INVALID_ARTIFACT_STORAGE = ("INVALID_ARTIFACT_STORAGE", "Invalid artifact storage metadata")
+    VIEWER_PROJECTION_INVALID = (
+        "VIEWER_PROJECTION_INVALID",
+        "Viewer projection cannot be built",
+    )
 
     @property
     def code(self) -> str:

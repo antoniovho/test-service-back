@@ -9,6 +9,7 @@ from test_service.domain.application.queries.execution import (
     ListExecutionResultArtifactsQuery,
     ListExecutionResultsQuery,
 )
+from test_service.domain.application.queries.pagination import Page, PaginationParams
 from test_service.domain.application.services.resolvers.execution_access_resolver import (
     ExecutionAccessResolver,
 )
@@ -27,7 +28,6 @@ from test_service.domain.application.use_cases.execution.executions.list_executi
 from test_service.domain.application.use_cases.execution.executions.list_execution_results_use_case import (  # noqa: E501
     ListExecutionResultsUseCaseImpl,
 )
-from test_service.domain.commons.pagination import Page, PaginationParams
 from test_service.domain.model.exceptions.entity_not_found_exception import EntityNotFoundException
 from test_service.domain.model.execution.execution import (
     ActionResult,
@@ -37,19 +37,12 @@ from test_service.domain.model.execution.execution import (
     StorageType,
     TestResult,
     TestResultArtifact,
-    TriggerType,
 )
+from tests.mothers.execution_mother import an_execution
 
 
 def _execution(project_key: str = "IAG") -> Execution:
-    return Execution(
-        identifier=uuid4(),
-        project_key=project_key,
-        test_plan_id=uuid4(),
-        environment_id=uuid4(),
-        trigger_type=TriggerType.API,
-        created_at=datetime(2026, 1, 1, tzinfo=UTC),
-    )
+    return an_execution(project_key=project_key)
 
 
 def _result(execution_id) -> TestResult:

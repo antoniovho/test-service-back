@@ -19,8 +19,8 @@ from test_service.domain.application.queries.execution import (
     EnvironmentQuery,
     ListEnvironmentsQuery,
 )
-from test_service.domain.commons.pagination import Page, PaginationParams
-from test_service.domain.commons.pagination import SortOrder as DomainSortOrder
+from test_service.domain.application.queries.pagination import Page, PaginationParams
+from test_service.domain.application.queries.pagination import SortOrder as DomainSortOrder
 from test_service.domain.model.execution.environment import Environment, SecretReference
 
 

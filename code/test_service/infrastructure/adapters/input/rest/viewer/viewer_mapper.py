@@ -15,6 +15,7 @@ from test_service.domain.application.commands.viewer import (
     CheckViewerDriftCommand,
     PublishViewerProjectionCommand,
 )
+from test_service.domain.application.queries.pagination import Page, PaginationParams, SortOrder
 from test_service.domain.application.queries.viewer import (
     ListProjectViewerDriftEventsQuery,
     ListProjectViewerOperationsQuery,
@@ -23,7 +24,6 @@ from test_service.domain.application.queries.viewer import (
     ListViewerOperationsQuery,
     ListViewerSyncRecordsQuery,
 )
-from test_service.domain.commons.pagination import Page, PaginationParams, SortOrder
 from test_service.domain.model.viewer.records import (
     DriftEvent,
     ViewerOperation,

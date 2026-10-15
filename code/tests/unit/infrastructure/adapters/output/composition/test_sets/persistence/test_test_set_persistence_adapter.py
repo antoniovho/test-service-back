@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from test_service.domain.commons.pagination import Page, PaginationParams
+from test_service.domain.application.queries.pagination import Page, PaginationParams
 from test_service.domain.model.composition.test_set import TestSet
 from test_service.domain.model.lifecycle import VersionStatus
 from test_service.infrastructure.adapters.output.composition.test_sets.persistence.mappers.test_set_persistence_mapper import (  # noqa: E501

@@ -2,8 +2,8 @@
 
 from typing import Protocol
 
+from test_service.domain.application.queries.pagination import Page
 from test_service.domain.application.queries.viewer import ListProjectViewerSyncRecordsQuery
-from test_service.domain.commons.pagination import Page
 from test_service.domain.model.viewer.records import ViewerSyncRecord
 from test_service.domain.ports.input.use_case import AsyncUseCase
 

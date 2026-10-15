@@ -11,6 +11,10 @@ from test_service.domain.model.exceptions.entity_not_found_exception import (
 from test_service.domain.model.exceptions.environment_already_exists_exception import (
     EnvironmentAlreadyExistsException,
 )
+from test_service.domain.model.exceptions.error_codes_enum import DomainError
+from test_service.domain.model.exceptions.external_project_access_forbidden_exception import (
+    ExternalProjectForbiddenException,
+)
 from test_service.domain.model.exceptions.external_project_not_found_exception import (
     ExternalProjectNotFoundException,
 )
@@ -108,6 +112,10 @@ def _build_app() -> FastAPI:
     async def _raise_provider_origin():
         raise InvalidArtifactStorageException("provider storage detail")
 
+    @app.get("/jira-forbidden")
+    async def _raise_jira_forbidden():
+        raise ExternalProjectForbiddenException()
+
     @app.get("/internal-origin")
     async def _raise_internal_origin():
         raise InvalidProjectDeletionException("internal deletion detail")
@@ -159,6 +167,16 @@ class TestRegisterExceptionHandlers:
         assert body["title"] == "Bad Gateway"
         assert body["detail"] == "A dependent service error occurred."
 
+    def test_when_external_project_forbids_access_expect_502_with_domain_error_detail(
+        self, client: TestClient
+    ):
+        response = client.get("/jira-forbidden")
+
+        body = response.json()
+        assert response.status_code == 502
+        assert body["title"] == "Bad Gateway"
+        assert body["detail"] == DomainError.ENTITY_FORBIDDEN.message
+
     def test_when_internal_origin_exception_expect_500_generic_problem_details(
         self, client: TestClient
     ):
@@ -183,6 +201,7 @@ class TestExceptionStatusMap:
         expected_status_map = {
             EntityNotFoundException: HTTPStatus.NOT_FOUND,
             ExternalProjectNotFoundException: HTTPStatus.UNPROCESSABLE_ENTITY,
+            ExternalProjectForbiddenException: HTTPStatus.BAD_GATEWAY,
             ProjectAlreadyDeletedException: HTTPStatus.CONFLICT,
             ProjectAlreadyExistsException: HTTPStatus.CONFLICT,
             TestCaseAlreadyExistsException: HTTPStatus.CONFLICT,

@@ -6,7 +6,7 @@ from uuid import uuid4
 from test_service_server.models.create_execution_request import CreateExecutionRequest
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 
-from test_service.domain.commons.pagination import Page
+from test_service.domain.application.queries.pagination import Page
 from test_service.domain.model.execution.execution import Execution, TriggerType
 from test_service.domain.ports.input.use_cases.execution.executions.cancel_execution_use_case import (  # noqa: E501
     CancelExecutionUseCase,

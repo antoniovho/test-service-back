@@ -3,7 +3,7 @@
 from typing import Protocol
 
 from test_service.domain.application.queries.execution import ListEnvironmentsQuery
-from test_service.domain.commons.pagination import Page
+from test_service.domain.application.queries.pagination import Page
 from test_service.domain.model.execution.environment import Environment
 from test_service.domain.ports.input.use_case import AsyncUseCase
 

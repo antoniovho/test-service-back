@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from test_service.domain.commons.pagination import PaginationParams
+from test_service.domain.application.queries.pagination import PaginationParams
 from test_service.domain.model.viewer.records import ViewerType
 
 

@@ -8,6 +8,7 @@ dependencies = [
   "asyncpg>=0.30,<1.0",
   "fastapi>=0.115,<1.0",
   "httpx>=0.28,<1.0",
+  "jsonschema>=4.26,<5.0",
   "opyoid>=4.0.0",
   "pydantic-settings>=2.7,<3.0",
   "pyjwt[crypto]>=2.15.0",
@@ -26,6 +27,7 @@ dev = [
   "openapi-contract-toolkit @ https://github.com/antoniovho/openapi-contract-toolkit/releases/download/v0.1.0/openapi_contract_toolkit-0.1.0-py3-none-any.whl",
   "pysonar==1.9.0.5762",
   "pytest-cov>=7.1.0",
+  "mutmut>=3,<4",
 ]
 
 [tool.openapi-contracts]
@@ -77,6 +79,28 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+
+[tool.mutmut]
+source_paths = ["test_service/"]
+on_dependency_change = "rerun"
+cache_invalidation_files = ["tests/**/*.py"]
+only_mutate = [
+  "test_service/domain/application/use_cases/execution/executions/cancel_execution_use_case.py",
+  "test_service/domain/application/use_cases/execution/executions/process_next_execution_use_case.py",
+  "test_service/domain/ports/output/runners/runner_dtos.py",
+  "test_service/infrastructure/adapters/output/execution/executions/execution_persistence_adapter.py",
+  "test_service/infrastructure/adapters/output/execution/executions/persistence/repositories/execution_repository.py",
+  "test_service/infrastructure/adapters/output/projects/jira/jira_project_validation_adapter.py",
+  "test_service/infrastructure/adapters/output/runners/tavern/executors/tavern_executor.py",
+  "test_service/infrastructure/adapters/output/runners/tavern/mappers/tavern_result_mapper.py",
+      "test_service/infrastructure/adapters/output/runners/tavern/tavern_runner_adapter.py",
+]
+pytest_add_cli_args_test_selection = [
+  "tests/unit/domain/application/use_cases/execution/executions/",
+  "tests/unit/infrastructure/adapters/output/execution/executions/persistence/",
+  "tests/unit/infrastructure/adapters/output/projects/jira/",
+  "tests/unit/infrastructure/adapters/output/runners/tavern/",
+]
 
 [tool.uv.sources]
 test-service-server = { path = "generated/test_service_server", editable = true }

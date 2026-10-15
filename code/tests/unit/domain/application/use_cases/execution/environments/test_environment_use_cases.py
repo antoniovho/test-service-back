@@ -12,6 +12,7 @@ from test_service.domain.application.queries.execution import (
     EnvironmentQuery,
     ListEnvironmentsQuery,
 )
+from test_service.domain.application.queries.pagination import Page, PaginationParams
 from test_service.domain.application.use_cases.execution.environments.activate_environment_use_case import (  # noqa: E501
     ActivateEnvironmentUseCaseImpl,
 )
@@ -27,7 +28,6 @@ from test_service.domain.application.use_cases.execution.environments.get_enviro
 from test_service.domain.application.use_cases.execution.environments.list_environments_use_case import (  # noqa: E501
     ListEnvironmentsUseCaseImpl,
 )
-from test_service.domain.commons.pagination import Page, PaginationParams
 from test_service.domain.model.exceptions.entity_not_found_exception import EntityNotFoundException
 from test_service.domain.model.exceptions.environment_already_exists_exception import (
     EnvironmentAlreadyExistsException,

@@ -28,6 +28,10 @@ class TavernResultMapper:
             stage = stages.get(action.identifier)
             if stage is not None:
                 status = ResultStatus(stage.status)
+                error_code = stage.error_code
+                if status is ResultStatus.FAILED and error_code != "TAVERN_ASSERTION_FAILED":
+                    status = ResultStatus.ERROR
+                    error_code = error_code or "TAVERN_EXECUTION_ERROR"
                 outcomes.append(
                     RunnerActionOutcome(
                         action.identifier,
@@ -37,7 +41,7 @@ class TavernResultMapper:
                         stage.finished_at,
                         stage.expected,
                         stage.actual,
-                        error_code=stage.error_code,
+                        error_code=error_code,
                         error_message=stage.error_message,
                     )
                 )

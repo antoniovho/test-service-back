@@ -20,7 +20,7 @@ from test_service.domain.application.queries.composition import (
     ListTestSetVersionsQuery,
     TestSetQuery,
 )
-from test_service.domain.commons.pagination import Page, PaginationParams
+from test_service.domain.application.queries.pagination import Page, PaginationParams
 from test_service.domain.model.composition.test_set import TestSet
 from test_service.domain.model.lifecycle import VersionStatus
 from test_service.infrastructure.adapters.input.rest.versioned_resource_mapper import (

@@ -4,7 +4,7 @@ from uuid import UUID
 
 from sqlalchemy import asc, desc, func, select
 
-from test_service.domain.commons.pagination import Page, PaginationParams, SortOrder
+from test_service.domain.application.queries.pagination import Page, PaginationParams, SortOrder
 from test_service.domain.model.lifecycle import VersionStatus
 from test_service.infrastructure.adapters.output.authoring.preconditions.persistence.dtos.precondition_dto import (  # noqa: E501
     PreconditionDTO,

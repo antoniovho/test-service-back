@@ -10,12 +10,13 @@ import pytest
 def server(monkeypatch) -> Iterator[SimpleNamespace]:
     """Local HTTP server that records the headers of every request it receives."""
     received: list[dict[str, str]] = []
+    response = SimpleNamespace(status=200, body=b"{}")
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
             received.append({key.lower(): value for key, value in self.headers.items()})
-            body = b"{}"
-            self.send_response(200)
+            body = response.body
+            self.send_response(response.status)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
@@ -29,7 +30,11 @@ def server(monkeypatch) -> Iterator[SimpleNamespace]:
     thread.start()
     monkeypatch.setenv("NO_PROXY", "127.0.0.1,localhost")
     monkeypatch.setenv("no_proxy", "127.0.0.1,localhost")
-    yield SimpleNamespace(url=f"http://127.0.0.1:{httpd.server_address[1]}", received=received)
+    yield SimpleNamespace(
+        url=f"http://127.0.0.1:{httpd.server_address[1]}",
+        received=received,
+        response=response,
+    )
     httpd.shutdown()
     httpd.server_close()
     thread.join()

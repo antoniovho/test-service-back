@@ -2,7 +2,10 @@
 
 from test_service.domain.application.commands.execution import CancelExecutionCommand
 from test_service.domain.model.exceptions.entity_not_found_exception import EntityNotFoundException
-from test_service.domain.model.execution.execution import Execution
+from test_service.domain.model.exceptions.invalid_execution_transition_exception import (
+    InvalidExecutionTransitionException,
+)
+from test_service.domain.model.execution.execution import Execution, ExecutionStatus
 from test_service.domain.ports.input.use_cases.execution.executions.cancel_execution_use_case import (  # noqa: E501
     CancelExecutionUseCase,
 )
@@ -32,6 +35,15 @@ class CancelExecutionUseCaseImpl(CancelExecutionUseCase):
             raise EntityNotFoundException(
                 "execution", str(request.identifier), f"project '{request.project_key}'"
             )
-        cancelled = await self._execution_repository.save_execution(execution.cancel())
+        cancelled = await self._execution_repository.transition_execution(
+            execution.cancel(),
+            (ExecutionStatus.CREATED, ExecutionStatus.RUNNING),
+        )
+        if cancelled is None:
+            raise EntityNotFoundException("execution", str(request.identifier))
+        if cancelled.status is not ExecutionStatus.CANCELLED:
+            raise InvalidExecutionTransitionException(
+                "execution state changed before cancellation could be persisted"
+            )
         self._cancellation.request_cancellation(request.identifier)
         return cancelled

@@ -3,9 +3,10 @@
 from typing import Protocol
 from uuid import UUID
 
-from test_service.domain.commons.pagination import Page, PaginationParams
+from test_service.domain.application.queries.pagination import Page, PaginationParams
 from test_service.domain.model.viewer.records import (
     DriftEvent,
+    ViewerEntityType,
     ViewerOperation,
     ViewerSyncRecord,
     ViewerType,
@@ -44,6 +45,16 @@ class ViewerPersistencePort(Protocol):
 
     async def save_sync_record(self, record: ViewerSyncRecord) -> ViewerSyncRecord:
         """Persist a synchronization record."""
+        ...
+
+    async def find_sync_record(
+        self,
+        project_key: str,
+        entity_type: ViewerEntityType,
+        entity_key: str,
+        viewer_type: ViewerType,
+    ) -> ViewerSyncRecord | None:
+        """Find the durable identity for one projected entity."""
         ...
 
     async def save_drift_event(self, event: DriftEvent) -> DriftEvent:

@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://test-service.example/contracts/corpus/test-corpus-1.1.0.schema.json",
+  "title": "Test Service first-load corpus",
+  "type": "object",
+  "oneOf": [
+    {"$ref": "#/$defs/testCase"},
+    {"$ref": "#/$defs/precondition"}
+  ],
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,99}$"
+    },
+    "variables": {
+      "type": "object",
+      "propertyNames": {"$ref": "#/$defs/identifier"},
+      "additionalProperties": {"type": "string"}
+    },
+    "headers": {
+      "type": "object",
+      "propertyNames": {"type": "string", "minLength": 1, "maxLength": 200},
+      "additionalProperties": {"type": "string", "minLength": 1, "maxLength": 4096}
+    },
+    "capture": {
+      "type": "object",
+      "propertyNames": {"$ref": "#/$defs/identifier"},
+      "additionalProperties": {"type": "string", "pattern": "^\\$([.][A-Za-z_][A-Za-z0-9_]*)*$"}
+    },
+    "httpConfiguration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["url"],
+      "properties": {
+        "url": {"type": "string", "minLength": 1, "maxLength": 4096},
+        "method": {"type": "string", "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]},
+        "headers": {"$ref": "#/$defs/headers"},
+        "params": {"type": "object"},
+        "query": {"type": "object"},
+        "json": {},
+        "expectedStatus": {"type": "integer", "minimum": 100, "maximum": 599},
+        "expectedJson": {},
+        "expectedText": {"type": "string", "maxLength": 16384},
+        "expectedTextContains": {
+          "oneOf": [
+            {"type": "string", "minLength": 1, "maxLength": 16384},
+            {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 50,
+              "uniqueItems": true,
+              "items": {"type": "string", "minLength": 1, "maxLength": 16384}
+            }
+          ]
+        },
+        "forbiddenText": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 50,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1, "maxLength": 4096}
+        },
+        "expectedHeaders": {"$ref": "#/$defs/headers"},
+        "expectedHeaderNames": {
+          "type": "array",
+          "maxItems": 50,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1, "maxLength": 200}
+        },
+        "expectedJsonSchema": {"type": "object"},
+        "maxResponseTimeMs": {"type": "integer", "minimum": 1, "maximum": 300000},
+        "capture": {"$ref": "#/$defs/capture"}
+      }
+    },
+    "sseConfiguration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["url"],
+      "properties": {
+        "url": {"type": "string", "minLength": 1, "maxLength": 4096},
+        "method": {"type": "string", "enum": ["GET", "POST"]},
+        "headers": {"$ref": "#/$defs/headers"},
+        "params": {"type": "object"},
+        "query": {"type": "object"},
+        "json": {},
+        "expectedEvent": {"type": "string", "minLength": 1, "maxLength": 256},
+        "expectedData": {"type": "string", "maxLength": 16384},
+        "expectedDataJsonSchema": {"type": "object"},
+        "expectedFinalDataJsonSchema": {"type": "object"},
+        "expectedConcatenatedContent": {"type": "string", "maxLength": 16384},
+        "expectedContentType": {"type": "string", "minLength": 1, "maxLength": 200},
+        "validateUsageTotals": {"type": "boolean"},
+        "expectedDone": {"type": "boolean"},
+        "maxEvents": {"type": "integer", "minimum": 1, "maximum": 1000},
+        "receiveTimeoutSeconds": {"type": "number", "exclusiveMinimum": 0, "maximum": 300},
+        "maxResponseTimeMs": {"type": "integer", "minimum": 1, "maximum": 300000}
+      }
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "configuration"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "type": {"enum": ["HTTP", "SSE"]},
+        "configuration": {"type": "object"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"type": {"const": "HTTP"}}},
+          "then": {"properties": {"configuration": {"$ref": "#/$defs/httpConfiguration"}}}
+        },
+        {
+          "if": {"properties": {"type": {"const": "SSE"}}},
+          "then": {"properties": {"configuration": {"$ref": "#/$defs/sseConfiguration"}}}
+        }
+      ]
+    },
+    "definition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "variables", "actions"],
+      "properties": {
+        "schemaVersion": {"const": "1.1"},
+        "variables": {"$ref": "#/$defs/variables"},
+        "actions": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/action"}}
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "objective": {"type": "string", "maxLength": 4000},
+        "labels": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 100}, "uniqueItems": true},
+        "source": {"type": "string", "maxLength": 200}
+      }
+    },
+    "testCase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "schemaVersion", "testCaseKey", "summary", "definition"],
+      "properties": {
+        "kind": {"const": "test-case"},
+        "schemaVersion": {"const": "1.1.0"},
+        "testCaseKey": {"$ref": "#/$defs/identifier"},
+        "summary": {"type": "string", "minLength": 1, "maxLength": 500},
+        "preconditionKeys": {"type": "array", "items": {"$ref": "#/$defs/identifier"}, "uniqueItems": true},
+        "definition": {"$ref": "#/$defs/definition"},
+        "metadata": {"$ref": "#/$defs/metadata"}
+      }
+    },
+    "precondition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "schemaVersion", "preconditionKey", "summary", "validationDefinition"],
+      "properties": {
+        "kind": {"const": "precondition"},
+        "schemaVersion": {"const": "1.1.0"},
+        "preconditionKey": {"$ref": "#/$defs/identifier"},
+        "summary": {"type": "string", "minLength": 1, "maxLength": 500},
+        "validationDefinition": {"$ref": "#/$defs/definition"},
+        "metadata": {"$ref": "#/$defs/metadata"}
+      }
+    }
+  }
+}

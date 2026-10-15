@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from test_service.domain.commons.pagination import Page, PaginationParams
+from test_service.domain.application.queries.pagination import Page, PaginationParams
 from test_service.domain.model.projects.project import Project
 from test_service.infrastructure.adapters.output.projects.persistence.dtos.project_dto import (
     ProjectDTO,

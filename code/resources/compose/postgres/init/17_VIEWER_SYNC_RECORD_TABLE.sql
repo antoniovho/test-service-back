@@ -10,15 +10,17 @@ CREATE TABLE IF NOT EXISTS test_service_v1.viewer_sync_record (
     external_entity_key   TEXT            NOT NULL,
     external_entity_id    TEXT            NULL,
     sync_status           TEXT            NOT NULL DEFAULT 'PENDING',
+    error                 TEXT            NULL,
     last_synced_at        timestamptz(6)  NULL,
     last_checked_at       timestamptz(6)  NULL,
     created_at            timestamptz(6)  DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    projection_hash       TEXT            NULL,
     CONSTRAINT viewer_sync_record_pkey PRIMARY KEY (id),
     CONSTRAINT viewer_sync_record_entity_viewer_uq UNIQUE (project_key, entity_type, entity_key, viewer_type)
 );
 
 COMMENT ON COLUMN test_service_v1.viewer_sync_record.id                   IS 'Unique synchronization record identifier';
-COMMENT ON COLUMN test_service_v1.viewer_sync_record.project_key         IS 'Project that owns the projected entity; entity_key is only unique per project';
+COMMENT ON COLUMN test_service_v1.viewer_sync_record.project_key          IS 'Project that owns the projected entity; entity_key is only unique per project';
 COMMENT ON COLUMN test_service_v1.viewer_sync_record.entity_type          IS 'Type of domain entity represented in the external viewer: TEST_CASE, PRECONDITION, TEST_SET, or TEST_PLAN';
 COMMENT ON COLUMN test_service_v1.viewer_sync_record.entity_key           IS 'Stable business key of the logical domain entity, unchanged across versions';
 COMMENT ON COLUMN test_service_v1.viewer_sync_record.projected_version_id IS 'UUID of the immutable domain version currently projected to the external viewer';
@@ -26,9 +28,11 @@ COMMENT ON COLUMN test_service_v1.viewer_sync_record.viewer_type          IS 'Ty
 COMMENT ON COLUMN test_service_v1.viewer_sync_record.external_entity_key  IS 'Stable identifier of the projected entity in the external viewer';
 COMMENT ON COLUMN test_service_v1.viewer_sync_record.external_entity_id   IS 'Optional technical identifier assigned by the external viewer; nullable';
 COMMENT ON COLUMN test_service_v1.viewer_sync_record.sync_status          IS 'Current synchronization status: PENDING, SYNCED, ERROR, or DRIFT_DETECTED';
+COMMENT ON COLUMN test_service_v1.viewer_sync_record.error                IS 'Technical failure description for the latest synchronization attempt; nullable';
 COMMENT ON COLUMN test_service_v1.viewer_sync_record.last_synced_at       IS 'Last successful synchronization timestamp; nullable';
 COMMENT ON COLUMN test_service_v1.viewer_sync_record.last_checked_at      IS 'Last drift check timestamp; nullable';
 COMMENT ON COLUMN test_service_v1.viewer_sync_record.created_at           IS 'Timestamp when the projection record was created';
+COMMENT ON COLUMN test_service_v1.viewer_sync_record.projection_hash      IS 'Hash of the current projection state; nullable';
 
 CREATE INDEX IF NOT EXISTS idx_viewer_sync_record_entity_key  ON test_service_v1.viewer_sync_record (entity_key);
 CREATE INDEX IF NOT EXISTS idx_viewer_sync_record_sync_status ON test_service_v1.viewer_sync_record (sync_status);

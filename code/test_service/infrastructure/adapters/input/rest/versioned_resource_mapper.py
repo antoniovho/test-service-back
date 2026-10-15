@@ -5,7 +5,7 @@ from typing import Any
 
 from test_service_server.models.pagination import Pagination as ApiPagination
 
-from test_service.domain.commons.pagination import Page, PaginationParams, SortOrder
+from test_service.domain.application.queries.pagination import Page, PaginationParams, SortOrder
 from test_service.domain.model.lifecycle import VersionStatus
 
 

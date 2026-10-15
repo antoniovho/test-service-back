@@ -40,17 +40,18 @@ def _discover_use_case_classes() -> list[type]:
 USE_CASE_CLASSES = _discover_use_case_classes()
 
 
-def test_when_discovering_use_cases_expect_at_least_one_per_bounded_context():
-    module_prefixes = {cls.__module__.split(".")[5] for cls in USE_CASE_CLASSES}
+class TestUseCaseDiscovery:
+    def test_when_discovering_use_cases_expect_at_least_one_per_bounded_context(self):
+        module_prefixes = {cls.__module__.split(".")[5] for cls in USE_CASE_CLASSES}
 
-    assert USE_CASE_CLASSES, "no *UseCase Protocols were discovered"
-    assert module_prefixes == {
-        "projects",
-        "authoring",
-        "composition",
-        "execution",
-        "viewer",
-    }
+        assert USE_CASE_CLASSES, "no *UseCase Protocols were discovered"
+        assert module_prefixes == {
+            "projects",
+            "authoring",
+            "composition",
+            "execution",
+            "viewer",
+        }
 
 
 @pytest.mark.parametrize("use_case_cls", USE_CASE_CLASSES, ids=lambda cls: cls.__qualname__)

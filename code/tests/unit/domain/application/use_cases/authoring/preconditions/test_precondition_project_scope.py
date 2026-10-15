@@ -8,6 +8,7 @@ from test_service.domain.application.commands.authoring import (
     DeprecatePreconditionCommand,
 )
 from test_service.domain.application.queries.authoring import PreconditionQuery
+from test_service.domain.application.queries.pagination import Page, PaginationParams
 from test_service.domain.application.use_cases.authoring.preconditions.activate_precondition_use_case import (  # noqa: E501
     ActivatePreconditionUseCaseImpl,
 )
@@ -17,7 +18,6 @@ from test_service.domain.application.use_cases.authoring.preconditions.deprecate
 from test_service.domain.application.use_cases.authoring.preconditions.get_precondition_use_case import (  # noqa: E501
     GetPreconditionUseCaseImpl,
 )
-from test_service.domain.commons.pagination import Page, PaginationParams
 from test_service.domain.model.authoring.definition import Action, Definition
 from test_service.domain.model.authoring.precondition import Precondition
 from test_service.domain.model.exceptions.entity_not_found_exception import (
