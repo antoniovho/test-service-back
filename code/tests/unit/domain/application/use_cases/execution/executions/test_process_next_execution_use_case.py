@@ -1,12 +1,14 @@
 import asyncio
 from dataclasses import replace
 from datetime import UTC, datetime
+from typing import cast
 from uuid import uuid4
 
 from test_service.domain.application.services.execution.definition_compiler import (
     DefinitionCompiler,
 )
 from test_service.domain.application.services.execution.execution_variables_resolver import (
+    ExecutionVariables,
     ExecutionVariablesResolver,
 )
 from test_service.domain.application.use_cases.execution.executions import (
@@ -36,6 +38,24 @@ from test_service.domain.model.execution.execution import (
     ResultStatus,
 )
 from test_service.domain.model.lifecycle import VersionStatus
+from test_service.domain.ports.output.executions.execution_cancellation_port import (
+    ExecutionCancellationPort,
+)
+from test_service.domain.ports.output.persistence.executions.execution_persistence_port import (
+    ExecutionPersistencePort,
+)
+from test_service.domain.ports.output.persistence.executions.execution_results_persistence_port import (  # noqa: E501
+    ExecutionResultsPersistencePort,
+)
+from test_service.domain.ports.output.persistence.preconditions.precondition_persistence_port import (  # noqa: E501
+    PreconditionPersistencePort,
+)
+from test_service.domain.ports.output.persistence.test_cases.test_case_persistence_port import (
+    TestCasePersistencePort,
+)
+from test_service.domain.ports.output.persistence.test_plans.test_plan_persistence_port import (
+    TestPlanPersistencePort,
+)
 from test_service.domain.ports.output.runners.runner_dtos import (
     RunnerActionOutcome,
     RunnerTestCaseOutcome,
@@ -96,6 +116,7 @@ class _Executions:
         self.current = execution
         self.saved: list[Execution] = []
         self.transitions: list[tuple[Execution, tuple[ExecutionStatus, ...]]] = []
+        self.find_requested_ids = []
         self.recovery_calls = 0
         self.calls: list[str] = []
 
@@ -103,12 +124,13 @@ class _Executions:
         self.calls.append("claim")
         return self._execution
 
-    async def recover_stale_running(self) -> int:
+    async def mark_stale_running_as_error(self) -> int:
         self.recovery_calls += 1
         self.calls.append("recover")
         return 0
 
     async def find_execution(self, identifier):
+        self.find_requested_ids.append(identifier)
         return self.current
 
     async def save_execution(self, execution: Execution) -> Execution:
@@ -161,6 +183,7 @@ class _Runner:
         identifier: str = "runner",
         version: str = "1.0",
         outcome: RunnerTestCaseOutcome | None = None,
+        supported: bool = True,
     ) -> None:
         self.identifier = identifier
         self.version = version
@@ -172,9 +195,10 @@ class _Runner:
             finished_at=_FINISHED_AT,
             actions=(),
         )
+        self._supported = supported
 
     def supports(self, action_types: frozenset[str]) -> bool:
-        return True
+        return self._supported
 
     async def execute(self, test_case, cancellation: asyncio.Event) -> RunnerTestCaseOutcome:
         self.executed_test_case_ids.append(test_case.test_case_id)
@@ -200,6 +224,13 @@ class _ConcurrentCancellationRunner(_Runner):
 
     async def execute(self, test_case, cancellation: asyncio.Event) -> RunnerTestCaseOutcome:
         self._executions.current = self._executions.current.cancel(_FINISHED_AT)
+        await asyncio.sleep(0)
+        return await super().execute(test_case, cancellation)
+
+
+class _LocalCancellationRunner(_Runner):
+    async def execute(self, test_case, cancellation: asyncio.Event) -> RunnerTestCaseOutcome:
+        cancellation.set()
         return await super().execute(test_case, cancellation)
 
 
@@ -258,6 +289,29 @@ class _Cancellations:
         self.unregistered.append(execution_id)
 
 
+def _process_next_execution_use_case(
+    executions: _Executions,
+    results: _Results,
+    test_cases: _TestCases,
+    preconditions: _Preconditions,
+    test_plans: _TestPlans,
+    runner: _Runner,
+    cancellations: _Cancellations,
+    variables_resolver: ExecutionVariablesResolver,
+) -> ProcessNextExecutionUseCaseImpl:
+    return ProcessNextExecutionUseCaseImpl(
+        cast(ExecutionPersistencePort, executions),
+        cast(ExecutionResultsPersistencePort, results),
+        cast(TestCasePersistencePort, test_cases),
+        cast(PreconditionPersistencePort, preconditions),
+        cast(TestPlanPersistencePort, test_plans),
+        DefinitionCompiler(),
+        runner,
+        cast(ExecutionCancellationPort, cancellations),
+        variables_resolver,
+    )
+
+
 def _use_case(
     execution: Execution,
     test_case: TestCase,
@@ -268,13 +322,12 @@ def _use_case(
     other_test_cases: tuple[TestCase, ...] = (),
     preconditions: tuple[Precondition, ...] = (),
 ) -> ProcessNextExecutionUseCaseImpl:
-    return ProcessNextExecutionUseCaseImpl(
+    return _process_next_execution_use_case(
         _Executions(execution),
         results or _Results(),
         _TestCases(test_case, *other_test_cases),
         _Preconditions(*preconditions),
         test_plans or _TestPlans(_test_plan()),
-        DefinitionCompiler(),
         runner,
         _Cancellations(),
         ExecutionVariablesResolver(_SecretResolver(secrets)),
@@ -286,13 +339,12 @@ class TestProcessNextExecutionUseCase:
         test_case = _test_case()
         execution = _execution(test_case.identifier)
         executions = _Executions(execution)
-        use_case = ProcessNextExecutionUseCaseImpl(
+        use_case = _process_next_execution_use_case(
             executions,
             _Results(),
             _TestCases(test_case),
             _Preconditions(),
             _TestPlans(_test_plan()),
-            DefinitionCompiler(),
             _Runner(),
             _Cancellations(),
             ExecutionVariablesResolver(_SecretResolver()),
@@ -310,13 +362,12 @@ class TestProcessNextExecutionUseCase:
         results = _Results()
         runner = _Runner()
         cancellations = _Cancellations()
-        use_case = ProcessNextExecutionUseCaseImpl(
+        use_case = _process_next_execution_use_case(
             executions,
             results,
             _TestCases(test_case),
             _Preconditions(),
             _TestPlans(_test_plan()),
-            DefinitionCompiler(),
             runner,
             cancellations,
             ExecutionVariablesResolver(_SecretResolver()),
@@ -328,7 +379,33 @@ class TestProcessNextExecutionUseCase:
         assert processed.status is ExecutionStatus.PASSED
         assert runner.executed_test_case_ids == [str(test_case.identifier)]
         assert results.saved[0][0].test_case_id == test_case.identifier
+        assert cancellations.registered == [execution.identifier]
         assert cancellations.unregistered == [execution.identifier]
+
+    async def test_when_runner_does_not_support_test_case_expect_blocked_result_without_execution(
+        self,
+    ):
+        test_case = _test_case()
+        execution = _execution(test_case.identifier)
+        results = _Results()
+        runner = _Runner(supported=False)
+
+        processed = await _use_case(execution, test_case, runner, results).execute(None)
+
+        result, actions, artifacts = results.saved[0]
+        assert processed is not None
+        assert processed.status is ExecutionStatus.FAILED
+        assert runner.executed_test_case_ids == []
+        assert result.execution_id == execution.identifier
+        assert result.test_case_id == test_case.identifier
+        assert result.status is ResultStatus.BLOCKED
+        assert result.error_code == "RUNNER_UNSUPPORTED_TEST_CASE"
+        assert result.error_message == (
+            f"Execution '{execution.identifier}' cannot run Test Case "
+            f"'{test_case.identifier}' because runner 'runner' does not support its definition."
+        )
+        assert actions == ()
+        assert artifacts == ()
 
     async def test_when_precondition_saves_variables_expect_saved_evidence_and_variables_forwarded(
         self,
@@ -384,6 +461,123 @@ class TestProcessNextExecutionUseCase:
         assert actions[0].status is ResultStatus.PASSED
         assert actions[1].action_id == f"precondition:{precondition_id}:login"
         assert "temporary-token" not in repr(results.saved)
+
+    async def test_when_precondition_missing_expect_accumulated_context_preserved(
+        self,
+    ):
+        completed_precondition_id = uuid4()
+        missing_precondition_id = uuid4()
+        test_case = _test_case(
+            preconditions=(
+                PreconditionReference(completed_precondition_id, "authenticated", 1),
+                PreconditionReference(missing_precondition_id, "profile", 1),
+            )
+        )
+        precondition = Precondition(
+            identifier=completed_precondition_id,
+            project_key="IAG",
+            precondition_key="authenticated",
+            version=1,
+            name="Authenticated session",
+            description="Creates an authenticated session",
+            validation_definition=Definition(
+                variables={},
+                actions=(Action("login", "HTTP", {"url": "https://example.test/login"}),),
+            ),
+            created_at=_STARTED_AT,
+            created_by="author@example.test",
+            status=VersionStatus.ACTIVE,
+        )
+        precondition_outcome = RunnerTestCaseOutcome(
+            status=ResultStatus.PASSED,
+            started_at=_STARTED_AT,
+            finished_at=_FINISHED_AT,
+            actions=(
+                RunnerActionOutcome(
+                    "login",
+                    "HTTP",
+                    ResultStatus.PASSED,
+                    _STARTED_AT,
+                    _FINISHED_AT,
+                ),
+            ),
+            variables={"sessionToken": "temporary-token"},
+        )
+        execution = _execution(test_case.identifier)
+        use_case = _use_case(
+            execution,
+            test_case,
+            _SequenceRunner(precondition_outcome),
+            preconditions=(precondition,),
+        )
+
+        outcome = await use_case._execute_preconditions(
+            execution,
+            test_case,
+            asyncio.Event(),
+            ExecutionVariables({"environment": "value"}, frozenset({"environment-secret"})),
+            process_next_execution_use_case._Deadline(float("inf"), "not reached"),
+        )
+
+        assert outcome.variables == {"environment": "value", "sessionToken": "temporary-token"}
+        assert outcome.secrets == frozenset({"environment-secret", "temporary-token"})
+        assert len(outcome.evidence) == 2
+        assert outcome.terminal_result == (
+            ResultStatus.BLOCKED,
+            "PRECONDITION_MISSING",
+            f"Execution '{execution.identifier}' cannot run Test Case "
+            f"'{test_case.identifier}' because precondition "
+            f"'{missing_precondition_id}' is unavailable.",
+        )
+
+    async def test_when_runner_does_not_support_precondition_expect_blocked_result(
+        self,
+    ):
+        precondition_id = uuid4()
+        reference = PreconditionReference(precondition_id, "authenticated", 1)
+        test_case = _test_case(preconditions=(reference,))
+        precondition = Precondition(
+            identifier=precondition_id,
+            project_key="IAG",
+            precondition_key="authenticated",
+            version=1,
+            name="Authenticated session",
+            description="Creates an authenticated session",
+            validation_definition=Definition(
+                variables={},
+                actions=(Action("login", "HTTP", {"url": "https://example.test/login"}),),
+            ),
+            created_at=_STARTED_AT,
+            created_by="author@example.test",
+            status=VersionStatus.ACTIVE,
+        )
+        execution = _execution(test_case.identifier)
+        results = _Results()
+        runner = _Runner(supported=False)
+
+        processed = await _use_case(
+            execution,
+            test_case,
+            runner,
+            results,
+            preconditions=(precondition,),
+        ).execute(None)
+
+        result, actions, artifacts = results.saved[0]
+        assert processed is not None
+        assert processed.status is ExecutionStatus.FAILED
+        assert runner.executed_test_case_ids == []
+        assert result.execution_id == execution.identifier
+        assert result.test_case_id == test_case.identifier
+        assert result.status is ResultStatus.BLOCKED
+        assert result.error_code == "RUNNER_UNSUPPORTED_PRECONDITION"
+        assert result.error_message == (
+            f"Execution '{execution.identifier}' cannot run Test Case "
+            f"'{test_case.identifier}' because runner 'runner' does not support precondition "
+            f"'{precondition_id}'."
+        )
+        assert actions == ()
+        assert artifacts == ()
 
     async def test_when_precondition_fails_expect_blocked_result_with_precondition_evidence(
         self,
@@ -444,13 +638,12 @@ class TestProcessNextExecutionUseCase:
         test_case = _test_case()
         execution = _execution(test_case.identifier)
         executions = _Executions(execution)
-        use_case = ProcessNextExecutionUseCaseImpl(
+        use_case = _process_next_execution_use_case(
             executions,
             _Results(),
             _TestCases(test_case),
             _Preconditions(),
             _TestPlans(_test_plan()),
-            DefinitionCompiler(),
             _ConcurrentCancellationRunner(executions),
             _Cancellations(),
             ExecutionVariablesResolver(_SecretResolver()),
@@ -460,8 +653,33 @@ class TestProcessNextExecutionUseCase:
 
         assert processed is not None
         assert processed.status is ExecutionStatus.CANCELLED
+        assert processed.finished_at is not None
         assert executions.current.status is ExecutionStatus.CANCELLED
         assert executions.transitions[0][1] == (ExecutionStatus.RUNNING,)
+
+    async def test_when_runner_signals_local_cancellation_expect_timestamped_cancelled_execution(
+        self,
+    ):
+        test_case = _test_case()
+        execution = _execution(test_case.identifier)
+        executions = _Executions(execution)
+        use_case = _process_next_execution_use_case(
+            executions,
+            _Results(),
+            _TestCases(test_case),
+            _Preconditions(),
+            _TestPlans(_test_plan()),
+            _LocalCancellationRunner(),
+            _Cancellations(),
+            ExecutionVariablesResolver(_SecretResolver()),
+        )
+
+        processed = await use_case.execute(None)
+
+        assert processed is not None
+        assert processed.status is ExecutionStatus.CANCELLED
+        assert processed.finished_at is not None
+        assert executions.transitions[0][0].finished_at is not None
 
     async def test_when_cancel_is_persisted_by_another_replica_expect_running_runner_stopped(
         self,
@@ -470,13 +688,12 @@ class TestProcessNextExecutionUseCase:
         execution = _execution(test_case.identifier)
         executions = _Executions(execution)
         runner = _WaitingForCancellationRunner()
-        use_case = ProcessNextExecutionUseCaseImpl(
+        use_case = _process_next_execution_use_case(
             executions,
             _Results(),
             _TestCases(test_case),
             _Preconditions(),
             _TestPlans(_test_plan()),
-            DefinitionCompiler(),
             runner,
             _Cancellations(),
             ExecutionVariablesResolver(_SecretResolver()),
@@ -490,6 +707,8 @@ class TestProcessNextExecutionUseCase:
         assert processed is not None
         assert processed.status is ExecutionStatus.CANCELLED
         assert executions.current.status is ExecutionStatus.CANCELLED
+        assert executions.transitions[0][0].status is ExecutionStatus.CANCELLED
+        assert executions.find_requested_ids == [execution.identifier, execution.identifier]
 
     async def test_when_poll_recovers_after_db_error_expect_remote_cancel_observed(
         self, monkeypatch, caplog
@@ -512,13 +731,12 @@ class TestProcessNextExecutionUseCase:
 
         monkeypatch.setattr(executions, "find_execution", find_execution)
         monkeypatch.setattr(process_next_execution_use_case.asyncio, "sleep", skip_poll_interval)
-        use_case = ProcessNextExecutionUseCaseImpl(
+        use_case = _process_next_execution_use_case(
             executions,
             _Results(),
             _TestCases(test_case),
             _Preconditions(),
             _TestPlans(_test_plan()),
-            DefinitionCompiler(),
             _Runner(),
             _Cancellations(),
             ExecutionVariablesResolver(_SecretResolver()),
@@ -539,12 +757,35 @@ class TestProcessNextExecutionUseCase:
 
         processed = await use_case.execute(None)
 
+        record = caplog.records[-1]
         assert processed is not None
         assert processed.status is ExecutionStatus.ERROR
         assert str(execution.identifier) in caplog.text
         assert "tavern" in caplog.text
         assert "other-runner" in caplog.text
-        assert isinstance(caplog.records[-1].exc_info[1], ExecutionRunnerUnavailableException)
+        assert record.msg == "Execution '%s' failed with runner '%s' version '%s'."
+        assert record.args == (execution.identifier, runner.identifier, runner.version)
+        assert isinstance(record.exc_info[1], ExecutionRunnerUnavailableException)
+
+    async def test_when_accepted_runner_version_is_unavailable_expect_error_with_version_context(
+        self, caplog
+    ):
+        test_case = _test_case()
+        execution = _execution(test_case.identifier, "tavern", "2.4.1")
+        runner = _Runner("tavern", "1.0")
+        use_case = _use_case(execution, test_case, runner)
+
+        processed = await use_case.execute(None)
+
+        error = caplog.records[-1].exc_info[1]
+        assert processed is not None
+        assert processed.status is ExecutionStatus.ERROR
+        assert isinstance(error, ExecutionRunnerUnavailableException)
+        assert error.execution_id == execution.identifier
+        assert error.accepted_identifier == "tavern"
+        assert error.accepted_version == "2.4.1"
+        assert error.available_identifier == "tavern"
+        assert error.available_version == "1.0"
 
     async def test_when_environment_defines_variables_expect_runner_receives_them_first(self):
         test_case = _test_case({"baseUrl": "https://definition.test", "tenant": "acme"})

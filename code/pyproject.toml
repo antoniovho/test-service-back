@@ -82,6 +82,8 @@ indent-style = "space"
 
 [tool.mutmut]
 source_paths = ["test_service/"]
+on_dependency_change = "rerun"
+cache_invalidation_files = ["tests/**/*.py"]
 only_mutate = [
   "test_service/domain/application/use_cases/execution/executions/cancel_execution_use_case.py",
   "test_service/domain/application/use_cases/execution/executions/process_next_execution_use_case.py",

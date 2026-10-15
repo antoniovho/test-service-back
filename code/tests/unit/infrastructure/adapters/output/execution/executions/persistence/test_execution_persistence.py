@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
+from sqlalchemy.dialects import postgresql
 
 from test_service.config import ExecutionSettings
 from test_service.domain.commons.pagination import Page, PaginationParams, SortOrder
@@ -51,7 +52,7 @@ class _Repository:
     async def claim_next_created(self):
         return self.dto
 
-    async def recover_stale_running(self):
+    async def mark_stale_running_as_error(self):
         return 0
 
     async def find_page(self, project_key, pagination):
@@ -81,7 +82,7 @@ class TestExecutionPersistence:
         transitioned = await adapter.transition_execution(completed, (ExecutionStatus.RUNNING,))
         found = await adapter.find_execution(execution.identifier)
         claimed = await adapter.claim_next_created()
-        recovered = await adapter.recover_stale_running()
+        recovered = await adapter.mark_stale_running_as_error()
         page = await adapter.find_page("IAG", PaginationParams())
 
         assert ExecutionPersistenceMapper.to_domain(dto) == execution
@@ -117,6 +118,62 @@ class TestExecutionPersistence:
 
         with pytest.raises(ValueError, match="unsupported execution sort field"):
             await repository.find_page("IAG", pagination)
+
+    @pytest.mark.parametrize(
+        ("pagination", "expected_order"),
+        (
+            pytest.param(
+                PaginationParams(offset=3, limit=7),
+                "execution.created_at ASC, test_service_v1.execution.id ASC",
+                id="default-created-at-ascending",
+            ),
+            pytest.param(
+                PaginationParams(offset=5, limit=9, sort_by="status", order=SortOrder.DESC),
+                "execution.status DESC, test_service_v1.execution.id ASC",
+                id="status-descending",
+            ),
+        ),
+    )
+    async def test_when_page_is_requested_expect_project_scoped_deterministic_query(
+        self, pagination, expected_order
+    ):
+        first_dto = ExecutionPersistenceMapper.to_dto(_execution())
+        second_dto = ExecutionPersistenceMapper.to_dto(_execution())
+        total_result = MagicMock()
+        total_result.scalar_one.return_value = 12
+        page_result = MagicMock()
+        page_result.scalars.return_value.all.return_value = [first_dto, second_dto]
+        session = MagicMock()
+        session.execute = AsyncMock(side_effect=[total_result, page_result])
+        repository = ExecutionRepository(_SessionProvider(session), ExecutionSettings())
+
+        page = await repository.find_page("IAG", pagination)
+
+        count_statement, page_statement = (call.args[0] for call in session.execute.await_args_list)
+        count_query = count_statement.compile()
+        page_query = page_statement.compile()
+        page_sql = str(page_query)
+        assert page == Page((first_dto, second_dto), 12)
+        assert "count(*)" in str(count_query).lower()
+        assert "execution.project_key" in str(count_query)
+        assert "execution.project_key" in page_sql
+        assert f"ORDER BY test_service_v1.{expected_order}" in page_sql
+        assert set(page_query.params.values()) >= {"IAG", pagination.offset, pagination.limit}
+
+    async def test_when_page_is_requested_expect_count_and_rows_are_executed_separately(self):
+        dto = ExecutionPersistenceMapper.to_dto(_execution())
+        total_result = MagicMock()
+        total_result.scalar_one.return_value = 1
+        page_result = MagicMock()
+        page_result.scalars.return_value.all.return_value = [dto]
+        session = MagicMock()
+        session.execute = AsyncMock(side_effect=[total_result, page_result])
+        repository = ExecutionRepository(_SessionProvider(session), ExecutionSettings())
+
+        page = await repository.find_page("IAG", PaginationParams())
+
+        assert page == Page((dto,), 1)
+        assert session.execute.await_count == 2
 
     async def test_when_execution_transition_matches_expected_status_expect_atomic_update(self):
         dto = ExecutionPersistenceMapper.to_dto(
@@ -210,7 +267,7 @@ class TestExecutionPersistence:
             execution_repository, "datetime", SimpleNamespace(now=lambda _: _FIXED_NOW)
         )
 
-        recovered = await repository.recover_stale_running()
+        recovered = await repository.mark_stale_running_as_error()
 
         statement = session.execute.await_args.args[0]
         threshold = next(
@@ -231,7 +288,7 @@ class TestExecutionPersistence:
         session.commit = AsyncMock()
         repository = ExecutionRepository(_SessionProvider(session), ExecutionSettings())
 
-        recovered = await repository.recover_stale_running()
+        recovered = await repository.mark_stale_running_as_error()
 
         assert recovered == 0
         session.commit.assert_not_awaited()
@@ -254,8 +311,49 @@ class TestExecutionPersistence:
             execution_repository, "datetime", SimpleNamespace(now=lambda _: _FIXED_NOW)
         )
 
-        recovered = await repository.recover_stale_running()
+        recovered = await repository.mark_stale_running_as_error()
 
         assert recovered == 0
         assert execution.status == "RUNNING"
         session.commit.assert_not_awaited()
+
+    async def test_when_recovery_boundaries_are_evaluated_expect_only_expired_rows_recovered(
+        self, monkeypatch
+    ):
+        stale_execution = MagicMock(status="RUNNING", started_at=_FIXED_NOW - timedelta(seconds=31))
+        exact_timeout_execution = MagicMock(
+            status="RUNNING", started_at=_FIXED_NOW - timedelta(seconds=60)
+        )
+        missing_start_execution = MagicMock(status="RUNNING", started_at=None)
+        no_plan_timeout = SimpleNamespace(timeout_seconds=0)
+        sixty_second_timeout = SimpleNamespace(timeout_seconds=60)
+        result = MagicMock()
+        result.all.return_value = [
+            (stale_execution, no_plan_timeout),
+            (exact_timeout_execution, sixty_second_timeout),
+            (missing_start_execution, no_plan_timeout),
+        ]
+        session = MagicMock()
+        session.execute = AsyncMock(return_value=result)
+        session.commit = AsyncMock()
+        repository = ExecutionRepository(
+            _SessionProvider(session), ExecutionSettings(recovery_timeout_seconds=30)
+        )
+        monkeypatch.setattr(
+            execution_repository, "datetime", SimpleNamespace(now=lambda _: _FIXED_NOW)
+        )
+
+        recovered = await repository.mark_stale_running_as_error()
+
+        statement = session.execute.await_args.args[0]
+        query = statement.compile(dialect=postgresql.dialect())
+        assert recovered == 1
+        assert stale_execution.status == "ERROR"
+        assert stale_execution.finished_at == _FIXED_NOW
+        assert stale_execution.duration_ms == 31000
+        assert exact_timeout_execution.status == "RUNNING"
+        assert missing_start_execution.status == "RUNNING"
+        assert _FIXED_NOW - timedelta(seconds=30) in query.params.values()
+        assert "execution.started_at <" in str(query)
+        assert "FOR UPDATE OF execution SKIP LOCKED" in str(query)
+        session.commit.assert_awaited_once()
