@@ -2,7 +2,7 @@
 
 from typing import Protocol
 
-from test_service.domain.commons.pagination import Page, PaginationParams
+from test_service.domain.application.queries.pagination import Page, PaginationParams
 from test_service.domain.model.authoring.precondition import Precondition
 from test_service.domain.model.lifecycle import VersionStatus
 from test_service.domain.ports.output.persistence.versioned.versioned_persistence_port import (

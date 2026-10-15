@@ -14,6 +14,9 @@ from test_service.domain.model.exceptions.environment_already_exists_exception i
     EnvironmentAlreadyExistsException,
 )
 from test_service.domain.model.exceptions.error_origin_enum import ErrorOrigin
+from test_service.domain.model.exceptions.external_project_access_forbidden_exception import (
+    ExternalProjectForbiddenException,
+)
 from test_service.domain.model.exceptions.external_project_not_found_exception import (
     ExternalProjectNotFoundException,
 )
@@ -89,6 +92,7 @@ _GENERIC_PROVIDER_ERROR_DETAIL = "A dependent service error occurred."
 _EXCEPTION_STATUS_MAP: dict[type[DomainException], HTTPStatus] = {
     EntityNotFoundException: HTTPStatus.NOT_FOUND,
     ExternalProjectNotFoundException: HTTPStatus.UNPROCESSABLE_ENTITY,
+    ExternalProjectForbiddenException: HTTPStatus.BAD_GATEWAY,
     ProjectAlreadyDeletedException: HTTPStatus.CONFLICT,
     ProjectAlreadyExistsException: HTTPStatus.CONFLICT,
     TestCaseAlreadyExistsException: HTTPStatus.CONFLICT,
@@ -158,6 +162,8 @@ class ExceptionMapper:
     def _safe_detail(exc: DomainException) -> str:
         """Return client-safe detail without exposing provider or internal failures."""
         if exc.origin is ErrorOrigin.USER:
+            return exc.error_description
+        if isinstance(exc, ExternalProjectForbiddenException):
             return exc.error_description
         if exc.origin is ErrorOrigin.PROVIDER:
             return _GENERIC_PROVIDER_ERROR_DETAIL

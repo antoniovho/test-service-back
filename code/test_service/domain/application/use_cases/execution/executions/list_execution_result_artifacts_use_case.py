@@ -1,13 +1,13 @@
 """Use case implementation: list result artifacts."""
 
 from test_service.domain.application.queries.execution import ListExecutionResultArtifactsQuery
+from test_service.domain.application.queries.pagination import Page
 from test_service.domain.application.services.resolvers.execution_access_resolver import (
     ExecutionAccessResolver,
 )
 from test_service.domain.application.services.resolvers.execution_result_access_resolver import (
     ExecutionResultAccessResolver,
 )
-from test_service.domain.commons.pagination import Page
 from test_service.domain.model.execution.execution import TestResultArtifact
 from test_service.domain.ports.input.use_cases.execution.executions.list_execution_result_artifacts_use_case import (  # noqa: E501
     ListExecutionResultArtifactsUseCase,

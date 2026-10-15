@@ -1,7 +1,7 @@
 """Provider-neutral execution work and results exchanged with a Runner."""
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 
 from test_service.domain.model.execution.execution import ResultStatus
@@ -52,3 +52,4 @@ class RunnerTestCaseOutcome:
     actions: tuple[RunnerActionOutcome, ...]
     error_code: str | None = None
     error_message: str | None = None
+    variables: Mapping[str, str] = field(default_factory=dict)

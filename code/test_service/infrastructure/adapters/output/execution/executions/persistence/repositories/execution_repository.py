@@ -3,10 +3,10 @@
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import asc, desc, func, select
+from sqlalchemy import asc, desc, func, select, update
 
 from test_service.config import ExecutionSettings
-from test_service.domain.commons.pagination import Page, PaginationParams, SortOrder
+from test_service.domain.application.queries.pagination import Page, PaginationParams, SortOrder
 from test_service.infrastructure.adapters.output.commons.persistence.postgres.postgres_session_provider import (  # noqa: E501
     PostgresSessionProvider,
 )
@@ -43,6 +43,29 @@ class ExecutionRepository:
             await session.refresh(persisted_execution)
             return persisted_execution
 
+    async def transition(
+        self, execution: ExecutionDTO, expected_statuses: tuple[str, ...]
+    ) -> ExecutionDTO | None:
+        """Update terminal fields only while the row remains in an expected state."""
+        async with self._session_provider.session() as session:
+            result = await session.execute(
+                update(ExecutionDTO)
+                .where(
+                    (ExecutionDTO.id == execution.id) & (ExecutionDTO.status.in_(expected_statuses))
+                )
+                .values(
+                    status=execution.status,
+                    finished_at=execution.finished_at,
+                    duration_ms=execution.duration_ms,
+                )
+                .returning(ExecutionDTO)
+            )
+            transitioned = result.scalar_one_or_none()
+            if transitioned is not None:
+                await session.commit()
+                return transitioned
+            return await session.get(ExecutionDTO, execution.id)
+
     async def find_by_id(self, identifier: UUID) -> ExecutionDTO | None:
         """Find an Execution DTO by UUID."""
         async with self._session_provider.session() as session:
@@ -67,7 +90,7 @@ class ExecutionRepository:
             await session.refresh(execution)
             return execution
 
-    async def recover_stale_running(self) -> int:
+    async def mark_stale_running_as_error(self) -> int:
         """Mark expired RUNNING leases as ERROR without re-running their work."""
         recovered_at = datetime.now(UTC)
         stale_before = recovered_at - timedelta(seconds=self._settings.recovery_timeout_seconds)

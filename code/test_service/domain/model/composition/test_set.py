@@ -51,6 +51,11 @@ class TestSet:
         if not self.items or len(set(self.items)) != len(self.items):
             raise InvalidTestSetException("test set items must be non-empty and unique")
 
+    @property
+    def logical_key(self) -> str:
+        """Return the stable logical key shared across this test set's snapshots."""
+        return self.set_key
+
     def activate(self) -> "TestSet":
         """Return this snapshot in the active state.
 

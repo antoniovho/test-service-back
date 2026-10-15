@@ -24,7 +24,7 @@ from test_service.domain.application.queries.authoring import (
     TestCaseQuery,
     TestCaseVersionsQuery,
 )
-from test_service.domain.commons.pagination import Page, PaginationParams
+from test_service.domain.application.queries.pagination import Page, PaginationParams
 from test_service.domain.model.authoring.definition import Action, Definition
 from test_service.domain.model.authoring.test_case import (
     Priority,

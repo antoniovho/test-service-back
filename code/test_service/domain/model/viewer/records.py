@@ -124,6 +124,7 @@ class ViewerSyncRecord:
         created_at: Record creation timestamp.
         operation_id: UUID of the Viewer operation that created this record.
         external_entity_id: Optional technical external identifier.
+        error: Optional technical failure description for the latest synchronization attempt.
         last_synced_at: Optional successful synchronization timestamp.
         last_checked_at: Optional drift check timestamp.
     """
@@ -139,6 +140,8 @@ class ViewerSyncRecord:
     created_at: datetime
     operation_id: UUID | None = None
     external_entity_id: str | None = None
+    projection_hash: str | None = None
+    error: str | None = None
     last_synced_at: datetime | None = None
     last_checked_at: datetime | None = None
 

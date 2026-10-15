@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from test_service.domain.commons.pagination import PaginationParams, SortOrder
+from test_service.domain.application.queries.pagination import PaginationParams, SortOrder
 from test_service.infrastructure.adapters.output.projects.persistence.dtos.project_dto import (
     ProjectDTO,
 )

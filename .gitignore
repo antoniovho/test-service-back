@@ -14,10 +14,14 @@ dist/
 # Windows Mark of the Web metadata
 *:Zone.Identifier
 # Generated code directories
-code/contracts/
+code/contracts/*
+!code/contracts/corpus/
+!code/contracts/corpus/test-corpus-1.1.0.schema.json
 .env
 code/.sonar/
 nosetests.xml
 coverage.xml
 openapitools.json
 pect
+data/
+code/mutants/

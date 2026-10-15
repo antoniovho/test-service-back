@@ -5,8 +5,13 @@ import pytest
 from pydantic import SecretStr
 
 from test_service.config import JiraSettings
+from test_service.domain.model.exceptions.external_project_access_forbidden_exception import (
+    ExternalProjectForbiddenException,
+)
 from test_service.domain.model.exceptions.external_project_not_found_exception import (
     ExternalProjectNotFoundException,
+)
+from test_service.domain.model.exceptions.external_project_provider_exception import (
     ExternalProjectProviderException,
 )
 from test_service.infrastructure.adapters.output.projects.jira import (
@@ -80,17 +85,31 @@ class TestJiraProjectValidationAdapter:
         assert requests[0].url.raw_path == raw_path
         assert requests[0].url.query == b""
 
-    @pytest.mark.parametrize("status", [httpx.codes.NOT_FOUND, httpx.codes.FORBIDDEN])
-    async def test_when_project_is_not_accessible_expect_not_found_error(
-        self, settings: JiraSettings, status: int
+    async def test_when_jira_returns_not_found_expect_project_not_found_error(
+        self, settings: JiraSettings
     ) -> None:
         async with httpx.AsyncClient(
-            transport=httpx.MockTransport(lambda request: httpx.Response(status))
+            transport=httpx.MockTransport(lambda request: httpx.Response(httpx.codes.NOT_FOUND))
         ) as client:
             adapter = JiraProjectValidationAdapter(settings, client)
 
-            with pytest.raises(ExternalProjectNotFoundException):
+            with pytest.raises(ExternalProjectNotFoundException) as exc_info:
                 await adapter.validate("SHOP")
+
+        assert exc_info.value.provider_name == "JIRA"
+
+    async def test_when_jira_forbids_project_access_expect_permission_exception(
+        self, settings: JiraSettings
+    ) -> None:
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(lambda request: httpx.Response(httpx.codes.FORBIDDEN))
+        ) as client:
+            adapter = JiraProjectValidationAdapter(settings, client)
+
+            with pytest.raises(ExternalProjectForbiddenException) as exc_info:
+                await adapter.validate("SHOP")
+
+        assert exc_info.value.provider_name == "JIRA"
 
     async def test_when_jira_returns_provider_error_expect_provider_exception(
         self, settings: JiraSettings
@@ -100,8 +119,10 @@ class TestJiraProjectValidationAdapter:
         ) as client:
             adapter = JiraProjectValidationAdapter(settings, client)
 
-            with pytest.raises(ExternalProjectProviderException):
+            with pytest.raises(ExternalProjectProviderException) as exc_info:
                 await adapter.validate("SHOP")
+
+        assert exc_info.value.provider_name == "JIRA"
 
     async def test_when_jira_transport_fails_expect_provider_exception(
         self, settings: JiraSettings
@@ -112,8 +133,10 @@ class TestJiraProjectValidationAdapter:
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
             adapter = JiraProjectValidationAdapter(settings, client)
 
-            with pytest.raises(ExternalProjectProviderException):
+            with pytest.raises(ExternalProjectProviderException) as exc_info:
                 await adapter.validate("SHOP")
+
+        assert exc_info.value.provider_name == "JIRA"
 
     async def test_when_client_is_not_injected_expect_managed_client_request(
         self, settings: JiraSettings, monkeypatch

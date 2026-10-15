@@ -31,6 +31,9 @@ from test_service.infrastructure.adapters.output.runners.tavern.executors.tavern
 from test_service.infrastructure.adapters.output.runners.tavern.mappers.tavern_result_mapper import (  # noqa: E501
     TavernResultMapper,
 )
+from test_service.infrastructure.adapters.output.runners.tavern.tavern_exceptions import (
+    TavernResultInvalidError,
+)
 
 
 class TavernRunnerAdapter:
@@ -62,13 +65,19 @@ class TavernRunnerAdapter:
         """Execute ordered HTTP blocks and SSE actions with fail-fast semantics."""
         started_at = datetime.now(UTC)
         context = dict(test_case.variables)
+        saved_variables: dict[str, str] = {}
         outcomes: list[RunnerActionOutcome] = []
         async with httpx.AsyncClient() as client:
             index = 0
             while index < len(test_case.actions):
                 if cancellation.is_set():
                     return self._build_test_case_outcome(
-                        ResultStatus.SKIPPED, started_at, outcomes, "CANCELLED", "Cancelled"
+                        ResultStatus.SKIPPED,
+                        started_at,
+                        outcomes,
+                        "CANCELLED",
+                        "Cancelled",
+                        saved_variables,
                     )
                 action = test_case.actions[index]
                 if action.action_type == "HTTP":
@@ -78,6 +87,7 @@ class TavernRunnerAdapter:
                     )
                     outcomes.extend(block_outcomes)
                     context.update(variables)
+                    saved_variables.update(variables)
                 else:
                     outcome = await self._sse_executor.execute(
                         client, action, context, cancellation
@@ -86,7 +96,12 @@ class TavernRunnerAdapter:
                     index += 1
                 if cancellation.is_set():
                     return self._build_test_case_outcome(
-                        ResultStatus.SKIPPED, started_at, outcomes, "CANCELLED", "Cancelled"
+                        ResultStatus.SKIPPED,
+                        started_at,
+                        outcomes,
+                        "CANCELLED",
+                        "Cancelled",
+                        saved_variables,
                     )
                 terminal_issue = next(
                     (
@@ -103,8 +118,11 @@ class TavernRunnerAdapter:
                         outcomes,
                         terminal_issue.error_code,
                         terminal_issue.error_message,
+                        saved_variables,
                     )
-        return self._build_test_case_outcome(ResultStatus.PASSED, started_at, outcomes)
+        return self._build_test_case_outcome(
+            ResultStatus.PASSED, started_at, outcomes, variables=saved_variables
+        )
 
     @staticmethod
     def _http_block(
@@ -130,32 +148,57 @@ class TavernRunnerAdapter:
                 document, tuple(action.identifier for action in actions), cancellation
             )
             return self._result_mapper.map(actions, result), result.variables
-        except (OSError, TypeError, ValueError) as exc:
+        except TavernResultInvalidError:
             return (
                 tuple(
-                    self._failed(action, started_at, "TAVERN_RUNNER_ERROR", error=str(exc))
+                    self._error(
+                        action,
+                        started_at,
+                        "TAVERN_RESULT_INVALID",
+                        "Tavern result report is invalid",
+                    )
+                    for action in actions
+                ),
+                {},
+            )
+        except (OSError, TypeError, ValueError):
+            return (
+                tuple(
+                    self._error(
+                        action,
+                        started_at,
+                        "TAVERN_RUNNER_ERROR",
+                        "Tavern runner execution failed",
+                    )
                     for action in actions
                 ),
                 {},
             )
 
     @staticmethod
-    def _failed(action, started_at, code, actual=None, error=None):
-        """Build a failed action outcome with normalized error information."""
+    def _error(action, started_at, code, error):
+        """Build an error action outcome without exposing exception contents."""
         return RunnerActionOutcome(
             action.identifier,
             action.action_type,
-            ResultStatus.FAILED,
+            ResultStatus.ERROR,
             started_at,
             datetime.now(UTC),
-            actual=actual,
             error_code=code,
-            error_message=error or code.replace("_", " ").lower(),
+            error_message=error,
         )
 
     @staticmethod
-    def _build_test_case_outcome(status, started_at, actions, code=None, message=None):
+    def _build_test_case_outcome(
+        status, started_at, actions, code=None, message=None, variables=None
+    ):
         """Build the aggregate result for a compiled Test Case."""
         return RunnerTestCaseOutcome(
-            status, started_at, datetime.now(UTC), tuple(actions), code, message
+            status,
+            started_at,
+            datetime.now(UTC),
+            tuple(actions),
+            code,
+            message,
+            variables or {},
         )

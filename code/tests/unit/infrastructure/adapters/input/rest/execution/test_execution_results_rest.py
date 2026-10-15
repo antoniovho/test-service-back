@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 
-from test_service.domain.commons.pagination import Page
+from test_service.domain.application.queries.pagination import Page
 from test_service.domain.model.execution.execution import (
     ActionResult,
     ArtifactType,

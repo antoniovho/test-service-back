@@ -50,12 +50,11 @@ class TestAction:
         ("configuration", "construct"),
         [
             ({"json": {"$ext": {"function": "os:system", "extra_args": ["id"]}}}, "$ext"),
-            ({"headers": {"X-Leak": "{tavern.env_vars.DATABASE_PASSWORD}"}}, "tavern"),
             ({"headers": {"X-Leak": "{orderId.__class__}"}}, "__class__"),
         ],
-        ids=["executable-directive", "reserved-template-field", "dunder-traversal"],
+        ids=["executable-directive", "dunder-traversal"],
     )
-    def test_when_configuration_uses_reserved_construct_expect_exception(
+    def test_when_configuration_uses_unsafe_construct_expect_exception(
         self, configuration, construct
     ):
         with pytest.raises(InvalidActionException) as exc:
@@ -65,8 +64,12 @@ class TestAction:
         assert "login" in exc.value.error_description
         assert construct in exc.value.error_description
 
-    def test_when_configuration_has_no_reserved_construct_expect_action_created(self):
-        configuration = {"url": "{{baseUrl}}/orders/{orderId}", "json": {"$ref": "#/order"}}
+    def test_when_configuration_has_no_unsafe_construct_expect_action_created(self):
+        configuration = {
+            "url": "{{baseUrl}}/orders/{orderId}",
+            "json": {"$ref": "#/order"},
+            "headers": {"X-Runner-Placeholder": "{tavern.env_vars.SECRET}"},
+        }
 
         action = _action(configuration=configuration)
 

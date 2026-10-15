@@ -9,6 +9,7 @@ from test_service.domain.application.commands.execution import (
     ScheduleExecutionCommand,
 )
 from test_service.domain.application.queries.execution import ExecutionQuery, ListExecutionsQuery
+from test_service.domain.application.queries.pagination import Page, PaginationParams
 from test_service.domain.application.services.execution.definition_compiler import (
     DefinitionCompiler,
 )
@@ -31,18 +32,16 @@ from test_service.domain.application.use_cases.execution.executions.list_executi
 from test_service.domain.application.use_cases.execution.executions.schedule_execution_use_case import (  # noqa: E501
     ScheduleExecutionUseCaseImpl,
 )
-from test_service.domain.commons.pagination import Page, PaginationParams
-from test_service.domain.model.authoring.definition import Action, Definition
 from test_service.domain.model.authoring.test_case import (
-    Priority,
     TestCase,
-    TestLevel,
-    TestType,
 )
 from test_service.domain.model.composition.test_plan import ExecutionMode, TestPlan
 from test_service.domain.model.exceptions.entity_not_found_exception import EntityNotFoundException
 from test_service.domain.model.exceptions.invalid_environment_transition_exception import (
     InvalidEnvironmentTransitionException,
+)
+from test_service.domain.model.exceptions.invalid_execution_transition_exception import (
+    InvalidExecutionTransitionException,
 )
 from test_service.domain.model.exceptions.invalid_test_plan_exception import (
     InvalidTestPlanException,
@@ -51,17 +50,11 @@ from test_service.domain.model.execution.environment import Environment, Environ
 from test_service.domain.model.execution.execution import Execution, ExecutionStatus, TriggerType
 from test_service.domain.model.lifecycle import VersionStatus
 from test_service.domain.model.projects.project import Project
+from tests.mothers.execution_mother import a_test_case, an_execution
 
 
 def _execution(project_key: str = "IAG") -> Execution:
-    return Execution(
-        identifier=uuid4(),
-        project_key=project_key,
-        test_plan_id=uuid4(),
-        environment_id=uuid4(),
-        trigger_type=TriggerType.API,
-        created_at=datetime(2026, 1, 1, tzinfo=UTC),
-    )
+    return an_execution(project_key=project_key)
 
 
 def _test_plan(
@@ -102,26 +95,7 @@ def _environment(
 
 
 def _test_case(identifier=None) -> TestCase:
-    return TestCase(
-        identifier=identifier or uuid4(),
-        project_key="IAG",
-        test_key="checkout",
-        version=1,
-        name="Checkout",
-        summary="Checks checkout",
-        objective="Complete checkout",
-        test_type=TestType.AUTOMATED,
-        test_level=TestLevel.FUNCTIONAL,
-        priority=Priority.HIGH,
-        definition=Definition(
-            variables={},
-            actions=(Action("request", "HTTP", {"url": "https://example.test"}),),
-        ),
-        timeout_seconds=60,
-        created_at=datetime(2026, 1, 1, tzinfo=UTC),
-        created_by="author@example.test",
-        status=VersionStatus.ACTIVE,
-    )
+    return a_test_case(identifier=identifier)
 
 
 def _project() -> Project:
@@ -137,12 +111,27 @@ class _ExecutionRepository:
     def __init__(self, execution: Execution | None = None) -> None:
         self.execution = execution
         self.saved: Execution | None = None
+        self.expected_statuses = ()
+        self.transition_result: Execution | None = None
+        self.transition_returns_none = False
+        self.find_requested_ids = []
 
     async def save_execution(self, execution: Execution) -> Execution:
         self.saved = execution
         return execution
 
+    async def transition_execution(self, execution: Execution, expected_statuses):
+        self.expected_statuses = expected_statuses
+        if self.transition_returns_none:
+            return None
+        if self.transition_result is not None:
+            return self.transition_result
+        self.saved = execution
+        self.execution = execution
+        return execution
+
     async def find_execution(self, identifier):
+        self.find_requested_ids.append(identifier)
         return self.execution
 
     async def find_page(self, project_key: str, pagination):
@@ -342,7 +331,27 @@ class TestExecutionUseCases:
 
         assert result.status is ExecutionStatus.CANCELLED
         assert repository.saved == result
+        assert repository.expected_statuses == (ExecutionStatus.CREATED, ExecutionStatus.RUNNING)
+        assert repository.find_requested_ids == [execution.identifier]
         assert cancellation.cancelled == [execution.identifier]
+
+    async def test_when_execution_finishes_before_cancel_persists_expect_transition_rejected(self):
+        execution = _execution()
+        command = CancelExecutionCommand("IAG", execution.identifier)
+        repository = _ExecutionRepository(execution)
+        repository.transition_result = execution.start(datetime(2026, 1, 1, tzinfo=UTC)).complete(
+            ExecutionStatus.PASSED, datetime(2026, 1, 1, 0, 0, 1, tzinfo=UTC)
+        )
+        cancellation = _CancellationRegistry()
+        use_case = CancelExecutionUseCaseImpl(repository, cancellation)
+
+        with pytest.raises(InvalidExecutionTransitionException) as error:
+            await use_case.execute(command)
+
+        assert error.value.error_description == (
+            "execution state changed before cancellation could be persisted"
+        )
+        assert cancellation.cancelled == []
 
     async def test_when_cancelling_foreign_execution_expect_not_found(self):
         execution = _execution("ZAR")
@@ -351,8 +360,44 @@ class TestExecutionUseCases:
             _ExecutionRepository(execution), _CancellationRegistry()
         )
 
-        with pytest.raises(EntityNotFoundException):
+        with pytest.raises(EntityNotFoundException) as error:
             await use_case.execute(command)
+
+        assert error.value.error_description == (
+            f"execution '{execution.identifier}' was not found in project 'IAG'."
+        )
+
+    async def test_when_execution_is_missing_expect_not_found_without_cancellation(self):
+        identifier = uuid4()
+        command = CancelExecutionCommand("IAG", identifier)
+        repository = _ExecutionRepository()
+        cancellation = _CancellationRegistry()
+        use_case = CancelExecutionUseCaseImpl(repository, cancellation)
+
+        with pytest.raises(EntityNotFoundException) as error:
+            await use_case.execute(command)
+
+        assert error.value.error_description == (
+            f"execution '{identifier}' was not found in project 'IAG'."
+        )
+        assert repository.find_requested_ids == [identifier]
+        assert repository.saved is None
+        assert cancellation.cancelled == []
+
+    async def test_when_cancellation_transition_is_missing_expect_not_found_without_signal(self):
+        execution = _execution()
+        command = CancelExecutionCommand("IAG", execution.identifier)
+        repository = _ExecutionRepository(execution)
+        repository.transition_returns_none = True
+        cancellation = _CancellationRegistry()
+        use_case = CancelExecutionUseCaseImpl(repository, cancellation)
+
+        with pytest.raises(EntityNotFoundException) as error:
+            await use_case.execute(command)
+
+        assert error.value.error_description == f"execution '{execution.identifier}' was not found"
+        assert repository.expected_statuses == (ExecutionStatus.CREATED, ExecutionStatus.RUNNING)
+        assert cancellation.cancelled == []
 
 
 async def _async_result(value):

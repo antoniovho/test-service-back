@@ -7,7 +7,7 @@ from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 from test_service_server.models.viewer_operation_request import ViewerOperationRequest
 from test_service_server.models.viewer_type import ViewerType as ApiViewerType
 
-from test_service.domain.commons.pagination import Page
+from test_service.domain.application.queries.pagination import Page
 from test_service.domain.model.viewer.records import (
     DriftEvent,
     DriftType,

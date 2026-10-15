@@ -1,6 +1,6 @@
 import pytest
 
-from test_service.domain.commons.pagination import (
+from test_service.domain.application.queries.pagination import (
     MAX_PAGE_LIMIT,
     Page,
     PaginationParams,

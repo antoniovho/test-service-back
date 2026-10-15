@@ -9,10 +9,15 @@ from collections.abc import Mapping
 from datetime import datetime
 from pathlib import Path
 
-from test_service.domain.commons.reserved_constructs import find_reserved_construct
 from test_service.infrastructure.adapters.output.runners.tavern.dtos.tavern_dtos import (
     TavernExecutionResult,
     TavernStageResult,
+)
+from test_service.infrastructure.adapters.output.runners.tavern.tavern_exceptions import (
+    TavernResultInvalidError,
+)
+from test_service.infrastructure.adapters.output.runners.tavern.tavern_safety import (
+    find_unsafe_tavern_construct,
 )
 
 # Tavern exposes the whole process environment to test documents, so only what the
@@ -71,9 +76,9 @@ class TavernExecutor:
             OSError: If the temporary files cannot be created or the Tavern
                 process cannot be started.
         """
-        reserved = find_reserved_construct(document)
-        if reserved is not None:
-            raise ValueError(f"Tavern document uses {reserved}")
+        unsafe = find_unsafe_tavern_construct(document)
+        if unsafe is not None:
+            raise ValueError(f"Tavern document uses {unsafe}")
         with tempfile.TemporaryDirectory(prefix="test-service-") as directory:
             root = Path(directory)
             test_file = root / "test-execution.tavern.yaml"
@@ -178,29 +183,53 @@ def _read_result(result_file: Path, exit_code: int) -> TavernExecutionResult:
         result when the reporter did not create one.
 
     Raises:
-        json.JSONDecodeError: If the generated report is not valid JSON.
+        TavernResultInvalidError: If the generated report is malformed or incomplete.
     """
     if not result_file.exists():
         return TavernExecutionResult(exit_code, False, (), {})
-    payload = json.loads(result_file.read_text(encoding="utf-8"))
-    stages = tuple(
-        TavernStageResult(
-            identifier=item["identifier"],
-            status=item["status"],
-            started_at=datetime.fromisoformat(item["startedAt"]),
-            finished_at=datetime.fromisoformat(item["finishedAt"]),
-            expected=item.get("expected"),
-            actual=item.get("actual"),
-            error_code=item.get("errorCode"),
-            error_message=item.get("errorMessage"),
-        )
-        for item in payload.get("stages", [])
-    )
-    variables = {
-        key: value
-        for key, value in payload.get("variables", {}).items()
-        if isinstance(key, str) and isinstance(value, str)
-    }
+    try:
+        payload = json.loads(result_file.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            raise TypeError
+        raw_stages = payload["stages"]
+        raw_variables = payload["variables"]
+        if not isinstance(raw_stages, list) or not isinstance(raw_variables, dict):
+            raise TypeError
+        stages_list = []
+        for item in raw_stages:
+            if not isinstance(item, dict):
+                raise TypeError
+            identifier = item["identifier"]
+            status = item["status"]
+            started_at = item["startedAt"]
+            finished_at = item["finishedAt"]
+            if (
+                not isinstance(identifier, str)
+                or status not in {"PASSED", "FAILED", "ERROR"}
+                or not isinstance(started_at, str)
+                or not isinstance(finished_at, str)
+            ):
+                raise TypeError
+            stages_list.append(
+                TavernStageResult(
+                    identifier=identifier,
+                    status=status,
+                    started_at=datetime.fromisoformat(started_at),
+                    finished_at=datetime.fromisoformat(finished_at),
+                    expected=item.get("expected"),
+                    actual=item.get("actual"),
+                    error_code=item.get("errorCode"),
+                    error_message=item.get("errorMessage"),
+                )
+            )
+        stages = tuple(stages_list)
+        variables = {
+            key: value
+            for key, value in raw_variables.items()
+            if isinstance(key, str) and isinstance(value, str)
+        }
+    except (AttributeError, KeyError, TypeError, ValueError) as exc:
+        raise TavernResultInvalidError("Tavern result report is invalid") from exc
     return TavernExecutionResult(exit_code, False, stages, variables)
 
 
@@ -229,6 +258,8 @@ def _reporter_source(stage_identifiers: tuple[str, ...]) -> str:
     return f'''import json
 from datetime import UTC, datetime
 from tavern._core.exceptions import TestFailError
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+import re
 
 STAGES = {json.dumps(stage_identifiers)}
 result = {{"stages": [], "variables": {{}}}}
@@ -239,9 +270,14 @@ SENSITIVE_HEADERS = frozenset({{
     "authorization", "cookie", "proxy-authorization", "set-cookie", "x-api-key",
 }})
 SENSITIVE_FIELDS = frozenset({{
-    "access_token", "api_key", "authorization", "password", "refresh_token", "secret", "token",
+    "access_token", "api_key", "authorization", "key", "password",
+    "forbiddentext", "refresh_token", "secret", "token",
 }})
+NORMALIZED_SENSITIVE_FIELDS = frozenset(
+    re.sub(r"[^a-z0-9]", "", field.lower()) for field in SENSITIVE_FIELDS
+)
 MAX_RESPONSE_BODY_CHARS = 4096
+MAX_ERROR_MESSAGE_CHARS = 1024
 
 def now():
     """Return the current UTC instant in JSON-compatible form."""
@@ -260,21 +296,45 @@ def redact_headers(headers):
     return {{key: "[REDACTED]" if key.lower() in SENSITIVE_HEADERS else value
             for key, value in headers.items()}}
 
+def is_sensitive_field(key):
+    """Match common credential names regardless of case or separators."""
+    normalized = re.sub(r"[^a-z0-9]", "", key.lower())
+    return normalized in NORMALIZED_SENSITIVE_FIELDS
+
+def redact_url(url):
+    """Redact common credential values in request query parameters."""
+    try:
+        parts = urlsplit(url)
+        query = urlencode([
+            (key, "[REDACTED]" if is_sensitive_field(key) else value)
+            for key, value in parse_qsl(parts.query, keep_blank_values=True)
+        ])
+        netloc = parts.netloc
+        if "@" in netloc:
+            netloc = "[REDACTED]@" + netloc.rsplit("@", 1)[1]
+        return urlunsplit((parts.scheme, netloc, parts.path, query, parts.fragment))
+    except (TypeError, ValueError):
+        return "[REDACTED]"
+
 def request_evidence(request_args):
     """Keep request metadata without retaining potentially sensitive request bodies."""
-    return {{key: safe(request_args[key])
+    return {{key: safe(redact_fields(request_args[key]))
+            if key == "params" else redact_url(request_args[key])
+            if key == "url" else safe(request_args[key])
             for key in ("method", "url", "params") if key in request_args}} | {{
                 "headers": redact_headers(request_args.get("headers", {{}}))
             }}
 
 def redact_fields(value):
     """Remove common credential fields from nested JSON-compatible response bodies."""
-    if isinstance(value, dict):
-        return {{key: "[REDACTED]" if key.lower() in SENSITIVE_FIELDS else redact_fields(item)
-                for key, item in value.items()}}
-    if isinstance(value, list):
-        return [redact_fields(item) for item in value]
-    return value
+    return (
+        {{key: "[REDACTED]" if is_sensitive_field(key) else redact_fields(item)
+          for key, item in value.items()}}
+        if isinstance(value, dict)
+        else [redact_fields(item) for item in value]
+        if isinstance(value, list)
+        else value
+    )
 
 def response_body_evidence(body):
     """Limit response-body size before persisting it as execution evidence."""
@@ -283,6 +343,18 @@ def response_body_evidence(body):
     if len(serialized) <= MAX_RESPONSE_BODY_CHARS:
         return safe(redacted_body)
     return {{"truncated": True, "content": serialized[:MAX_RESPONSE_BODY_CHARS]}}
+
+def redact_error_message(message):
+    """Redact common credential assignments and bound persisted error evidence."""
+    text = str(message)
+    for field in SENSITIVE_FIELDS:
+        pattern = re.compile(
+            r'((?:"|\\')?' + re.escape(field) + r'(?:(?:"|\\'))?\\s*[:=]\\s*)'
+            r'(?:(?:"(?:\\\\.|[^"\\\\])*"|\\'(?:\\\\.|[^\\'\\\\])*\\')|[^,\\s]+)',
+            re.IGNORECASE,
+        )
+        text = pattern.sub(r'\\1"[REDACTED]"', text)
+    return text[:MAX_ERROR_MESSAGE_CHARS]
 
 def complete(status, code=None, message=None):
     """Persist the pending stage with its terminal structured status."""
@@ -321,7 +393,7 @@ def pytest_tavern_beta_after_every_response(expected, response):
         body = response.json()
     except ValueError:
         body = response.text
-    pending["expected"] = safe(expected)
+    pending["expected"] = safe(redact_fields(expected))
     pending["actual"] = {{"statusCode": response.status_code,
                          "headers": redact_headers(response.headers),
                          "body": response_body_evidence(body)}}
@@ -346,9 +418,10 @@ def pytest_runtest_makereport(item, call):
     if pending is None and identifier:
         pending = {{"identifier": identifier, "startedAt": now()}}
     if pending is not None:
-        code = ("TAVERN_ASSERTION_FAILED" if isinstance(error, TestFailError)
-                else "TAVERN_EXECUTION_ERROR")
-        complete("FAILED", code, str(error))
+        assertion_failed = isinstance(error, TestFailError)
+        code = "TAVERN_ASSERTION_FAILED" if assertion_failed else "TAVERN_EXECUTION_ERROR"
+        status = "FAILED" if assertion_failed else "ERROR"
+        complete(status, code, redact_error_message(error))
 
 def pytest_sessionfinish(session, exitstatus):
     """Write the final structured result for the parent Tavern executor."""

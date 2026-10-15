@@ -2,8 +2,8 @@
 
 from uuid import UUID
 
-from test_service.domain.commons.pagination import Page, PaginationParams
-from test_service.domain.model.execution.execution import Execution
+from test_service.domain.application.queries.pagination import Page, PaginationParams
+from test_service.domain.model.execution.execution import Execution, ExecutionStatus
 from test_service.domain.ports.output.persistence.executions.execution_persistence_port import (  # noqa: E501
     ExecutionPersistencePort,
 )
@@ -26,6 +26,15 @@ class ExecutionPersistenceAdapter(ExecutionPersistencePort):
             await self._repository.save(ExecutionPersistenceMapper.to_dto(execution))
         )
 
+    async def transition_execution(
+        self, execution: Execution, expected_statuses: tuple[ExecutionStatus, ...]
+    ) -> Execution | None:
+        persisted = await self._repository.transition(
+            ExecutionPersistenceMapper.to_dto(execution),
+            tuple(status.value for status in expected_statuses),
+        )
+        return ExecutionPersistenceMapper.to_domain(persisted) if persisted is not None else None
+
     async def find_execution(self, identifier: UUID) -> Execution | None:
         execution = await self._repository.find_by_id(identifier)
         return ExecutionPersistenceMapper.to_domain(execution) if execution is not None else None
@@ -34,8 +43,8 @@ class ExecutionPersistenceAdapter(ExecutionPersistencePort):
         execution = await self._repository.claim_next_created()
         return ExecutionPersistenceMapper.to_domain(execution) if execution is not None else None
 
-    async def recover_stale_running(self) -> int:
-        return await self._repository.recover_stale_running()
+    async def mark_stale_running_as_error(self) -> int:
+        return await self._repository.mark_stale_running_as_error()
 
     async def find_page(self, project_key: str, pagination: PaginationParams) -> Page[Execution]:
         page = await self._repository.find_page(project_key, pagination)

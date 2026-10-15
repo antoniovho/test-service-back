@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 
-from test_service.domain.commons.pagination import PaginationParams, SortOrder
+from test_service.domain.application.queries.pagination import PaginationParams, SortOrder
 from test_service.domain.model.lifecycle import VersionStatus
 from test_service.infrastructure.adapters.output.authoring.preconditions.persistence.dtos.precondition_dto import (  # noqa: E501
     PreconditionDTO,

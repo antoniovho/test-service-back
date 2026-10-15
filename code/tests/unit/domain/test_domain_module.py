@@ -248,6 +248,9 @@ class _FakeExecutionRepository:
     async def save_execution(self, execution):
         return execution
 
+    async def transition_execution(self, execution, expected_statuses):
+        return execution
+
     async def find_execution(self, identifier):
         return None
 
@@ -301,6 +304,9 @@ class _FakeViewerRepository:
     async def save_sync_record(self, record):
         return record
 
+    async def find_sync_record(self, project_key, entity_type, entity_key, viewer_type):
+        return None
+
     async def save_drift_event(self, event):
         return event
 
@@ -318,12 +324,12 @@ class _FakeViewerRepository:
 
 
 class _FakeViewerPublisher:
-    async def publish(self, record):
+    async def publish(self, projection):
         return None
 
 
 class _FakeViewerDriftDetector:
-    async def check_drift(self, record):
+    async def check_drift(self, projection):
         return None
 
 

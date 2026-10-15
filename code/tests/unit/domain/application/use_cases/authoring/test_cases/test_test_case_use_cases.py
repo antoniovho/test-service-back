@@ -15,6 +15,7 @@ from test_service.domain.application.queries.authoring import (
     TestCaseQuery,
     TestCaseVersionsQuery,
 )
+from test_service.domain.application.queries.pagination import Page, PaginationParams
 from test_service.domain.application.services.resolvers.precondition_reference_resolver import (
     PreconditionReferenceResolver,
 )
@@ -40,7 +41,6 @@ from test_service.domain.application.use_cases.authoring.test_cases.list_test_ca
 from test_service.domain.application.use_cases.authoring.test_cases.list_test_cases_use_case import (  # noqa: E501
     ListTestCasesUseCaseImpl,
 )
-from test_service.domain.commons.pagination import Page, PaginationParams
 from test_service.domain.model.authoring.definition import Action, Definition
 from test_service.domain.model.authoring.precondition import Precondition
 from test_service.domain.model.authoring.test_case import (

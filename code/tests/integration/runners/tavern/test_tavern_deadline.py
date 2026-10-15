@@ -3,6 +3,7 @@ import shutil
 import signal
 import socket
 from collections.abc import Iterator
+from types import SimpleNamespace
 
 import pytest
 
@@ -24,7 +25,7 @@ def silent_server(monkeypatch) -> Iterator[str]:
     listener = socket.socket()
     listener.bind(("127.0.0.1", 0))
     listener.listen()
-    yield f"http://127.0.0.1:{listener.getsockname()[1]}"
+    yield SimpleNamespace(url=f"http://127.0.0.1:{listener.getsockname()[1]}", listener=listener)
     listener.close()
 
 
@@ -46,7 +47,7 @@ class TestTavernDeadline:
             "stages": [
                 {
                     "name": "probe",
-                    "request": {"url": f"{silent_server}/probe", "method": "GET"},
+                    "request": {"url": f"{silent_server.url}/probe", "method": "GET"},
                     "response": {"status_code": 200},
                 }
             ],
@@ -57,3 +58,31 @@ class TestTavernDeadline:
                 await TavernExecutor().execute(document, ("probe",), asyncio.Event())
 
         assert launched[0].returncode == -signal.SIGKILL
+
+    async def test_when_cancellation_is_requested_during_http_request_expect_process_terminated(
+        self, silent_server
+    ) -> None:
+        cancellation = asyncio.Event()
+        document = {
+            "test_name": "cancelled request",
+            "stages": [
+                {
+                    "name": "probe",
+                    "request": {"url": f"{silent_server.url}/probe", "method": "GET"},
+                    "response": {"status_code": 200},
+                }
+            ],
+        }
+        execution = asyncio.create_task(
+            TavernExecutor().execute(document, ("probe",), cancellation)
+        )
+
+        connection, _ = await asyncio.to_thread(silent_server.listener.accept)
+        try:
+            cancellation.set()
+            result = await execution
+        finally:
+            connection.close()
+
+        assert result.cancelled is True
+        assert result.stages == ()

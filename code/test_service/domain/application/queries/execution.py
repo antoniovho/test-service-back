@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from uuid import UUID
 
-from test_service.domain.commons.pagination import PaginationParams
+from test_service.domain.application.queries.pagination import PaginationParams
 
 
 @dataclass(frozen=True, slots=True)
