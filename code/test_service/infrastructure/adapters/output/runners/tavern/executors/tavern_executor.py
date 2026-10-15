@@ -9,13 +9,15 @@ from collections.abc import Mapping
 from datetime import datetime
 from pathlib import Path
 
-from test_service.domain.commons.reserved_constructs import find_reserved_construct
 from test_service.infrastructure.adapters.output.runners.tavern.dtos.tavern_dtos import (
     TavernExecutionResult,
     TavernStageResult,
 )
 from test_service.infrastructure.adapters.output.runners.tavern.tavern_exceptions import (
     TavernResultInvalidError,
+)
+from test_service.infrastructure.adapters.output.runners.tavern.tavern_safety import (
+    find_unsafe_tavern_construct,
 )
 
 # Tavern exposes the whole process environment to test documents, so only what the
@@ -74,9 +76,9 @@ class TavernExecutor:
             OSError: If the temporary files cannot be created or the Tavern
                 process cannot be started.
         """
-        reserved = find_reserved_construct(document)
-        if reserved is not None:
-            raise ValueError(f"Tavern document uses {reserved}")
+        unsafe = find_unsafe_tavern_construct(document)
+        if unsafe is not None:
+            raise ValueError(f"Tavern document uses {unsafe}")
         with tempfile.TemporaryDirectory(prefix="test-service-") as directory:
             root = Path(directory)
             test_file = root / "test-execution.tavern.yaml"

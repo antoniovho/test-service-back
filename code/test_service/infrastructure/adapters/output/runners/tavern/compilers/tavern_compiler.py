@@ -5,8 +5,10 @@ from typing import Any, cast
 
 from jsonschema import Draft202012Validator
 
-from test_service.domain.commons.reserved_constructs import find_reserved_construct
 from test_service.domain.ports.output.runners.runner_dtos import CompiledAction
+from test_service.infrastructure.adapters.output.runners.tavern.tavern_safety import (
+    find_unsafe_tavern_construct,
+)
 from test_service.infrastructure.adapters.output.runners.tavern.variable_renderer import (
     render_service_variables,
 )
@@ -32,9 +34,9 @@ class TavernCompiler:
         )
         if not isinstance(configuration, dict):
             raise ValueError("HTTP action configuration must be an object")
-        reserved = find_reserved_construct(configuration)
-        if reserved is not None:
-            raise ValueError(f"HTTP action '{action.identifier}' uses {reserved}")
+        unsafe = find_unsafe_tavern_construct(configuration)
+        if unsafe is not None:
+            raise ValueError(f"HTTP action '{action.identifier}' uses {unsafe}")
         return {
             "name": action.identifier,
             "request": TavernCompiler._compile_request(configuration),

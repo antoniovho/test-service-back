@@ -4,7 +4,9 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 from test_service.domain.commons.immutable import freeze_mapping
-from test_service.domain.commons.reserved_constructs import find_reserved_construct
+from test_service.domain.model.authoring.definition_safety import (
+    find_unsafe_definition_construct,
+)
 from test_service.domain.model.exceptions.invalid_action_exception import (
     InvalidActionException,
 )
@@ -43,7 +45,7 @@ class Action:
 
         Raises:
             InvalidActionException: If a required text field is empty or the
-                configuration uses a construct reserved by the runner.
+            configuration uses a construct unsafe in the definition language.
         """
         self._validate_text(self.identifier, "action identifier")
         self._validate_text(self.action_type, "action type")
@@ -51,11 +53,11 @@ class Action:
         if self.source is not None:
             self._validate_text(self.source, "action source")
 
-        reserved = find_reserved_construct(self.configuration)
-        if reserved is not None:
+        unsafe = find_unsafe_definition_construct(self.configuration)
+        if unsafe is not None:
             raise InvalidActionException(
-                f"action '{self.identifier}' configuration uses {reserved}, "
-                "which is reserved by the runner"
+                f"action '{self.identifier}' configuration uses {unsafe}, "
+                "which is unsafe in a test definition"
             )
 
         object.__setattr__(

@@ -64,7 +64,7 @@ class TestTavernIsolation:
         self, server, monkeypatch
     ) -> None:
         monkeypatch.setenv(_SENTINEL_NAME, _SENTINEL_VALUE)
-        monkeypatch.setattr(tavern_executor, "find_reserved_construct", lambda document: None)
+        monkeypatch.setattr(tavern_executor, "find_unsafe_tavern_construct", lambda document: None)
         document = _document(server.url, {"X-Leak": f"{{tavern.env_vars.{_SENTINEL_NAME}}}"})
 
         await TavernExecutor().execute(document, ("probe",), asyncio.Event())
