@@ -38,6 +38,12 @@ proveedor de identidad. No lo habilites fuera de ese entorno.
 uv run uvicorn test_service.main:app --reload
 ```
 
+Como alternativa, el paquete ofrece un punto de entrada local sin recarga:
+
+```bash
+uv run python -m test_service
+```
+
 El servidor queda disponible en `http://127.0.0.1:8000`; la documentacion
 interactiva de FastAPI se sirve en `http://127.0.0.1:8000/docs`.
 
