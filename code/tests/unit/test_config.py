@@ -1,4 +1,4 @@
-from test_service.config import PostgresDatabaseSettings
+from test_service.config import AuthSettings, PostgresDatabaseSettings
 
 
 class TestPostgresDatabaseSettings:
@@ -31,3 +31,8 @@ class TestPostgresDatabaseSettings:
         assert settings.name == "environment_catalog"
         assert settings.user == "environment-user"
         assert settings.password.get_secret_value() == "environment-password"
+
+
+class TestAuthSettings:
+    def test_when_local_settings_are_loaded_expect_same_env_file_as_other_settings(self):
+        assert AuthSettings.model_config.get("env_file") == ".env"

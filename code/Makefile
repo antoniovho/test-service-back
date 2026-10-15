@@ -64,7 +64,8 @@ integration:
 
 ## Ejecuta el análisis de SonarQube.
 sonar:
-	@test -n "$$SONAR_TOKEN" || (echo "SONAR_TOKEN no está definido"; exit 1)
+	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
+	test -n "$$SONAR_TOKEN" || (echo "SONAR_TOKEN no está definido"; exit 1); \
 	uv run pysonar
 
 # -----------------------------------------------------------------------------

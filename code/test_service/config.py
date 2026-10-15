@@ -23,7 +23,12 @@ class AuthSettings(BaseSettings):
             `mock_enabled` is false.
     """
 
-    model_config = SettingsConfigDict(env_prefix="AUTH_")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        env_prefix="AUTH_",
+        extra="ignore",
+    )
 
     mock_enabled: bool = False
     issuer: str | None = None
