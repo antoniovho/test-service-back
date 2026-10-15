@@ -90,7 +90,7 @@ class ExecutionRepository:
             await session.refresh(execution)
             return execution
 
-    async def recover_stale_running(self) -> int:
+    async def mark_stale_running_as_error(self) -> int:
         """Mark expired RUNNING leases as ERROR without re-running their work."""
         recovered_at = datetime.now(UTC)
         stale_before = recovered_at - timedelta(seconds=self._settings.recovery_timeout_seconds)

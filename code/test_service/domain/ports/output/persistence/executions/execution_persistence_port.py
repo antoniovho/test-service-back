@@ -32,8 +32,8 @@ class ExecutionPersistencePort(Protocol):
         """Atomically claim the oldest execution waiting for a runner."""
         ...
 
-    async def recover_stale_running(self) -> int:
-        """Mark executions abandoned by a worker as errors and return their count."""
+    async def mark_stale_running_as_error(self) -> int:
+        """Mark RUNNING executions abandoned by a worker as ERROR and return their count."""
         ...
 
     async def find_page(self, project_key: str, pagination: PaginationParams) -> Page[Execution]:

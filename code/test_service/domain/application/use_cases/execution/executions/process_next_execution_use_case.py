@@ -118,7 +118,9 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
         self._variables_resolver = variables_resolver
 
     async def execute(self, _: None) -> Execution | None:
-        await self._executions.recover_stale_running()
+        # Mark any stale RUNNING executions as error before claiming the next one.
+        await self._executions.mark_stale_running_as_error()
+        # Claim the next execution that is in the CREATED state.
         execution = await self._executions.claim_next_created()
 
         if execution is None:
