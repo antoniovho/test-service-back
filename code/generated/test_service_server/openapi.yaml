@@ -7,7 +7,7 @@ info:
     \ executing validated plans, and publishing read-only projections to an external\
     \ testing viewer."
   title: Test Service
-  version: 0.3.2
+  version: 0.3.3
 servers:
 - description: Local development server
   url: http://localhost:8080
@@ -47,18 +47,19 @@ paths:
         schema:
           $ref: "#/components/schemas/Limit"
         style: form
-      - description: Field used to sort the result set.
+      - description: Field used to sort projects.
         explode: true
         in: query
         name: sortBy
         required: false
         schema:
-          default: version
+          default: createdAt
           enum:
-          - status
-          - version
+          - key
           - name
-          example: version
+          - status
+          - createdAt
+          example: createdAt
           type: string
         style: form
       - description: Sort direction.
@@ -7310,19 +7311,20 @@ components:
       schema:
         $ref: "#/components/schemas/Limit"
       style: form
-    sortBy:
-      description: Field used to sort the result set.
+    ProjectSortBy:
+      description: Field used to sort projects.
       explode: true
       in: query
       name: sortBy
       required: false
       schema:
-        default: version
+        default: createdAt
         enum:
-        - status
-        - version
+        - key
         - name
-        example: version
+        - status
+        - createdAt
+        example: createdAt
         type: string
       style: form
     order:
@@ -7355,6 +7357,21 @@ components:
         - DRAFT
         - ACTIVE
         - DEPRECATED
+        type: string
+      style: form
+    sortBy:
+      description: Field used to sort the result set.
+      explode: true
+      in: query
+      name: sortBy
+      required: false
+      schema:
+        default: version
+        enum:
+        - status
+        - version
+        - name
+        example: version
         type: string
       style: form
     TestCaseId:

@@ -29,9 +29,9 @@ class BaseExecutionApi:
         BaseExecutionApi.subclasses = BaseExecutionApi.subclasses + (cls,)
     async def list_environments(
         self,
-        offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")],
-        limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")],
-        sort_by: Annotated[Optional[StrictStr], Field(description="Field used to sort the result set.")],
+        offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")],
+        limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")],
+        sort_by: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Field used to sort the result set.")],
         order: Annotated[Optional[SortOrder], Field(description="Sort direction.")],
     ) -> EnvironmentListResponse:
         """Returns a paginated list of configured execution environments without secret values."""
@@ -48,7 +48,7 @@ class BaseExecutionApi:
 
     async def get_environment(
         self,
-        environmentId: Annotated[UUID, Field(description="UUID of the environment.")],
+        environmentId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the environment.")],
     ) -> Environment:
         """Returns environment metadata without resolving or exposing secret values."""
         ...
@@ -56,7 +56,7 @@ class BaseExecutionApi:
 
     async def activate_environment(
         self,
-        environmentId: Annotated[UUID, Field(description="UUID of the environment.")],
+        environmentId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the environment.")],
         action_request: Optional[ActionRequest],
     ) -> Environment:
         """Marks an environment as available for new executions."""
@@ -65,7 +65,7 @@ class BaseExecutionApi:
 
     async def deactivate_environment(
         self,
-        environmentId: Annotated[UUID, Field(description="UUID of the environment.")],
+        environmentId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the environment.")],
         action_request: Optional[ActionRequest],
     ) -> Environment:
         """Marks an environment as unavailable for new executions without deleting its history."""
@@ -74,10 +74,10 @@ class BaseExecutionApi:
 
     async def list_executions(
         self,
-        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
-        offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")],
-        limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")],
-        sort_by: Annotated[Optional[StrictStr], Field(description="Field used to sort the result set. Shared by executions, test results, and action results, which expose the same sortable fields.")],
+        projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
+        offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")],
+        limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")],
+        sort_by: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Field used to sort the result set. Shared by executions, test results, and action results, which expose the same sortable fields.")],
         order: Annotated[Optional[SortOrder], Field(description="Sort direction.")],
     ) -> ExecutionListResponse:
         """Returns a paginated list of historical and active plan executions."""
@@ -86,7 +86,7 @@ class BaseExecutionApi:
 
     async def create_execution(
         self,
-        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
+        projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
         create_execution_request: CreateExecutionRequest,
     ) -> Execution:
         """Accepts a plan execution request and schedules it for asynchronous processing."""
@@ -95,8 +95,8 @@ class BaseExecutionApi:
 
     async def get_execution(
         self,
-        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
-        executionId: UUID,
+        projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
+        executionId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="")],
     ) -> Execution:
         """Returns the status, timing, and immutable references of an execution."""
         ...
@@ -104,8 +104,8 @@ class BaseExecutionApi:
 
     async def cancel_execution(
         self,
-        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
-        executionId: UUID,
+        projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
+        executionId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="")],
     ) -> Execution:
         """Requests cancellation of an execution that has not reached a terminal state."""
         ...
@@ -113,11 +113,11 @@ class BaseExecutionApi:
 
     async def list_execution_results(
         self,
-        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
-        executionId: UUID,
-        offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")],
-        limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")],
-        sort_by: Annotated[Optional[StrictStr], Field(description="Field used to sort the result set. Shared by executions, test results, and action results, which expose the same sortable fields.")],
+        projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
+        executionId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="")],
+        offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")],
+        limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")],
+        sort_by: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Field used to sort the result set. Shared by executions, test results, and action results, which expose the same sortable fields.")],
         order: Annotated[Optional[SortOrder], Field(description="Sort direction.")],
     ) -> TestResultListResponse:
         """Returns a paginated list of test results recorded for an execution."""
@@ -126,9 +126,9 @@ class BaseExecutionApi:
 
     async def get_execution_result(
         self,
-        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
-        executionId: Annotated[UUID, Field(description="UUID of the execution.")],
-        testResultId: Annotated[UUID, Field(description="UUID of the test result.")],
+        projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
+        executionId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the execution.")],
+        testResultId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the test result.")],
     ) -> TestResult:
         """Returns one immutable test result belonging to an execution."""
         ...
@@ -136,12 +136,12 @@ class BaseExecutionApi:
 
     async def list_execution_result_actions(
         self,
-        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
-        executionId: Annotated[UUID, Field(description="UUID of the execution.")],
-        testResultId: Annotated[UUID, Field(description="UUID of the test result.")],
-        offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")],
-        limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")],
-        sort_by: Annotated[Optional[StrictStr], Field(description="Field used to sort the result set. Shared by executions, test results, and action results, which expose the same sortable fields.")],
+        projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
+        executionId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the execution.")],
+        testResultId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the test result.")],
+        offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")],
+        limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")],
+        sort_by: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Field used to sort the result set. Shared by executions, test results, and action results, which expose the same sortable fields.")],
         order: Annotated[Optional[SortOrder], Field(description="Sort direction.")],
     ) -> ActionResultListResponse:
         """Returns the action results recorded for an execution result."""
@@ -150,12 +150,12 @@ class BaseExecutionApi:
 
     async def list_execution_result_artifacts(
         self,
-        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
-        executionId: Annotated[UUID, Field(description="UUID of the execution.")],
-        testResultId: Annotated[UUID, Field(description="UUID of the test result.")],
-        offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")],
-        limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")],
-        sort_by: Annotated[Optional[StrictStr], Field(description="Field used to sort the result set.")],
+        projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
+        executionId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the execution.")],
+        testResultId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the test result.")],
+        offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")],
+        limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")],
+        sort_by: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Field used to sort the result set.")],
         order: Annotated[Optional[SortOrder], Field(description="Sort direction.")],
     ) -> TestResultArtifactListResponse:
         """Returns metadata for technical evidence attached to an execution result."""
