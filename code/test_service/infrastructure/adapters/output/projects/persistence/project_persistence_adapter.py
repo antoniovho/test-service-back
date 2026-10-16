@@ -1,7 +1,7 @@
 """Projects domain persistence adapter."""
 
 from test_service.domain.application.queries.pagination import Page, PaginationParams
-from test_service.domain.model.projects.project import Project
+from test_service.domain.model.projects.project import Project, ProjectStatus
 from test_service.domain.ports.output.persistence.projects.project_persistence_port import (
     ProjectPersistencePort,
 )
@@ -29,9 +29,11 @@ class ProjectPersistenceAdapter(ProjectPersistencePort):
         project = await self._repository.find_by_key(key)
         return ProjectPersistenceMapper.to_domain(project) if project is not None else None
 
-    async def find_page(self, pagination: PaginationParams) -> Page[Project]:
-        """Find a page of Project aggregates."""
-        page = await self._repository.find_page(pagination)
+    async def find_page(
+        self, pagination: PaginationParams, status: ProjectStatus | None = None
+    ) -> Page[Project]:
+        """Find a page of Project aggregates, optionally filtered by lifecycle status."""
+        page = await self._repository.find_page(pagination, status)
         return Page(
             items=tuple(ProjectPersistenceMapper.to_domain(project) for project in page.items),
             total=page.total,

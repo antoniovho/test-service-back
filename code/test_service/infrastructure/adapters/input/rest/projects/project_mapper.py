@@ -18,7 +18,7 @@ from test_service.domain.application.commands.projects import (
 from test_service.domain.application.queries.pagination import Page, PaginationParams
 from test_service.domain.application.queries.pagination import SortOrder as DomainSortOrder
 from test_service.domain.application.queries.projects import GetProjectQuery, ListProjectsQuery
-from test_service.domain.model.projects.project import Project
+from test_service.domain.model.projects.project import Project, ProjectStatus
 from test_service.infrastructure.adapters.input.rest.common.api_value import enum_value
 
 _BASE_SORT_FIELDS: MappingProxyType = MappingProxyType(
@@ -45,9 +45,14 @@ class ProjectMapper:
         )
 
     @staticmethod
-    def to_list_query(pagination: PaginationParams) -> ListProjectsQuery:
+    def to_list_query(
+        pagination: PaginationParams, status: str | Enum | None = None
+    ) -> ListProjectsQuery:
         """Build the query used to list Project Catalog entries."""
-        return ListProjectsQuery(pagination=pagination)
+        return ListProjectsQuery(
+            pagination=pagination,
+            status=ProjectStatus(enum_value(status)) if status is not None else None,
+        )
 
     @staticmethod
     def to_get_query(project_key: str) -> GetProjectQuery:

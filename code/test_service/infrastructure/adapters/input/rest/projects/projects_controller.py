@@ -1,6 +1,7 @@
 """Inbound REST adapter for the Projects API, implementing the generated base class."""
 
 from datetime import UTC, datetime
+from enum import Enum
 
 from test_service_server.apis.projects_api_base import BaseProjectsApi
 from test_service_server.models.create_project_request import CreateProjectRequest
@@ -50,10 +51,11 @@ class ProjectsController(BaseProjectsApi):
         limit: int | None,
         sort_by: ApiProjectSortBy | None,
         order: ApiSortOrder | None,
+        status: str | Enum | None = None,
     ) -> ProjectListResponse:
         """Return a paginated list of active projects."""
         pagination = ProjectMapper.to_pagination_params(offset, limit, sort_by, order)
-        query = ProjectMapper.to_list_query(pagination)
+        query = ProjectMapper.to_list_query(pagination, status)
         page = await self._list_projects_use_case.execute(request=query)
         return ProjectMapper.domain_page_to_list_response(page, pagination)
 
