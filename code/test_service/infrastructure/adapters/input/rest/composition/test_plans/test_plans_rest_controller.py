@@ -10,6 +10,7 @@ from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 from test_service_server.models.version_status import VersionStatus as ApiVersionStatus
 
 from test_service.bootstrap.container import get_injector
+from test_service.domain.application.commands.composition import RestoreTestPlanCommand
 from test_service.domain.application.queries.projects import GetProjectQuery
 from test_service.domain.ports.input.use_cases.composition.test_plans.activate_test_plan_use_case import (  # noqa: E501
     ActivateTestPlanUseCase,
@@ -32,6 +33,9 @@ from test_service.domain.ports.input.use_cases.composition.test_plans.list_test_
 from test_service.domain.ports.input.use_cases.composition.test_plans.list_test_plans_use_case import (  # noqa: E501
     ListTestPlansUseCase,
 )
+from test_service.domain.ports.input.use_cases.composition.test_plans.restore_test_plan_use_case import (  # noqa: E501
+    RestoreTestPlanUseCase,
+)
 from test_service.domain.ports.input.use_cases.projects.get_project_use_case import (  # noqa: E501
     GetProjectUseCase,
 )
@@ -48,6 +52,7 @@ class TestPlansRestController:
         injector = get_injector()
         self._create = injector.inject(CreateTestPlanUseCase)
         self._create_version = injector.inject(CreateTestPlanVersionUseCase)
+        self._restore = injector.inject(RestoreTestPlanUseCase)
         self._get = injector.inject(GetTestPlanUseCase)
         self._activate = injector.inject(ActivateTestPlanUseCase)
         self._deprecate = injector.inject(DeprecateTestPlanUseCase)
@@ -79,6 +84,15 @@ class TestPlansRestController:
             project_key, test_plan_id, request, get_current_identity(), datetime.now(UTC)
         )
         result = await self._create_version.execute(command)
+        return TestPlanMapper.to_api(result, project.name)
+
+    async def restore(self, project_key: str, test_plan_id: UUID):
+        project = await self._get_project.execute(GetProjectQuery(project_key))
+        result = await self._restore.execute(
+            RestoreTestPlanCommand(
+                project_key, test_plan_id, get_current_identity(), datetime.now(UTC)
+            )
+        )
         return TestPlanMapper.to_api(result, project.name)
 
     async def activate(self, project_key: str, test_plan_id: UUID, request: ActionRequest | None):

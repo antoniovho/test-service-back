@@ -43,6 +43,9 @@ class CompositionController(BaseCompositionApi):
     ):
         return await self._test_sets.create_version(projectKey, testSetId, create_test_set_request)
 
+    async def restore_test_set(self, projectKey: str, testSetId: UUID):  # NOSONAR
+        return await self._test_sets.restore(projectKey, testSetId)
+
     async def activate_test_set(
         self,
         projectKey: str,  # NOSONAR
@@ -103,6 +106,9 @@ class CompositionController(BaseCompositionApi):
         return await self._test_plans.create_version(
             projectKey, testPlanId, create_test_plan_request
         )
+
+    async def restore_test_plan(self, projectKey: str, testPlanId: UUID):  # NOSONAR
+        return await self._test_plans.restore(projectKey, testPlanId)
 
     async def activate_test_plan(
         self,
