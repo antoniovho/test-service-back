@@ -4,7 +4,10 @@ from test_service.domain.application.commands.projects import CreateProjectComma
 from test_service.domain.model.exceptions.project_already_exists_exception import (
     ProjectAlreadyExistsException,
 )
-from test_service.domain.model.projects.project import Project
+from test_service.domain.model.exceptions.project_restore_required_exception import (
+    ProjectRestoreRequiredException,
+)
+from test_service.domain.model.projects.project import Project, ProjectStatus
 from test_service.domain.ports.input.use_cases.projects.create_project_use_case import (
     CreateProjectUseCase,
 )
@@ -28,7 +31,8 @@ class CreateProjectUseCaseImpl(CreateProjectUseCase):
 
         Raises:
             InvalidProjectKeyException: If the key does not follow the accepted key format.
-            ProjectAlreadyExistsException: If a project with the same key already exists.
+            ProjectAlreadyExistsException: If an active project with the same key already exists.
+            ProjectRestoreRequiredException: If that key identifies a deleted project.
         """
         project = Project(
             key=request.key,
@@ -38,6 +42,8 @@ class CreateProjectUseCaseImpl(CreateProjectUseCase):
         )
         existing = await self._project_repository.find_by_key(project.key)
         if existing is not None:
+            if existing.status is ProjectStatus.DELETED:
+                raise ProjectRestoreRequiredException(project.key)
             raise ProjectAlreadyExistsException(f"project with key '{project.key}' already exists")
         await self._project_validation.validate(project.key)
         return await self._project_repository.save(project)

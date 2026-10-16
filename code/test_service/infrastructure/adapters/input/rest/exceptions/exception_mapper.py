@@ -64,11 +64,17 @@ from test_service.domain.model.exceptions.precondition_already_exists_exception 
 from test_service.domain.model.exceptions.precondition_project_mismatch_exception import (
     PreconditionProjectMismatchException,
 )
+from test_service.domain.model.exceptions.project_already_active_exception import (
+    ProjectAlreadyActiveException,
+)
 from test_service.domain.model.exceptions.project_already_deleted_exception import (
     ProjectAlreadyDeletedException,
 )
 from test_service.domain.model.exceptions.project_already_exists_exception import (
     ProjectAlreadyExistsException,
+)
+from test_service.domain.model.exceptions.project_restore_required_exception import (
+    ProjectRestoreRequiredException,
 )
 from test_service.domain.model.exceptions.resolved_secret_not_allowed_exception import (
     ResolvedSecretNotAllowedException,
@@ -94,7 +100,9 @@ _EXCEPTION_STATUS_MAP: dict[type[DomainException], HTTPStatus] = {
     ExternalProjectNotFoundException: HTTPStatus.UNPROCESSABLE_ENTITY,
     ExternalProjectForbiddenException: HTTPStatus.BAD_GATEWAY,
     ProjectAlreadyDeletedException: HTTPStatus.CONFLICT,
+    ProjectAlreadyActiveException: HTTPStatus.CONFLICT,
     ProjectAlreadyExistsException: HTTPStatus.CONFLICT,
+    ProjectRestoreRequiredException: HTTPStatus.CONFLICT,
     TestCaseAlreadyExistsException: HTTPStatus.CONFLICT,
     TestCaseVersionAlreadyExistsException: HTTPStatus.CONFLICT,
     TestSetAlreadyExistsException: HTTPStatus.CONFLICT,

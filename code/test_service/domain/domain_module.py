@@ -168,6 +168,9 @@ from test_service.domain.application.use_cases.projects.get_project_use_case imp
 from test_service.domain.application.use_cases.projects.list_projects_use_case import (
     ListProjectsUseCaseImpl,
 )
+from test_service.domain.application.use_cases.projects.restore_project_use_case import (
+    RestoreProjectUseCaseImpl,
+)
 from test_service.domain.application.use_cases.viewer.check_viewer_drift_use_case import (
     CheckViewerDriftUseCaseImpl,
 )
@@ -333,6 +336,9 @@ from test_service.domain.ports.input.use_cases.projects.get_project_use_case imp
 from test_service.domain.ports.input.use_cases.projects.list_projects_use_case import (
     ListProjectsUseCase,
 )
+from test_service.domain.ports.input.use_cases.projects.restore_project_use_case import (
+    RestoreProjectUseCase,
+)
 from test_service.domain.ports.input.use_cases.viewer.check_viewer_drift_use_case import (
     CheckViewerDriftUseCase,
 )
@@ -370,6 +376,7 @@ class ProjectsModule(Module):
         self.bind(CreateProjectUseCase, to_class=CreateProjectUseCaseImpl)
         self.bind(GetProjectUseCase, to_class=GetProjectUseCaseImpl)
         self.bind(DeleteProjectUseCase, to_class=DeleteProjectUseCaseImpl)
+        self.bind(RestoreProjectUseCase, to_class=RestoreProjectUseCaseImpl)
 
 
 class TestCasesModule(Module):

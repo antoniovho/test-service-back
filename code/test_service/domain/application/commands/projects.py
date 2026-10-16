@@ -34,3 +34,18 @@ class DeleteProjectCommand:
     key: str
     requested_by: str
     requested_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class RestoreProjectCommand:
+    """Request to restore a logically deleted project.
+
+    Args:
+        key: Stable project key.
+        requested_by: Identity requesting restoration.
+        requested_at: Restoration request timestamp.
+    """
+
+    key: str
+    requested_by: str
+    requested_at: datetime

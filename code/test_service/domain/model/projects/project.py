@@ -11,6 +11,9 @@ from test_service.domain.model.exceptions.invalid_project_deletion_exception imp
 from test_service.domain.model.exceptions.invalid_project_key_exception import (
     InvalidProjectKeyException,
 )
+from test_service.domain.model.exceptions.project_already_active_exception import (
+    ProjectAlreadyActiveException,
+)
 from test_service.domain.model.exceptions.project_already_deleted_exception import (
     ProjectAlreadyDeletedException,
 )
@@ -94,6 +97,24 @@ class Project:
             status=ProjectStatus.DELETED,
             deleted_at=deleted_at,
             deleted_by=deleted_by,
+        )
+
+    def restore(self) -> "Project":
+        """Return the project in the ``ACTIVE`` state.
+
+        The project key and its associated Test Service history are preserved;
+        only the local logical-deletion lifecycle is reversed.
+
+        Raises:
+            ProjectAlreadyActiveException: If the project is already active.
+        """
+        if self.status is ProjectStatus.ACTIVE:
+            raise ProjectAlreadyActiveException()
+        return replace(
+            self,
+            status=ProjectStatus.ACTIVE,
+            deleted_at=None,
+            deleted_by=None,
         )
 
     def _validate_deletion_metadata(self) -> None:
