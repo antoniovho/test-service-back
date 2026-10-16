@@ -13,6 +13,7 @@ from test_service_server.models.test_case_version_list_response import TestCaseV
 from test_service_server.models.version_status import VersionStatus as ApiVersionStatus
 
 from test_service.bootstrap.container import get_injector
+from test_service.domain.application.commands.authoring import RestoreTestCaseCommand
 from test_service.domain.application.queries.projects import GetProjectQuery
 from test_service.domain.ports.input.use_cases.authoring.test_cases.activate_test_case_use_case import (  # noqa: E501
     ActivateTestCaseUseCase,
@@ -35,6 +36,9 @@ from test_service.domain.ports.input.use_cases.authoring.test_cases.list_test_ca
 from test_service.domain.ports.input.use_cases.authoring.test_cases.list_test_cases_use_case import (  # noqa: E501
     ListTestCasesUseCase,
 )
+from test_service.domain.ports.input.use_cases.authoring.test_cases.restore_test_case_use_case import (  # noqa: E501
+    RestoreTestCaseUseCase,
+)
 from test_service.domain.ports.input.use_cases.projects.get_project_use_case import (
     GetProjectUseCase,
 )
@@ -53,6 +57,7 @@ class TestCasesRestController:
         injector = get_injector()
         self._create = injector.inject(CreateTestCaseUseCase)
         self._create_version = injector.inject(CreateTestCaseVersionUseCase)
+        self._restore = injector.inject(RestoreTestCaseUseCase)
         self._get = injector.inject(GetTestCaseUseCase)
         self._activate = injector.inject(ActivateTestCaseUseCase)
         self._deprecate = injector.inject(DeprecateTestCaseUseCase)
@@ -81,6 +86,15 @@ class TestCasesRestController:
             project_key, test_case_id, request, get_current_identity(), datetime.now(UTC)
         )
         test_case = await self._create_version.execute(command)
+        return TestCaseMapper.to_api(test_case, project.name)
+
+    async def restore(self, project_key: str, test_case_id: UUID) -> ApiTestCase:
+        project = await self._get_project.execute(GetProjectQuery(project_key))
+        test_case = await self._restore.execute(
+            RestoreTestCaseCommand(
+                project_key, test_case_id, get_current_identity(), datetime.now(UTC)
+            )
+        )
         return TestCaseMapper.to_api(test_case, project.name)
 
     async def activate(

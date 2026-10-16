@@ -45,6 +45,9 @@ class AuthoringController(BaseAuthoringApi):
             projectKey, testCaseId, create_test_case_request
         )
 
+    async def restore_test_case(self, projectKey: str, testCaseId: UUID):  # NOSONAR
+        return await self._test_cases.restore(projectKey, testCaseId)
+
     async def activate_test_case(
         self,
         projectKey: str,  # NOSONAR
@@ -109,6 +112,9 @@ class AuthoringController(BaseAuthoringApi):
         return await self._preconditions.create_version(
             projectKey, preconditionId, create_precondition_request
         )
+
+    async def restore_precondition(self, projectKey: str, preconditionId: UUID):  # NOSONAR
+        return await self._preconditions.restore(projectKey, preconditionId)
 
     async def activate_precondition(
         self,
