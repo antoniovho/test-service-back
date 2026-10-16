@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 
 from test_service.domain.application.queries.pagination import Page, PaginationParams
-from test_service.domain.model.projects.project import Project
+from test_service.domain.model.projects.project import Project, ProjectStatus
 from test_service.infrastructure.adapters.output.projects.persistence.dtos.project_dto import (
     ProjectDTO,
 )
@@ -31,7 +31,9 @@ class _Repository:
     async def find_by_key(self, key: str) -> ProjectDTO | None:
         return self.project
 
-    async def find_page(self, pagination: PaginationParams) -> Page[ProjectDTO]:
+    async def find_page(
+        self, pagination: PaginationParams, status: ProjectStatus | None = None
+    ) -> Page[ProjectDTO]:
         items = () if self.project is None else (self.project,)
         return Page(items=items, total=len(items))
 
@@ -78,7 +80,7 @@ class TestProjectPersistenceAdapter:
         )
         adapter = ProjectPersistenceAdapter(_Repository(dto))
 
-        page = await adapter.find_page(PaginationParams())
+        page = await adapter.find_page(PaginationParams(), ProjectStatus.ACTIVE)
 
         assert page.items == (project,)
         assert page.total == 1

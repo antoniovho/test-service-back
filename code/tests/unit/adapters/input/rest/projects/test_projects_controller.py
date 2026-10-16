@@ -45,7 +45,7 @@ class TestProjectsController:
         monkeypatch.setattr(
             "test_service.infrastructure.adapters.input.rest.projects.projects_controller."
             "ProjectMapper.to_list_query",
-            lambda _: "list-query",
+            lambda *_: "list-query",
         )
         monkeypatch.setattr(
             "test_service.infrastructure.adapters.input.rest.projects.projects_controller."
@@ -78,7 +78,7 @@ class TestProjectsController:
             lambda project: f"api-{project}",
         )
 
-        assert await controller.list_projects(0, 20, None, None) == "list-response"
+        assert await controller.list_projects(0, 20, None, None, "DELETED") == "list-response"
         assert await controller.create_project(MagicMock()) == "api-created"
         assert await controller.get_project("IAG") == "api-found"
         assert await controller.delete_project("IAG") is None
