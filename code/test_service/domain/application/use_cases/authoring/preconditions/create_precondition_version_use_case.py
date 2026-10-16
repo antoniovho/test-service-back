@@ -3,8 +3,13 @@
 from uuid import uuid4
 
 from test_service.domain.application.commands.authoring import CreatePreconditionVersionCommand
+from test_service.domain.application.services.resolvers.project_resolver import ProjectResolver
 from test_service.domain.model.authoring.precondition import Precondition
 from test_service.domain.model.exceptions.entity_not_found_exception import EntityNotFoundException
+from test_service.domain.model.exceptions.invalid_precondition_version_source_exception import (
+    InvalidPreconditionVersionSourceException,
+)
+from test_service.domain.model.lifecycle import VersionStatus
 from test_service.domain.ports.input.use_cases.authoring.preconditions.create_precondition_version_use_case import (  # noqa: E501
     CreatePreconditionVersionUseCase,
 )
@@ -16,16 +21,24 @@ from test_service.domain.ports.output.persistence.preconditions.precondition_per
 class CreatePreconditionVersionUseCaseImpl(CreatePreconditionVersionUseCase):
     """Creates a new draft snapshot from an existing Precondition snapshot."""
 
-    def __init__(self, precondition_repository: PreconditionPersistencePort) -> None:
+    def __init__(
+        self,
+        precondition_repository: PreconditionPersistencePort,
+        project_resolver: ProjectResolver,
+    ) -> None:
         self._precondition_repository = precondition_repository
+        self._project_resolver = project_resolver
 
     async def execute(self, request: CreatePreconditionVersionCommand) -> Precondition:
         """Create and persist the next immutable Precondition version."""
+        await self._project_resolver.resolve_active(request.project_key)
         source = await self._precondition_repository.find_by_id(request.source_id)
         if source is None or source.project_key != request.project_key:
             raise EntityNotFoundException(
                 "Precondition", str(request.source_id), f"project '{request.project_key}'"
             )
+        if source.status is VersionStatus.DEPRECATED:
+            raise InvalidPreconditionVersionSourceException(source.identifier)
         latest_version = await self._precondition_repository.find_latest_version(
             source.project_key, source.precondition_key
         )

@@ -3,11 +3,16 @@
 from uuid import uuid4
 
 from test_service.domain.application.commands.composition import CreateTestSetVersionCommand
+from test_service.domain.application.services.resolvers.project_resolver import ProjectResolver
 from test_service.domain.application.services.resolvers.test_case_snapshot_resolver import (
     TestCaseSnapshotResolver,
 )
 from test_service.domain.model.composition.test_set import TestSet
 from test_service.domain.model.exceptions.entity_not_found_exception import EntityNotFoundException
+from test_service.domain.model.exceptions.invalid_test_set_version_source_exception import (
+    InvalidTestSetVersionSourceException,
+)
+from test_service.domain.model.lifecycle import VersionStatus
 from test_service.domain.ports.input.use_cases.composition.test_sets.create_test_set_version_use_case import (  # noqa: E501
     CreateTestSetVersionUseCase,
 )
@@ -23,17 +28,22 @@ class CreateTestSetVersionUseCaseImpl(CreateTestSetVersionUseCase):
         self,
         test_set_repository: TestSetPersistencePort,
         test_case_snapshot_resolver: TestCaseSnapshotResolver,
+        project_resolver: ProjectResolver,
     ) -> None:
         self._test_set_repository = test_set_repository
         self._test_case_snapshot_resolver = test_case_snapshot_resolver
+        self._project_resolver = project_resolver
 
     async def execute(self, request: CreateTestSetVersionCommand) -> TestSet:
         """Create and persist the next immutable Test Set version."""
+        await self._project_resolver.resolve_active(request.project_key)
         source = await self._test_set_repository.find_by_id(request.source_id)
         if source is None or source.project_key != request.project_key:
             raise EntityNotFoundException(
                 "Test set", str(request.source_id), f"project '{request.project_key}'"
             )
+        if source.status is VersionStatus.DEPRECATED:
+            raise InvalidTestSetVersionSourceException(source.identifier)
         latest_version = await self._test_set_repository.find_latest_version(
             source.project_key, source.set_key
         )

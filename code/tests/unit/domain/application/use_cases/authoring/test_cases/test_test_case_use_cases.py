@@ -9,6 +9,7 @@ from test_service.domain.application.commands.authoring import (
     CreateTestCaseCommand,
     CreateTestCaseVersionCommand,
     DeprecateTestCaseCommand,
+    RestoreTestCaseCommand,
 )
 from test_service.domain.application.queries.authoring import (
     ListTestCasesQuery,
@@ -41,6 +42,9 @@ from test_service.domain.application.use_cases.authoring.test_cases.list_test_ca
 from test_service.domain.application.use_cases.authoring.test_cases.list_test_cases_use_case import (  # noqa: E501
     ListTestCasesUseCaseImpl,
 )
+from test_service.domain.application.use_cases.authoring.test_cases.restore_test_case_use_case import (  # noqa: E501
+    RestoreTestCaseUseCaseImpl,
+)
 from test_service.domain.model.authoring.definition import Action, Definition
 from test_service.domain.model.authoring.precondition import Precondition
 from test_service.domain.model.authoring.test_case import (
@@ -51,6 +55,12 @@ from test_service.domain.model.authoring.test_case import (
 )
 from test_service.domain.model.exceptions.entity_not_found_exception import (
     EntityNotFoundException,
+)
+from test_service.domain.model.exceptions.invalid_test_case_version_source_exception import (
+    InvalidTestCaseVersionSourceException,
+)
+from test_service.domain.model.exceptions.project_already_deleted_exception import (
+    ProjectAlreadyDeletedException,
 )
 from test_service.domain.model.exceptions.test_case_already_exists_exception import (
     TestCaseAlreadyExistsException,
@@ -262,7 +272,7 @@ class TestCreateTestCaseVersionUseCaseImpl:
         source = _test_case(version=3)
         repository = InMemoryTestCaseRepository((source,))
         resolver = PreconditionReferenceResolver(InMemoryPreconditionRepository())
-        use_case = CreateTestCaseVersionUseCaseImpl(repository, resolver)
+        use_case = CreateTestCaseVersionUseCaseImpl(repository, resolver, _project_resolver())
         request = _create_version_command(source.identifier)
 
         version = await use_case.execute(request)
@@ -275,7 +285,9 @@ class TestCreateTestCaseVersionUseCaseImpl:
 
     async def test_when_source_does_not_exist_expect_not_found_exception(self):
         resolver = PreconditionReferenceResolver(InMemoryPreconditionRepository())
-        use_case = CreateTestCaseVersionUseCaseImpl(InMemoryTestCaseRepository(), resolver)
+        use_case = CreateTestCaseVersionUseCaseImpl(
+            InMemoryTestCaseRepository(), resolver, _project_resolver()
+        )
         request = _create_version_command(uuid4())
 
         with pytest.raises(EntityNotFoundException) as exception:
@@ -290,7 +302,9 @@ class TestCreateTestCaseVersionUseCaseImpl:
     async def test_when_source_belongs_to_another_project_expect_not_found_exception(self):
         source = _test_case(project_key="OTHER")
         resolver = PreconditionReferenceResolver(InMemoryPreconditionRepository())
-        use_case = CreateTestCaseVersionUseCaseImpl(InMemoryTestCaseRepository((source,)), resolver)
+        use_case = CreateTestCaseVersionUseCaseImpl(
+            InMemoryTestCaseRepository((source,)), resolver, _project_resolver()
+        )
         request = _create_version_command(source.identifier)
 
         with pytest.raises(EntityNotFoundException) as exception:
@@ -303,12 +317,79 @@ class TestCreateTestCaseVersionUseCaseImpl:
         latest = _test_case(identifier=uuid4(), version=4)
         repository = InMemoryTestCaseRepository((source, latest))
         resolver = PreconditionReferenceResolver(InMemoryPreconditionRepository())
-        use_case = CreateTestCaseVersionUseCaseImpl(repository, resolver)
+        use_case = CreateTestCaseVersionUseCaseImpl(repository, resolver, _project_resolver())
         request = _create_version_command(source.identifier)
 
         version = await use_case.execute(request)
 
         assert version.version == 5
+
+    @pytest.mark.parametrize("status", [VersionStatus.DRAFT, VersionStatus.ACTIVE])
+    async def test_when_source_is_live_expect_next_draft_version(
+        self, status: VersionStatus
+    ) -> None:
+        source = _test_case(status=status)
+        repository = InMemoryTestCaseRepository((source,))
+        use_case = CreateTestCaseVersionUseCaseImpl(
+            repository,
+            PreconditionReferenceResolver(InMemoryPreconditionRepository()),
+            _project_resolver(),
+        )
+
+        version = await use_case.execute(_create_version_command(source.identifier))
+
+        assert version.version == 2
+        assert version.status is VersionStatus.DRAFT
+
+    async def test_when_source_is_deprecated_expect_version_source_rejected(self) -> None:
+        source = _test_case(status=VersionStatus.DEPRECATED)
+        use_case = CreateTestCaseVersionUseCaseImpl(
+            InMemoryTestCaseRepository((source,)),
+            PreconditionReferenceResolver(InMemoryPreconditionRepository()),
+            _project_resolver(),
+        )
+
+        with pytest.raises(InvalidTestCaseVersionSourceException) as exception:
+            await use_case.execute(_create_version_command(source.identifier))
+
+        assert exception.value.code == "INVALID_VERSION_SOURCE"
+        assert str(source.identifier) in exception.value.error_description
+
+    async def test_when_project_is_deleted_expect_version_not_created(self) -> None:
+        source = _test_case()
+        repository = InMemoryTestCaseRepository((source,))
+        use_case = CreateTestCaseVersionUseCaseImpl(
+            repository,
+            PreconditionReferenceResolver(InMemoryPreconditionRepository()),
+            _project_resolver(SimpleNamespace(status=ProjectStatus.DELETED)),
+        )
+
+        with pytest.raises(ProjectAlreadyDeletedException):
+            await use_case.execute(_create_version_command(source.identifier))
+
+        assert await repository.find_latest_version("IAG", "IAG-001") == 1
+
+
+class TestRestoreTestCaseUseCaseImpl:
+    async def test_when_source_is_deprecated_expect_next_draft_clones_its_content(self) -> None:
+        source = _test_case(status=VersionStatus.DEPRECATED, version=1)
+        repository = InMemoryTestCaseRepository((source,))
+        use_case = RestoreTestCaseUseCaseImpl(repository, _project_resolver())
+
+        restored = await use_case.execute(
+            RestoreTestCaseCommand(
+                project_key="IAG",
+                source_id=source.identifier,
+                requested_by="restorer@example.com",
+                requested_at=datetime(2026, 1, 3, tzinfo=UTC),
+            )
+        )
+
+        assert restored.identifier != source.identifier
+        assert restored.version == 2
+        assert restored.status is VersionStatus.DRAFT
+        assert restored.definition == source.definition
+        assert restored.created_by == "restorer@example.com"
 
 
 class TestGetTestCaseUseCaseImpl:
@@ -355,6 +436,18 @@ class TestLifecycleTestCaseUseCases:
         deprecated = await use_case.execute(DeprecateTestCaseCommand("IAG", test_case.identifier))
 
         assert deprecated.status is VersionStatus.DEPRECATED
+
+    async def test_when_two_versions_are_activated_expect_both_remain_active(self):
+        first = _test_case(version=1)
+        second = _test_case(identifier=uuid4(), version=2)
+        repository = InMemoryTestCaseRepository((first, second))
+        use_case = ActivateTestCaseUseCaseImpl(repository)
+
+        activated_first = await use_case.execute(ActivateTestCaseCommand("IAG", first.identifier))
+        activated_second = await use_case.execute(ActivateTestCaseCommand("IAG", second.identifier))
+
+        assert activated_first.status is VersionStatus.ACTIVE
+        assert activated_second.status is VersionStatus.ACTIVE
 
     @pytest.mark.parametrize(
         ("use_case_class", "command_class"),

@@ -6,8 +6,13 @@ from test_service.domain.application.commands.authoring import CreateTestCaseVer
 from test_service.domain.application.services.resolvers.precondition_reference_resolver import (
     PreconditionReferenceResolver,
 )
+from test_service.domain.application.services.resolvers.project_resolver import ProjectResolver
 from test_service.domain.model.authoring.test_case import TestCase
 from test_service.domain.model.exceptions.entity_not_found_exception import EntityNotFoundException
+from test_service.domain.model.exceptions.invalid_test_case_version_source_exception import (
+    InvalidTestCaseVersionSourceException,
+)
+from test_service.domain.model.lifecycle import VersionStatus
 from test_service.domain.ports.input.use_cases.authoring.test_cases.create_test_case_version_use_case import (  # noqa: E501
     CreateTestCaseVersionUseCase,
 )
@@ -23,12 +28,15 @@ class CreateTestCaseVersionUseCaseImpl(CreateTestCaseVersionUseCase):
         self,
         test_case_repository: TestCasePersistencePort,
         precondition_reference_resolver: PreconditionReferenceResolver,
+        project_resolver: ProjectResolver,
     ) -> None:
         self._test_case_repository = test_case_repository
         self._precondition_reference_resolver = precondition_reference_resolver
+        self._project_resolver = project_resolver
 
     async def execute(self, request: CreateTestCaseVersionCommand) -> TestCase:
         """Create and persist the next immutable Test Case version."""
+        await self._project_resolver.resolve_active(request.project_key)
         source = await self._test_case_repository.find_by_id(request.source_id)
         if source is None or source.project_key != request.project_key:
             raise EntityNotFoundException(
@@ -36,6 +44,8 @@ class CreateTestCaseVersionUseCaseImpl(CreateTestCaseVersionUseCase):
                 str(request.source_id),
                 f"project '{request.project_key}'",
             )
+        if source.status is VersionStatus.DEPRECATED:
+            raise InvalidTestCaseVersionSourceException(source.identifier)
 
         latest_version = await self._test_case_repository.find_latest_version(
             source.project_key, source.test_key
