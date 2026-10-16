@@ -36,7 +36,7 @@ class RestoreTestCaseUseCaseImpl(RestoreTestCaseUseCase):
             )
         if source.status is not VersionStatus.DEPRECATED:
             raise InvalidLifecycleTransitionException(
-                "only deprecated test case snapshots can be restored"
+                f"only deprecated test case snapshot '{source.identifier}' can be restored"
             )
         latest = await self._repository.find_latest_version(source.project_key, source.test_key)
         return await self._repository.save(

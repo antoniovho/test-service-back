@@ -88,6 +88,10 @@ cache_invalidation_files = ["tests/**/*.py"]
 only_mutate = [
   "test_service/domain/application/use_cases/execution/executions/cancel_execution_use_case.py",
   "test_service/domain/application/use_cases/execution/executions/process_next_execution_use_case.py",
+  "test_service/domain/application/use_cases/authoring/preconditions/restore_precondition_use_case.py",
+  "test_service/domain/application/use_cases/authoring/test_cases/restore_test_case_use_case.py",
+  "test_service/domain/application/use_cases/composition/test_plans/restore_test_plan_use_case.py",
+  "test_service/domain/application/use_cases/composition/test_sets/restore_test_set_use_case.py",
   "test_service/domain/ports/output/runners/runner_dtos.py",
   "test_service/infrastructure/adapters/output/execution/executions/execution_persistence_adapter.py",
   "test_service/infrastructure/adapters/output/execution/executions/persistence/repositories/execution_repository.py",
@@ -101,6 +105,7 @@ pytest_add_cli_args_test_selection = [
   "tests/unit/infrastructure/adapters/output/execution/executions/persistence/",
   "tests/unit/infrastructure/adapters/output/projects/jira/",
   "tests/unit/infrastructure/adapters/output/runners/tavern/",
+  "tests/unit/domain/application/use_cases/test_restore_version_use_cases.py",
 ]
 
 [tool.uv.sources]

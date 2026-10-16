@@ -36,7 +36,7 @@ class RestorePreconditionUseCaseImpl(RestorePreconditionUseCase):
             )
         if source.status is not VersionStatus.DEPRECATED:
             raise InvalidLifecycleTransitionException(
-                "only deprecated precondition snapshots can be restored"
+                f"only deprecated precondition snapshot '{source.identifier}' can be restored"
             )
         latest = await self._repository.find_latest_version(
             source.project_key, source.precondition_key

@@ -33,6 +33,9 @@ from test_service.domain.ports.input.use_cases.authoring.test_cases.list_test_ca
 from test_service.domain.ports.input.use_cases.authoring.test_cases.list_test_cases_use_case import (  # noqa: E501
     ListTestCasesUseCase,
 )
+from test_service.domain.ports.input.use_cases.authoring.test_cases.restore_test_case_use_case import (  # noqa: E501
+    RestoreTestCaseUseCase,
+)
 from test_service.domain.ports.input.use_cases.projects.get_project_use_case import (
     GetProjectUseCase,
 )
@@ -88,6 +91,7 @@ def _controller(test_case: TestCase) -> TestCasesRestController:
     controller.__dict__.update(
         _create=SimpleNamespace(execute=AsyncMock(return_value=test_case)),
         _create_version=SimpleNamespace(execute=AsyncMock(return_value=test_case)),
+        _restore=SimpleNamespace(execute=AsyncMock(return_value=test_case)),
         _get=SimpleNamespace(execute=AsyncMock(return_value=test_case)),
         _activate=SimpleNamespace(execute=AsyncMock(return_value=test_case)),
         _deprecate=SimpleNamespace(execute=AsyncMock(return_value=test_case)),
@@ -102,7 +106,7 @@ def _controller(test_case: TestCase) -> TestCasesRestController:
 
 class TestTestCasesRestController:
     def test_when_constructed_expect_all_required_use_cases_injected(self, monkeypatch):
-        injector = SimpleNamespace(inject=MagicMock(side_effect=range(8)))
+        injector = SimpleNamespace(inject=MagicMock(side_effect=range(9)))
         monkeypatch.setattr(
             "test_service.infrastructure.adapters.input.rest.authoring.test_cases.test_cases_rest_controller.get_injector",
             lambda: injector,
@@ -111,10 +115,11 @@ class TestTestCasesRestController:
         controller = TestCasesRestController()
 
         assert controller._create == 0
-        assert controller._get_project == 7
+        assert controller._get_project == 8
         assert injector.inject.call_args_list == [
             ((CreateTestCaseUseCase,),),
             ((CreateTestCaseVersionUseCase,),),
+            ((RestoreTestCaseUseCase,),),
             ((GetTestCaseUseCase,),),
             ((ActivateTestCaseUseCase,),),
             ((DeprecateTestCaseUseCase,),),
@@ -134,6 +139,7 @@ class TestTestCasesRestController:
         created = await controller.create("IAG", _request())
         found = await controller.get("IAG", test_case.identifier)
         version = await controller.create_version("IAG", test_case.identifier, _request())
+        restored = await controller.restore("IAG", test_case.identifier)
         activated = await controller.activate(
             "IAG", test_case.identifier, ActionRequest(reason="approved")
         )
@@ -142,6 +148,7 @@ class TestTestCasesRestController:
         assert created.id == test_case.identifier
         assert found.project.name == "AI Gateway"
         assert version.test_key == test_case.test_key
+        assert restored.id == test_case.identifier
         assert activated.status == "DRAFT"
         assert deprecated.definition.actions[0].id == "request"
 
