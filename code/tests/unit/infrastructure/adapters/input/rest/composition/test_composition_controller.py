@@ -14,6 +14,7 @@ def _feature_controller() -> MagicMock:
         "create",
         "get",
         "create_version",
+        "restore",
         "activate",
         "deprecate",
         "list",
@@ -55,6 +56,7 @@ class TestCompositionController:
         assert (
             await controller.create_test_set_version("IAG", identifier, request) == "create_version"
         )
+        assert await controller.restore_test_set("IAG", identifier) == "restore"
         assert await controller.activate_test_set("IAG", identifier, ActionRequest()) == "activate"
         assert await controller.deprecate_test_set("IAG", identifier, None) == "deprecate"
         assert await controller.list_test_sets("IAG", None, 0, 10, None, None) == "list"
@@ -76,6 +78,7 @@ class TestCompositionController:
             await controller.create_test_plan_version("IAG", identifier, request)
             == "create_version"
         )
+        assert await controller.restore_test_plan("IAG", identifier) == "restore"
         assert await controller.activate_test_plan("IAG", identifier, ActionRequest()) == "activate"
         assert await controller.deprecate_test_plan("IAG", identifier, None) == "deprecate"
         assert await controller.list_test_plans("IAG", None, 0, 10, None, None) == "list"

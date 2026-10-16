@@ -131,6 +131,20 @@ class TestLoadDocument:
 
 
 class TestCorpusImporter:
+    async def test_when_directory_does_not_exist_expect_error(self, tmp_path) -> None:
+        importer = CorpusImporter(AsyncMock(), AsyncMock(), AsyncMock(), AsyncMock())
+
+        with pytest.raises(ValueError, match="does not exist"):
+            await importer.import_directory(tmp_path / "missing", "PROJECT", "migration")
+
+    async def test_when_no_files_are_selected_expect_error(self) -> None:
+        importer = CorpusImporter(AsyncMock(), AsyncMock(), AsyncMock(), AsyncMock())
+
+        with pytest.raises(ValueError, match="selected files does not contain JSON documents"):
+            await importer.import_files(
+                (), "PROJECT", "migration", source_description="selected files"
+            )
+
     async def test_when_selecting_files_expect_only_those_documents_imported(
         self, tmp_path
     ) -> None:
@@ -335,3 +349,32 @@ class TestCorpusImporter:
 
         assert report.skipped_test_cases == 1
         create_test_case.execute.assert_awaited_once()
+
+    async def test_when_test_case_already_exists_expect_it_skipped(self, tmp_path) -> None:
+        (tmp_path / "test-case.json").write_text(json.dumps(_valid_document()), encoding="utf-8")
+        test_case_repository = AsyncMock()
+        test_case_repository.find_latest_version.return_value = object()
+        importer = CorpusImporter(AsyncMock(), AsyncMock(), AsyncMock(), test_case_repository)
+
+        report = await importer.import_directory(tmp_path, "PROJECT", "migration")
+
+        assert report.skipped_test_cases == 1
+
+    async def test_when_concurrent_precondition_is_not_persisted_expect_original_error(
+        self, tmp_path
+    ) -> None:
+        (tmp_path / "precondition.json").write_text(
+            json.dumps(_valid_precondition()), encoding="utf-8"
+        )
+        create_precondition = AsyncMock()
+        create_precondition.execute.side_effect = PreconditionAlreadyExistsException(
+            "PROJECT", "DEPENDENCY-HEALTH"
+        )
+        precondition_repository = AsyncMock()
+        precondition_repository.find_latest_version.side_effect = [None, None]
+        importer = CorpusImporter(
+            create_precondition, AsyncMock(), precondition_repository, AsyncMock()
+        )
+
+        with pytest.raises(PreconditionAlreadyExistsException):
+            await importer.import_directory(tmp_path, "PROJECT", "migration")

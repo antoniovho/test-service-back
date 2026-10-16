@@ -2,11 +2,21 @@ import argparse
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
 
-from test_service.import_corpus import _parser, main, run_import
+import pytest
+
+from test_service.import_corpus import _importer, _parser, main, run_import
 from test_service.infrastructure.adapters.input.cli.corpus_importer import ImportReport
 
 
 class TestImportCorpusCommand:
+    def test_when_importer_is_built_expect_required_dependencies_injected(self) -> None:
+        injector = Mock()
+
+        with patch("test_service.import_corpus.get_injector", return_value=injector):
+            _importer()
+
+        assert injector.inject.call_count == 4
+
     def test_when_selecting_two_files_expect_them_parsed_in_order(self) -> None:
         arguments = _parser().parse_args(
             [
@@ -79,6 +89,24 @@ class TestImportCorpusCommand:
             '{"created_preconditions": 1, "created_test_cases": 1, '
             '"skipped_preconditions": 0, "skipped_test_cases": 0}\n'
         )
+
+    def test_when_import_fails_expect_argument_error(self) -> None:
+        def raise_import_error(coroutine):
+            coroutine.close()
+            raise ValueError("bad corpus")
+
+        with patch("test_service.import_corpus.asyncio.run", side_effect=raise_import_error):
+            with pytest.raises(SystemExit):
+                main(
+                    [
+                        "--project-key",
+                        "KAN",
+                        "--requested-by",
+                        "corpus-import",
+                        "--file",
+                        "test-case.json",
+                    ]
+                )
 
     async def test_when_directory_is_selected_expect_all_its_documents_imported(self) -> None:
         arguments = argparse.Namespace(
