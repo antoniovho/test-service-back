@@ -22,6 +22,9 @@ from test_service.domain.ports.input.use_cases.projects.get_project_use_case imp
 from test_service.domain.ports.input.use_cases.projects.list_projects_use_case import (
     ListProjectsUseCase,
 )
+from test_service.domain.ports.input.use_cases.projects.restore_project_use_case import (
+    RestoreProjectUseCase,
+)
 from test_service.infrastructure.adapters.input.rest.projects.project_mapper import (
     ProjectMapper,
 )
@@ -39,6 +42,7 @@ class ProjectsController(BaseProjectsApi):
         self._create_project_use_case = injector.inject(CreateProjectUseCase)
         self._get_project_use_case = injector.inject(GetProjectUseCase)
         self._delete_project_use_case = injector.inject(DeleteProjectUseCase)
+        self._restore_project_use_case = injector.inject(RestoreProjectUseCase)
 
     async def list_projects(
         self,
@@ -72,3 +76,11 @@ class ProjectsController(BaseProjectsApi):
             projectKey, get_current_identity(), datetime.now(UTC)
         )
         await self._delete_project_use_case.execute(command)
+
+    async def restore_project(self, projectKey: str) -> ApiProject:  # NOSONAR
+        """Restore a logically deleted project after validating it in Jira."""
+        command = ProjectMapper.to_restore_command(
+            projectKey, get_current_identity(), datetime.now(UTC)
+        )
+        project = await self._restore_project_use_case.execute(command)
+        return ProjectMapper.domain_to_api(project)

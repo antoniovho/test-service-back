@@ -7,6 +7,7 @@ import pytest
 from test_service.domain.application.commands.projects import (
     CreateProjectCommand,
     DeleteProjectCommand,
+    RestoreProjectCommand,
 )
 from test_service.domain.application.queries.pagination import Page, PaginationParams
 from test_service.domain.application.queries.projects import GetProjectQuery, ListProjectsQuery
@@ -23,17 +24,26 @@ from test_service.domain.application.use_cases.projects.get_project_use_case imp
 from test_service.domain.application.use_cases.projects.list_projects_use_case import (
     ListProjectsUseCaseImpl,
 )
+from test_service.domain.application.use_cases.projects.restore_project_use_case import (
+    RestoreProjectUseCaseImpl,
+)
 from test_service.domain.model.exceptions.entity_not_found_exception import (
     EntityNotFoundException,
 )
 from test_service.domain.model.exceptions.invalid_project_key_exception import (
     InvalidProjectKeyException,
 )
+from test_service.domain.model.exceptions.project_already_active_exception import (
+    ProjectAlreadyActiveException,
+)
 from test_service.domain.model.exceptions.project_already_deleted_exception import (
     ProjectAlreadyDeletedException,
 )
 from test_service.domain.model.exceptions.project_already_exists_exception import (
     ProjectAlreadyExistsException,
+)
+from test_service.domain.model.exceptions.project_restore_required_exception import (
+    ProjectRestoreRequiredException,
 )
 from test_service.domain.model.projects.project import Project, ProjectStatus
 
@@ -120,6 +130,26 @@ class TestCreateProjectUseCaseImpl:
             await use_case.execute(request)
 
         assert exception.value.code == "PROJECT_ALREADY_EXISTS"
+
+    async def test_when_key_is_deleted_expect_restore_required_exception(self):
+        deleted = _project().delete(
+            deleted_at=datetime(2026, 1, 2, tzinfo=UTC), deleted_by="admin@example.com"
+        )
+        use_case = CreateProjectUseCaseImpl(
+            InMemoryProjectRepository((deleted,)), AcceptingProjectValidation()
+        )
+        request = CreateProjectCommand(
+            key=deleted.key,
+            name="AI Gateway",
+            requested_by="admin@example.com",
+            requested_at=datetime(2026, 2, 1, tzinfo=UTC),
+        )
+
+        with pytest.raises(ProjectRestoreRequiredException) as exception:
+            await use_case.execute(request)
+
+        assert exception.value.code == "PROJECT_RESTORE_REQUIRED"
+        assert "restore" in exception.value.error_description
 
     @pytest.mark.parametrize(
         "key",
@@ -212,3 +242,44 @@ class TestDeleteProjectUseCaseImpl:
             await use_case.execute(request)
 
         assert exception.value.code == "PROJECT_ALREADY_DELETED"
+
+
+class TestRestoreProjectUseCaseImpl:
+    async def test_when_project_is_deleted_and_exists_in_jira_expect_project_restored(self):
+        deleted = _project().delete(
+            deleted_at=datetime(2026, 1, 2, tzinfo=UTC), deleted_by="admin@example.com"
+        )
+        repository = InMemoryProjectRepository((deleted,))
+        validation = AsyncMock()
+        use_case = RestoreProjectUseCaseImpl(repository, ProjectResolver(repository), validation)
+
+        restored = await use_case.execute(
+            RestoreProjectCommand(
+                key=deleted.key,
+                requested_by="admin@example.com",
+                requested_at=datetime(2026, 2, 1, tzinfo=UTC),
+            )
+        )
+
+        assert restored.status is ProjectStatus.ACTIVE
+        assert restored.deleted_at is None
+        validation.validate.assert_awaited_once_with(deleted.key)
+        assert await repository.find_by_key(deleted.key) == restored
+
+    async def test_when_project_is_already_active_expect_conflict_before_jira_validation(self):
+        project = _project()
+        repository = InMemoryProjectRepository((project,))
+        validation = AsyncMock()
+        use_case = RestoreProjectUseCaseImpl(repository, ProjectResolver(repository), validation)
+
+        with pytest.raises(ProjectAlreadyActiveException) as exception:
+            await use_case.execute(
+                RestoreProjectCommand(
+                    key=project.key,
+                    requested_by="admin@example.com",
+                    requested_at=datetime(2026, 2, 1, tzinfo=UTC),
+                )
+            )
+
+        assert exception.value.code == "PROJECT_ALREADY_ACTIVE"
+        validation.validate.assert_not_awaited()
