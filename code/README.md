@@ -47,6 +47,13 @@ uv run python -m test_service
 El servidor queda disponible en `http://127.0.0.1:8000`; la documentacion
 interactiva de FastAPI se sirve en `http://127.0.0.1:8000/docs`.
 
+## Importar Un Corpus
+
+El corpus JSON de primera carga se puede importar con
+`python -m test_service.import_corpus`. La guía, ejemplos de selección de
+archivos y el comportamiento de `--dry-run` están en la
+[documentación del importador](test_service/infrastructure/adapters/input/cli/README.md).
+
 ## Pruebas Y Calidad
 
 ```bash

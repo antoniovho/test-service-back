@@ -131,6 +131,43 @@ class TestLoadDocument:
 
 
 class TestCorpusImporter:
+    async def test_when_selecting_files_expect_only_those_documents_imported(
+        self, tmp_path
+    ) -> None:
+        precondition = _valid_precondition()
+        test_case = _valid_document()
+        test_case["preconditionKeys"] = ["DEPENDENCY-HEALTH"]
+        precondition_path = tmp_path / "precondition.json"
+        test_case_path = tmp_path / "test-case.json"
+        precondition_path.write_text(json.dumps(precondition), encoding="utf-8")
+        test_case_path.write_text(json.dumps(test_case), encoding="utf-8")
+        precondition_identifier = uuid4()
+        create_precondition = AsyncMock()
+        create_precondition.execute.return_value = SimpleNamespace(
+            identifier=precondition_identifier
+        )
+        create_test_case = AsyncMock()
+        precondition_repository = AsyncMock()
+        test_case_repository = AsyncMock()
+        precondition_repository.find_latest_version.return_value = None
+        test_case_repository.find_latest_version.return_value = None
+        importer = CorpusImporter(
+            create_precondition,
+            create_test_case,
+            precondition_repository,
+            test_case_repository,
+        )
+
+        report = await importer.import_files(
+            [test_case_path, precondition_path], "PROJECT", "migration"
+        )
+
+        assert report.created_preconditions == 1
+        assert report.created_test_cases == 1
+        assert create_test_case.execute.await_args.args[0].preconditions == (
+            precondition_identifier,
+        )
+
     async def test_when_dry_run_references_new_precondition_expect_simulated_import(
         self, tmp_path
     ) -> None:
