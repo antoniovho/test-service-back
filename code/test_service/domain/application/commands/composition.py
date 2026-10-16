@@ -56,6 +56,16 @@ class CreateTestSetVersionCommand:
 
 
 @dataclass(frozen=True, slots=True)
+class RestoreTestSetCommand:
+    """Request to clone a deprecated TestSet snapshot as the next draft version."""
+
+    project_key: str
+    source_id: UUID
+    requested_by: str
+    requested_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
 class CreateTestPlanCommand:
     """Request to create a draft TestPlan snapshot.
 
@@ -117,6 +127,16 @@ class CreateTestPlanVersionCommand:
     test_case_ids: tuple[UUID, ...] = ()
     exclusions: tuple[UUID, ...] = ()
     description: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class RestoreTestPlanCommand:
+    """Request to clone a deprecated TestPlan snapshot as the next draft version."""
+
+    project_key: str
+    source_id: UUID
+    requested_by: str
+    requested_at: datetime
 
 
 @dataclass(frozen=True, slots=True)
