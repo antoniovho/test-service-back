@@ -1,12 +1,14 @@
 """Shared REST mappings for versioned resources."""
 
 from collections.abc import Callable
+from enum import Enum
 from typing import Any
 
 from test_service_server.models.pagination import Pagination as ApiPagination
 
 from test_service.domain.application.queries.pagination import Page, PaginationParams, SortOrder
 from test_service.domain.model.lifecycle import VersionStatus
+from test_service.infrastructure.adapters.input.rest.common.api_value import enum_value
 
 
 class VersionedResourceMapper:
@@ -14,13 +16,13 @@ class VersionedResourceMapper:
 
     @staticmethod
     def to_pagination(
-        offset: int | None, limit: int | None, sort_by: str | None, order: Any
+        offset: int | None, limit: int | None, sort_by: str | Enum | None, order: Any
     ) -> PaginationParams:
         return PaginationParams(
             offset=offset or 0,
             limit=limit or 20,
             sort_by={"version": "version", "createdAt": "created_at"}.get(
-                sort_by or "version", "version"
+                enum_value(sort_by) or "version", "version"
             ),
             order=SortOrder(order.value) if order is not None else SortOrder.ASC,
         )

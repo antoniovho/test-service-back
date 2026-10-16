@@ -3,10 +3,13 @@
 from uuid import UUID
 
 from test_service_server.models.action_result_list_response import ActionResultListResponse
+from test_service_server.models.execution_outcome_sort_by import ExecutionOutcomeSortBy
+from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 from test_service_server.models.test_result import TestResult as ApiTestResult
 from test_service_server.models.test_result_artifact_list_response import (
     TestResultArtifactListResponse,
 )
+from test_service_server.models.test_result_artifact_sort_by import TestResultArtifactSortBy
 from test_service_server.models.test_result_list_response import TestResultListResponse
 
 from test_service.bootstrap.container import get_injector
@@ -38,7 +41,13 @@ class ExecutionResultsRestController:
         self._list_artifacts = injector.inject(ListExecutionResultArtifactsUseCase)
 
     async def list_results(
-        self, project_key: str, execution_id: UUID, offset, limit, sort_by, order
+        self,
+        project_key: str,
+        execution_id: UUID,
+        offset: int | None,
+        limit: int | None,
+        sort_by: ExecutionOutcomeSortBy | None,
+        order: ApiSortOrder | None,
     ) -> TestResultListResponse:
         query = ExecutionResultsMapper.to_list_results_query(
             project_key, execution_id, offset, limit, sort_by, order
@@ -60,10 +69,10 @@ class ExecutionResultsRestController:
         project_key: str,
         execution_id: UUID,
         test_result_id: UUID,
-        offset,
-        limit,
-        sort_by,
-        order,
+        offset: int | None,
+        limit: int | None,
+        sort_by: ExecutionOutcomeSortBy | None,
+        order: ApiSortOrder | None,
     ) -> ActionResultListResponse:
         query = ExecutionResultsMapper.to_list_actions_query(
             project_key, execution_id, test_result_id, offset, limit, sort_by, order
@@ -76,10 +85,10 @@ class ExecutionResultsRestController:
         project_key: str,
         execution_id: UUID,
         test_result_id: UUID,
-        offset,
-        limit,
-        sort_by,
-        order,
+        offset: int | None,
+        limit: int | None,
+        sort_by: TestResultArtifactSortBy | None,
+        order: ApiSortOrder | None,
     ) -> TestResultArtifactListResponse:
         query = ExecutionResultsMapper.to_list_artifacts_query(
             project_key, execution_id, test_result_id, offset, limit, sort_by, order

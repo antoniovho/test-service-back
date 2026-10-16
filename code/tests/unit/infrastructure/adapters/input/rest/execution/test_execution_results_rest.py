@@ -3,7 +3,11 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
+from test_service_server.models.execution_outcome_sort_by import ExecutionOutcomeSortBy
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
+from test_service_server.models.test_result_artifact_sort_by import (
+    TestResultArtifactSortBy as ApiTestResultArtifactSortBy,
+)
 
 from test_service.domain.application.queries.pagination import Page
 from test_service.domain.model.execution.execution import (
@@ -63,19 +67,31 @@ class TestExecutionResultsRest:
         result = _result()
 
         result_query = ExecutionResultsMapper.to_list_results_query(
-            "IAG", result.execution_id, 0, 10, "durationMs", ApiSortOrder.DESC
+            "IAG", result.execution_id, 0, 10, ExecutionOutcomeSortBy.STATUS, ApiSortOrder.DESC
         )
         action_query = ExecutionResultsMapper.to_list_actions_query(
-            "IAG", result.execution_id, result.identifier, 0, 10, "status", ApiSortOrder.ASC
+            "IAG",
+            result.execution_id,
+            result.identifier,
+            0,
+            10,
+            ExecutionOutcomeSortBy.CREATEDAT,
+            ApiSortOrder.ASC,
         )
         artifact_query = ExecutionResultsMapper.to_list_artifacts_query(
-            "IAG", result.execution_id, result.identifier, 0, 10, "sizeBytes", ApiSortOrder.ASC
+            "IAG",
+            result.execution_id,
+            result.identifier,
+            0,
+            10,
+            ApiTestResultArtifactSortBy.ARTIFACTTYPE,
+            ApiSortOrder.ASC,
         )
 
         assert result_query.project_key == "IAG"
-        assert result_query.pagination.sort_by == "duration_ms"
-        assert action_query.pagination.sort_by == "status"
-        assert artifact_query.pagination.sort_by == "size_bytes"
+        assert result_query.pagination.sort_by == "status"
+        assert action_query.pagination.sort_by == "created_at"
+        assert artifact_query.pagination.sort_by == "artifact_type"
 
     def test_when_mapping_domain_results_expect_api_responses(self):
         result = _result()

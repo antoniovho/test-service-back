@@ -5,6 +5,7 @@ from uuid import uuid4
 
 from test_service_server.models.action_request import ActionRequest
 from test_service_server.models.create_environment_request import CreateEnvironmentRequest
+from test_service_server.models.environment_sort_by import EnvironmentSortBy
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 
 from test_service.domain.application.queries.pagination import Page
@@ -79,9 +80,11 @@ class TestEnvironmentRest:
         assert response.configuration["api_token"]["referenceKey"] == "staging"
 
     def test_when_mapping_list_query_expect_allowed_sort_field(self):
-        query = EnvironmentMapper.to_list_query(0, 10, "environmentKey", ApiSortOrder.DESC)
+        query = EnvironmentMapper.to_list_query(
+            0, 10, EnvironmentSortBy.CREATEDAT, ApiSortOrder.DESC
+        )
 
-        assert query.pagination.sort_by == "environment_key"
+        assert query.pagination.sort_by == "created_at"
         assert query.pagination.order.value == "DESC"
 
     def test_when_mapping_empty_configuration_expect_none_preserved(self):

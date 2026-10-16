@@ -2,11 +2,14 @@
 
 from test_service_server.apis.viewer_integration_api_base import BaseViewerIntegrationApi
 from test_service_server.models.drift_event_list_response import DriftEventListResponse
+from test_service_server.models.drift_event_sort_by import DriftEventSortBy
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 from test_service_server.models.viewer_operation import ViewerOperation
 from test_service_server.models.viewer_operation_list_response import ViewerOperationListResponse
 from test_service_server.models.viewer_operation_request import ViewerOperationRequest
+from test_service_server.models.viewer_operation_sort_by import ViewerOperationSortBy
 from test_service_server.models.viewer_sync_record_list_response import ViewerSyncRecordListResponse
+from test_service_server.models.viewer_sync_record_sort_by import ViewerSyncRecordSortBy
 from test_service_server.models.viewer_type import ViewerType as ApiViewerType
 
 from test_service.bootstrap.container import get_injector
@@ -83,7 +86,7 @@ class ViewerIntegrationController(BaseViewerIntegrationApi):
         viewer_type: ApiViewerType | None,
         offset: int | None,
         limit: int | None,
-        sort_by: str | None,
+        sort_by: ViewerOperationSortBy | None,
         order: ApiSortOrder | None,
     ) -> ViewerOperationListResponse:
         pagination = ViewerMapper.to_pagination(offset, limit, sort_by, order)
@@ -100,7 +103,7 @@ class ViewerIntegrationController(BaseViewerIntegrationApi):
         viewer_type: ApiViewerType | None,
         offset: int | None,
         limit: int | None,
-        sort_by: str | None,
+        sort_by: ViewerOperationSortBy | None,
         order: ApiSortOrder | None,
     ) -> ViewerOperationListResponse:  # NOSONAR
         project = await self._get_project.execute(GetProjectQuery(projectKey))
@@ -124,7 +127,7 @@ class ViewerIntegrationController(BaseViewerIntegrationApi):
         viewer_type: ApiViewerType | None,
         offset: int | None,
         limit: int | None,
-        sort_by: str | None,
+        sort_by: ViewerSyncRecordSortBy | None,
         order: ApiSortOrder | None,
     ) -> ViewerSyncRecordListResponse:
         pagination = ViewerMapper.to_pagination(offset, limit, sort_by, order)
@@ -142,7 +145,7 @@ class ViewerIntegrationController(BaseViewerIntegrationApi):
         viewer_type: ApiViewerType | None,
         offset: int | None,
         limit: int | None,
-        sort_by: str | None,
+        sort_by: ViewerSyncRecordSortBy | None,
         order: ApiSortOrder | None,
     ) -> ViewerSyncRecordListResponse:  # NOSONAR
         project = await self._get_project.execute(GetProjectQuery(projectKey))
@@ -158,7 +161,7 @@ class ViewerIntegrationController(BaseViewerIntegrationApi):
         viewer_type: ApiViewerType | None,
         offset: int | None,
         limit: int | None,
-        sort_by: str | None,
+        sort_by: DriftEventSortBy | None,
         order: ApiSortOrder | None,
     ) -> DriftEventListResponse:
         pagination = ViewerMapper.to_pagination(offset, limit, sort_by, order)
@@ -176,7 +179,7 @@ class ViewerIntegrationController(BaseViewerIntegrationApi):
         viewer_type: ApiViewerType | None,
         offset: int | None,
         limit: int | None,
-        sort_by: str | None,
+        sort_by: DriftEventSortBy | None,
         order: ApiSortOrder | None,
     ) -> DriftEventListResponse:  # NOSONAR
         project = await self._get_project.execute(GetProjectQuery(projectKey))

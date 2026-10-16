@@ -5,6 +5,8 @@ from uuid import UUID
 
 from test_service_server.models.action_request import ActionRequest
 from test_service_server.models.create_test_plan_request import CreateTestPlanRequest
+from test_service_server.models.sort_by import SortBy as ApiSortBy
+from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 
 from test_service.bootstrap.container import get_injector
 from test_service.domain.application.queries.projects import GetProjectQuery
@@ -100,8 +102,8 @@ class TestPlansRestController:
         status: str | None,
         offset: int | None,
         limit: int | None,
-        sort_by: str | None,
-        order,
+        sort_by: ApiSortBy | None,
+        order: ApiSortOrder | None,
     ):
         project = await self._get_project.execute(GetProjectQuery(project_key))
         pagination = TestPlanMapper.to_pagination(offset, limit, sort_by, order)
@@ -117,8 +119,8 @@ class TestPlansRestController:
         status: str | None,
         offset: int | None,
         limit: int | None,
-        sort_by: str | None,
-        order,
+        sort_by: ApiSortBy | None,
+        order: ApiSortOrder | None,
     ):
         project = await self._get_project.execute(GetProjectQuery(project_key))
         pagination = TestPlanMapper.to_pagination(offset, limit, sort_by, order)

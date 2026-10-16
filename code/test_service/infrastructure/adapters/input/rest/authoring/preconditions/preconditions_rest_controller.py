@@ -7,6 +7,8 @@ from test_service_server.models.action_request import ActionRequest
 from test_service_server.models.create_precondition_request import CreatePreconditionRequest
 from test_service_server.models.precondition import Precondition as ApiPrecondition
 from test_service_server.models.precondition_list_response import PreconditionListResponse
+from test_service_server.models.sort_by import SortBy as ApiSortBy
+from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 
 from test_service.bootstrap.container import get_injector
 from test_service.domain.application.queries.projects import GetProjectQuery
@@ -107,8 +109,8 @@ class PreconditionsRestController:
         status: str | None,
         offset: int | None,
         limit: int | None,
-        sort_by: str | None,
-        order,
+        sort_by: ApiSortBy | None,
+        order: ApiSortOrder | None,
     ) -> PreconditionListResponse:
         project = await self._get_project.execute(GetProjectQuery(project_key))
         pagination = PreconditionMapper.to_pagination(offset, limit, sort_by, order)
@@ -126,8 +128,8 @@ class PreconditionsRestController:
         status: str | None,
         offset: int | None,
         limit: int | None,
-        sort_by: str | None,
-        order,
+        sort_by: ApiSortBy | None,
+        order: ApiSortOrder | None,
     ) -> PreconditionListResponse:
         project = await self._get_project.execute(GetProjectQuery(project_key))
         pagination = PreconditionMapper.to_pagination(offset, limit, sort_by, order)

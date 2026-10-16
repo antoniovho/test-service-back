@@ -7,6 +7,8 @@ from test_service_server.models.action_request import ActionRequest
 from test_service_server.models.create_environment_request import CreateEnvironmentRequest
 from test_service_server.models.environment import Environment as ApiEnvironment
 from test_service_server.models.environment_list_response import EnvironmentListResponse
+from test_service_server.models.environment_sort_by import EnvironmentSortBy
+from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 
 from test_service.bootstrap.container import get_injector
 from test_service.domain.ports.input.use_cases.execution.environments.activate_environment_use_case import (  # noqa: E501
@@ -76,7 +78,11 @@ class EnvironmentsRestController:
         )
 
     async def list(
-        self, offset: int | None, limit: int | None, sort_by: str | None, order
+        self,
+        offset: int | None,
+        limit: int | None,
+        sort_by: EnvironmentSortBy | None,
+        order: ApiSortOrder | None,
     ) -> EnvironmentListResponse:
         query = EnvironmentMapper.to_list_query(offset, limit, sort_by, order)
         environments = await self._list.execute(query)

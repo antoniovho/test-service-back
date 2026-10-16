@@ -6,6 +6,10 @@ from test_service_server.apis.execution_api_base import BaseExecutionApi
 from test_service_server.models.action_request import ActionRequest
 from test_service_server.models.create_environment_request import CreateEnvironmentRequest
 from test_service_server.models.create_execution_request import CreateExecutionRequest
+from test_service_server.models.environment_sort_by import EnvironmentSortBy
+from test_service_server.models.execution_outcome_sort_by import ExecutionOutcomeSortBy
+from test_service_server.models.sort_order import SortOrder as ApiSortOrder
+from test_service_server.models.test_result_artifact_sort_by import TestResultArtifactSortBy
 
 from test_service.infrastructure.adapters.input.rest.execution.environments.environments_rest_controller import (  # noqa: E501
     EnvironmentsRestController,
@@ -26,7 +30,13 @@ class ExecutionController(BaseExecutionApi):
         self._executions = ExecutionsRestController()
         self._execution_results = ExecutionResultsRestController()
 
-    async def list_environments(self, offset, limit, sort_by, order):
+    async def list_environments(
+        self,
+        offset: int | None,
+        limit: int | None,
+        sort_by: EnvironmentSortBy | None,
+        order: ApiSortOrder | None,
+    ):
         return await self._environments.list(offset, limit, sort_by, order)
 
     async def create_environment(self, create_environment_request: CreateEnvironmentRequest):
@@ -45,7 +55,14 @@ class ExecutionController(BaseExecutionApi):
     ):  # NOSONAR
         return await self._environments.deactivate(environment_id, action_request)
 
-    async def list_executions(self, project_key, offset, limit, sort_by, order):
+    async def list_executions(
+        self,
+        project_key: str,
+        offset: int | None,
+        limit: int | None,
+        sort_by: ExecutionOutcomeSortBy | None,
+        order: ApiSortOrder | None,
+    ):
         return await self._executions.list(project_key, offset, limit, sort_by, order)
 
     async def create_execution(self, project_key, create_execution_request: CreateExecutionRequest):
@@ -58,7 +75,13 @@ class ExecutionController(BaseExecutionApi):
         return await self._executions.cancel(project_key, execution_id)
 
     async def list_execution_results(
-        self, project_key, execution_id: UUID, offset, limit, sort_by, order
+        self,
+        project_key: str,
+        execution_id: UUID,
+        offset: int | None,
+        limit: int | None,
+        sort_by: ExecutionOutcomeSortBy | None,
+        order: ApiSortOrder | None,
     ):
         return await self._execution_results.list_results(
             project_key, execution_id, offset, limit, sort_by, order
@@ -68,14 +91,28 @@ class ExecutionController(BaseExecutionApi):
         return await self._execution_results.get_result(project_key, execution_id, test_result_id)
 
     async def list_execution_result_actions(
-        self, project_key, execution_id: UUID, test_result_id: UUID, offset, limit, sort_by, order
+        self,
+        project_key: str,
+        execution_id: UUID,
+        test_result_id: UUID,
+        offset: int | None,
+        limit: int | None,
+        sort_by: ExecutionOutcomeSortBy | None,
+        order: ApiSortOrder | None,
     ):
         return await self._execution_results.list_actions(
             project_key, execution_id, test_result_id, offset, limit, sort_by, order
         )
 
     async def list_execution_result_artifacts(
-        self, project_key, execution_id: UUID, test_result_id: UUID, offset, limit, sort_by, order
+        self,
+        project_key: str,
+        execution_id: UUID,
+        test_result_id: UUID,
+        offset: int | None,
+        limit: int | None,
+        sort_by: TestResultArtifactSortBy | None,
+        order: ApiSortOrder | None,
     ):
         return await self._execution_results.list_artifacts(
             project_key, execution_id, test_result_id, offset, limit, sort_by, order

@@ -5,6 +5,8 @@ from uuid import UUID
 
 from test_service_server.models.action_request import ActionRequest
 from test_service_server.models.create_test_set_request import CreateTestSetRequest
+from test_service_server.models.sort_by import SortBy as ApiSortBy
+from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 from test_service_server.models.test_set import TestSet as ApiTestSet
 from test_service_server.models.test_set_list_response import TestSetListResponse
 from test_service_server.models.test_set_version_list_response import TestSetVersionListResponse
@@ -106,8 +108,8 @@ class TestSetsRestController:
         status: str | None,
         offset: int | None,
         limit: int | None,
-        sort_by: str | None,
-        order,
+        sort_by: ApiSortBy | None,
+        order: ApiSortOrder | None,
     ) -> TestSetListResponse:
         project = await self._get_project.execute(GetProjectQuery(project_key))
         pagination = TestSetMapper.to_pagination(offset, limit, sort_by, order)
@@ -123,8 +125,8 @@ class TestSetsRestController:
         status: str | None,
         offset: int | None,
         limit: int | None,
-        sort_by: str | None,
-        order,
+        sort_by: ApiSortBy | None,
+        order: ApiSortOrder | None,
     ) -> TestSetVersionListResponse:
         project = await self._get_project.execute(GetProjectQuery(project_key))
         pagination = TestSetMapper.to_pagination(offset, limit, sort_by, order)

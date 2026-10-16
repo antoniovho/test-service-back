@@ -5,6 +5,8 @@ from uuid import UUID
 
 from test_service_server.models.action_request import ActionRequest
 from test_service_server.models.create_test_case_request import CreateTestCaseRequest
+from test_service_server.models.sort_by import SortBy as ApiSortBy
+from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 from test_service_server.models.test_case import TestCase as ApiTestCase
 from test_service_server.models.test_case_list_response import TestCaseListResponse
 from test_service_server.models.test_case_version_list_response import TestCaseVersionListResponse
@@ -106,8 +108,8 @@ class TestCasesRestController:
         status: str | None,
         offset: int | None,
         limit: int | None,
-        sort_by: str | None,
-        order,
+        sort_by: ApiSortBy | None,
+        order: ApiSortOrder | None,
     ) -> TestCaseListResponse:
         project = await self._get_project.execute(GetProjectQuery(project_key))
         pagination = TestCaseMapper.to_pagination(offset, limit, sort_by, order)
@@ -123,8 +125,8 @@ class TestCasesRestController:
         status: str | None,
         offset: int | None,
         limit: int | None,
-        sort_by: str | None,
-        order,
+        sort_by: ApiSortBy | None,
+        order: ApiSortOrder | None,
     ) -> TestCaseVersionListResponse:
         project = await self._get_project.execute(GetProjectQuery(project_key))
         pagination = TestCaseMapper.to_pagination(offset, limit, sort_by, order)
