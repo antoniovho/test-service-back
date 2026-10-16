@@ -165,3 +165,33 @@ async def delete_project(
     if not BaseProjectsApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
     return await BaseProjectsApi.subclasses[0]().delete_project(projectKey)
+
+
+@router.post(
+    "/v1/projects/{projectKey}/restorations",
+    responses={
+        200: {"model": Project, "description": "Project restored."},
+        400: {"model": ErrorDetails, "description": "The request is invalid."},
+        401: {"model": ErrorDetails, "description": "Authentication is required or failed."},
+        403: {"model": ErrorDetails, "description": "The authenticated principal is not allowed to perform the operation."},
+        404: {"model": ErrorDetails, "description": "The requested resource was not found."},
+        409: {"model": ErrorDetails, "description": "The operation conflicts with the current state of the resource."},
+        422: {"model": ErrorDetails, "description": "The request is syntactically valid but violates a domain rule."},
+        500: {"model": ErrorDetails, "description": "An unexpected server error occurred."},
+        503: {"model": ErrorDetails, "description": "The service is temporarily unavailable."},
+    },
+    tags=["Projects"],
+    summary="Restore a logically deleted project",
+    response_model_by_alias=True,
+)
+async def restore_project(
+    projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+,
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth
+    ),
+) -> Project:
+    """Restores a locally deleted project after confirming that the exact Jira project key remains accessible. Existing Test Service history is preserved."""
+    if not BaseProjectsApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseProjectsApi.subclasses[0]().restore_project(projectKey)

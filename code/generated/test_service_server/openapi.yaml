@@ -7,7 +7,7 @@ info:
     \ executing validated plans, and publishing read-only projections to an external\
     \ testing viewer."
   title: Test Service
-  version: 0.3.4
+  version: 0.3.5
 servers:
 - description: Local development server
   url: http://localhost:8080
@@ -497,6 +497,118 @@ paths:
       summary: Get a project
       tags:
       - Projects
+  /v1/projects/{projectKey}/restorations:
+    post:
+      description: Restores a locally deleted project after confirming that the exact
+        Jira project key remains accessible. Existing Test Service history is preserved.
+      operationId: restoreProject
+      parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+          description: Project restored.
+        "400":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/bad-request
+                status: 400
+                title: Bad Request
+                detail: The request is invalid.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The request is invalid.
+        "401":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/unauthorized
+                status: 401
+                title: Unauthorized
+                detail: Authentication is required or the credentials are invalid.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: Authentication is required or failed.
+        "403":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/forbidden
+                status: 403
+                title: Forbidden
+                detail: The authenticated principal lacks the required permission.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The authenticated principal is not allowed to perform the operation.
+        "404":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/not-found
+                status: 404
+                title: Not Found
+                detail: The requested resource was not found.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The requested resource was not found.
+        "409":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/conflict
+                status: 409
+                title: Conflict
+                detail: The resource state conflicts with this operation.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The operation conflicts with the current state of the resource.
+        "422":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/domain-validation
+                status: 422
+                title: Unprocessable Entity
+                detail: The request violates a domain rule.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The request is syntactically valid but violates a domain rule.
+        "500":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/internal-server-error
+                status: 500
+                title: Internal Server Error
+                detail: An unexpected server error occurred.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: An unexpected server error occurred.
+        "503":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/service-unavailable
+                status: 503
+                title: Service Unavailable
+                detail: The service is temporarily unavailable.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The service is temporarily unavailable.
+      summary: Restore a logically deleted project
+      tags:
+      - Projects
   /v1/projects/{projectKey}/test-cases:
     get:
       description: Returns a paginated list of immutable test case versions.
@@ -517,11 +629,7 @@ paths:
         name: status
         required: false
         schema:
-          enum:
-          - DRAFT
-          - ACTIVE
-          - DEPRECATED
-          type: string
+          $ref: "#/components/schemas/VersionStatus"
         style: form
       - description: Number of records to skip before returning results.
         explode: true
@@ -1313,11 +1421,7 @@ paths:
         name: status
         required: false
         schema:
-          enum:
-          - DRAFT
-          - ACTIVE
-          - DEPRECATED
-          type: string
+          $ref: "#/components/schemas/VersionStatus"
         style: form
       - description: Number of records to skip before returning results.
         explode: true
@@ -1469,11 +1573,7 @@ paths:
         name: status
         required: false
         schema:
-          enum:
-          - DRAFT
-          - ACTIVE
-          - DEPRECATED
-          type: string
+          $ref: "#/components/schemas/VersionStatus"
         style: form
       - description: Number of records to skip before returning results.
         explode: true
@@ -2262,11 +2362,7 @@ paths:
         name: status
         required: false
         schema:
-          enum:
-          - DRAFT
-          - ACTIVE
-          - DEPRECATED
-          type: string
+          $ref: "#/components/schemas/VersionStatus"
         style: form
       - description: Number of records to skip before returning results.
         explode: true
@@ -2418,11 +2514,7 @@ paths:
         name: status
         required: false
         schema:
-          enum:
-          - DRAFT
-          - ACTIVE
-          - DEPRECATED
-          type: string
+          $ref: "#/components/schemas/VersionStatus"
         style: form
       - description: Number of records to skip before returning results.
         explode: true
@@ -3212,11 +3304,7 @@ paths:
         name: status
         required: false
         schema:
-          enum:
-          - DRAFT
-          - ACTIVE
-          - DEPRECATED
-          type: string
+          $ref: "#/components/schemas/VersionStatus"
         style: form
       - description: Number of records to skip before returning results.
         explode: true
@@ -3368,11 +3456,7 @@ paths:
         name: status
         required: false
         schema:
-          enum:
-          - DRAFT
-          - ACTIVE
-          - DEPRECATED
-          type: string
+          $ref: "#/components/schemas/VersionStatus"
         style: form
       - description: Number of records to skip before returning results.
         explode: true
@@ -4151,11 +4235,7 @@ paths:
         name: status
         required: false
         schema:
-          enum:
-          - DRAFT
-          - ACTIVE
-          - DEPRECATED
-          type: string
+          $ref: "#/components/schemas/VersionStatus"
         style: form
       - description: Number of records to skip before returning results.
         explode: true
@@ -7215,11 +7295,7 @@ components:
       name: status
       required: false
       schema:
-        enum:
-        - DRAFT
-        - ACTIVE
-        - DEPRECATED
-        type: string
+        $ref: "#/components/schemas/VersionStatus"
       style: form
     sortBy:
       description: Field used to sort the result set.
@@ -7739,6 +7815,15 @@ components:
       - name
       title: CreateProjectRequest
       type: object
+    VersionStatus:
+      description: Lifecycle status of a versioned resource.
+      enum:
+      - DRAFT
+      - ACTIVE
+      - DEPRECATED
+      example: DRAFT
+      title: VersionStatus
+      type: string
     SortBy:
       default: version
       description: Field used to sort the result set.

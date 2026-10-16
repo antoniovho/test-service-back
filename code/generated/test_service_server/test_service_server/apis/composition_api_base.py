@@ -2,7 +2,7 @@
 
 from typing import ClassVar, Dict, List, Tuple  # noqa: F401
 
-from pydantic import Field, StrictStr, field_validator
+from pydantic import Field
 from typing import Optional
 from typing_extensions import Annotated
 from uuid import UUID
@@ -18,6 +18,7 @@ from test_service_server.models.test_plan_version_list_response import TestPlanV
 from test_service_server.models.test_set import TestSet
 from test_service_server.models.test_set_list_response import TestSetListResponse
 from test_service_server.models.test_set_version_list_response import TestSetVersionListResponse
+from test_service_server.models.version_status import VersionStatus
 from test_service_server.security_api import get_token_bearerAuth
 
 class BaseCompositionApi:
@@ -29,7 +30,7 @@ class BaseCompositionApi:
     async def list_test_sets(
         self,
         projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
-        status: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")],
+        status: Annotated[Optional[VersionStatus], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")],
         offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")],
         limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")],
         sort_by: Annotated[Optional[SortBy], Field(description="Field used to sort the result set.")],
@@ -91,7 +92,7 @@ class BaseCompositionApi:
         self,
         projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
         setKey: Annotated[Annotated[str, Field(strict=True, min_length=1, max_length=100)], Field(description="Stable business key of the test set.")],
-        status: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")],
+        status: Annotated[Optional[VersionStatus], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")],
         offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")],
         limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")],
         sort_by: Annotated[Optional[SortBy], Field(description="Field used to sort the result set.")],
@@ -104,7 +105,7 @@ class BaseCompositionApi:
     async def list_test_plans(
         self,
         projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
-        status: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")],
+        status: Annotated[Optional[VersionStatus], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")],
         offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")],
         limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")],
         sort_by: Annotated[Optional[SortBy], Field(description="Field used to sort the result set.")],
@@ -166,7 +167,7 @@ class BaseCompositionApi:
         self,
         projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
         planKey: Annotated[Annotated[str, Field(strict=True, min_length=1, max_length=100)], Field(description="Stable business key of the test plan.")],
-        status: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")],
+        status: Annotated[Optional[VersionStatus], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")],
         offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")],
         limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")],
         sort_by: Annotated[Optional[SortBy], Field(description="Field used to sort the result set.")],
