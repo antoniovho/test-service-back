@@ -28,8 +28,8 @@ class VersionedResourceMapper:
         )
 
     @staticmethod
-    def to_status(value: str | None) -> VersionStatus | None:
-        return VersionStatus(value) if value is not None else None
+    def to_status(value: str | Enum | None) -> VersionStatus | None:
+        return VersionStatus(enum_value(value)) if value is not None else None
 
     @staticmethod
     def to_response(

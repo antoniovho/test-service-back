@@ -9,6 +9,7 @@ from test_service_server.models.precondition import Precondition as ApiPrecondit
 from test_service_server.models.precondition_list_response import PreconditionListResponse
 from test_service_server.models.sort_by import SortBy as ApiSortBy
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
+from test_service_server.models.version_status import VersionStatus as ApiVersionStatus
 
 from test_service.bootstrap.container import get_injector
 from test_service.domain.application.queries.projects import GetProjectQuery
@@ -106,7 +107,7 @@ class PreconditionsRestController:
     async def list(
         self,
         project_key: str,
-        status: str | None,
+        status: ApiVersionStatus | None,
         offset: int | None,
         limit: int | None,
         sort_by: ApiSortBy | None,
@@ -125,7 +126,7 @@ class PreconditionsRestController:
         self,
         project_key: str,
         precondition_key: str,
-        status: str | None,
+        status: ApiVersionStatus | None,
         offset: int | None,
         limit: int | None,
         sort_by: ApiSortBy | None,

@@ -10,6 +10,7 @@ from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 from test_service_server.models.test_set import TestSet as ApiTestSet
 from test_service_server.models.test_set_list_response import TestSetListResponse
 from test_service_server.models.test_set_version_list_response import TestSetVersionListResponse
+from test_service_server.models.version_status import VersionStatus as ApiVersionStatus
 
 from test_service.bootstrap.container import get_injector
 from test_service.domain.application.queries.projects import GetProjectQuery
@@ -105,7 +106,7 @@ class TestSetsRestController:
     async def list(
         self,
         project_key: str,
-        status: str | None,
+        status: ApiVersionStatus | None,
         offset: int | None,
         limit: int | None,
         sort_by: ApiSortBy | None,
@@ -122,7 +123,7 @@ class TestSetsRestController:
         self,
         project_key: str,
         set_key: str,
-        status: str | None,
+        status: ApiVersionStatus | None,
         offset: int | None,
         limit: int | None,
         sort_by: ApiSortBy | None,

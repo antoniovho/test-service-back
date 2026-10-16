@@ -8,6 +8,7 @@ from test_service_server.models.create_precondition_request import CreatePrecond
 from test_service_server.models.create_test_case_request import CreateTestCaseRequest
 from test_service_server.models.sort_by import SortBy as ApiSortBy
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
+from test_service_server.models.version_status import VersionStatus as ApiVersionStatus
 
 from test_service.infrastructure.adapters.input.rest.authoring.preconditions.preconditions_rest_controller import (  # noqa: E501
     PreconditionsRestController,
@@ -63,7 +64,7 @@ class AuthoringController(BaseAuthoringApi):
     async def list_test_cases(
         self,
         projectKey: str,  # NOSONAR
-        status: str | None,
+        status: ApiVersionStatus | None,
         offset: int | None,
         limit: int | None,
         sort_by: ApiSortBy | None,
@@ -75,7 +76,7 @@ class AuthoringController(BaseAuthoringApi):
         self,
         projectKey: str,  # NOSONAR
         testKey: str,  # NOSONAR
-        status: str | None,
+        status: ApiVersionStatus | None,
         offset: int | None,
         limit: int | None,
         sort_by: ApiSortBy | None,
@@ -128,7 +129,7 @@ class AuthoringController(BaseAuthoringApi):
     async def list_preconditions(
         self,
         projectKey: str,  # NOSONAR
-        status: str | None,
+        status: ApiVersionStatus | None,
         offset: int | None,
         limit: int | None,
         sort_by: ApiSortBy | None,
@@ -140,7 +141,7 @@ class AuthoringController(BaseAuthoringApi):
         self,
         projectKey: str,  # NOSONAR
         preconditionKey: str,  # NOSONAR
-        status: str | None,
+        status: ApiVersionStatus | None,
         offset: int | None,
         limit: int | None,
         sort_by: ApiSortBy | None,

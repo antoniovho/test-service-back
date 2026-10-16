@@ -8,6 +8,7 @@ from test_service_server.models.create_test_plan_request import CreateTestPlanRe
 from test_service_server.models.create_test_set_request import CreateTestSetRequest
 from test_service_server.models.sort_by import SortBy as ApiSortBy
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
+from test_service_server.models.version_status import VersionStatus as ApiVersionStatus
 
 from test_service.infrastructure.adapters.input.rest.composition.test_plans.test_plans_rest_controller import (  # noqa: E501
     TestPlansRestController,
@@ -61,7 +62,7 @@ class CompositionController(BaseCompositionApi):
     async def list_test_sets(
         self,
         projectKey: str,  # NOSONAR
-        status: str | None,
+        status: ApiVersionStatus | None,
         offset: int | None,
         limit: int | None,
         sort_by: ApiSortBy | None,
@@ -73,7 +74,7 @@ class CompositionController(BaseCompositionApi):
         self,
         projectKey: str,  # NOSONAR
         setKey: str,  # NOSONAR
-        status: str | None,
+        status: ApiVersionStatus | None,
         offset: int | None,
         limit: int | None,
         sort_by: ApiSortBy | None,
@@ -122,7 +123,7 @@ class CompositionController(BaseCompositionApi):
     async def list_test_plans(
         self,
         projectKey: str,  # NOSONAR
-        status: str | None,
+        status: ApiVersionStatus | None,
         offset: int | None,
         limit: int | None,
         sort_by: ApiSortBy | None,
@@ -134,7 +135,7 @@ class CompositionController(BaseCompositionApi):
         self,
         projectKey: str,  # NOSONAR
         planKey: str,  # NOSONAR
-        status: str | None,
+        status: ApiVersionStatus | None,
         offset: int | None,
         limit: int | None,
         sort_by: ApiSortBy | None,

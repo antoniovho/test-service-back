@@ -7,6 +7,7 @@ from test_service_server.models.action_request import ActionRequest
 from test_service_server.models.create_test_plan_request import CreateTestPlanRequest
 from test_service_server.models.sort_by import SortBy as ApiSortBy
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
+from test_service_server.models.version_status import VersionStatus as ApiVersionStatus
 
 from test_service.bootstrap.container import get_injector
 from test_service.domain.application.queries.projects import GetProjectQuery
@@ -99,7 +100,7 @@ class TestPlansRestController:
     async def list(
         self,
         project_key: str,
-        status: str | None,
+        status: ApiVersionStatus | None,
         offset: int | None,
         limit: int | None,
         sort_by: ApiSortBy | None,
@@ -116,7 +117,7 @@ class TestPlansRestController:
         self,
         project_key: str,
         plan_key: str,
-        status: str | None,
+        status: ApiVersionStatus | None,
         offset: int | None,
         limit: int | None,
         sort_by: ApiSortBy | None,
