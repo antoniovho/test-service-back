@@ -62,6 +62,7 @@ class DomainError(Enum):
         "Execution manifest is invalid",
     )
     INVALID_LIFECYCLE_TRANSITION = ("INVALID_LIFECYCLE_TRANSITION", "Invalid lifecycle transition")
+    INVALID_VERSION_SOURCE = ("INVALID_VERSION_SOURCE", "Invalid version source")
     INVALID_TEMPORAL_DATA = ("INVALID_TEMPORAL_DATA", "Invalid temporal data")
     INVALID_ARTIFACT_STORAGE = ("INVALID_ARTIFACT_STORAGE", "Invalid artifact storage metadata")
     VIEWER_PROJECTION_INVALID = (

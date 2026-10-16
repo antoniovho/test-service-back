@@ -39,6 +39,9 @@ from test_service.domain.model.exceptions.invalid_lifecycle_transition_exception
 from test_service.domain.model.exceptions.invalid_precondition_exception import (
     InvalidPreconditionException,
 )
+from test_service.domain.model.exceptions.invalid_precondition_version_source_exception import (
+    InvalidPreconditionVersionSourceException,
+)
 from test_service.domain.model.exceptions.invalid_project_deletion_exception import (
     InvalidProjectDeletionException,
 )
@@ -54,10 +57,19 @@ from test_service.domain.model.exceptions.invalid_temporal_data_exception import
 from test_service.domain.model.exceptions.invalid_test_case_exception import (
     InvalidTestCaseException,
 )
+from test_service.domain.model.exceptions.invalid_test_case_version_source_exception import (
+    InvalidTestCaseVersionSourceException,
+)
 from test_service.domain.model.exceptions.invalid_test_plan_exception import (
     InvalidTestPlanException,
 )
+from test_service.domain.model.exceptions.invalid_test_plan_version_source_exception import (
+    InvalidTestPlanVersionSourceException,
+)
 from test_service.domain.model.exceptions.invalid_test_set_exception import InvalidTestSetException
+from test_service.domain.model.exceptions.invalid_test_set_version_source_exception import (
+    InvalidTestSetVersionSourceException,
+)
 from test_service.domain.model.exceptions.precondition_already_exists_exception import (
     PreconditionAlreadyExistsException,
 )
@@ -119,8 +131,12 @@ _EXCEPTION_STATUS_MAP: dict[type[DomainException], HTTPStatus] = {
     InvalidProjectKeyException: HTTPStatus.UNPROCESSABLE_ENTITY,
     InvalidSecretReferenceException: HTTPStatus.UNPROCESSABLE_ENTITY,
     InvalidTestCaseException: HTTPStatus.UNPROCESSABLE_ENTITY,
+    InvalidTestCaseVersionSourceException: HTTPStatus.UNPROCESSABLE_ENTITY,
     InvalidTestPlanException: HTTPStatus.UNPROCESSABLE_ENTITY,
+    InvalidTestPlanVersionSourceException: HTTPStatus.UNPROCESSABLE_ENTITY,
     InvalidTestSetException: HTTPStatus.UNPROCESSABLE_ENTITY,
+    InvalidTestSetVersionSourceException: HTTPStatus.UNPROCESSABLE_ENTITY,
+    InvalidPreconditionVersionSourceException: HTTPStatus.UNPROCESSABLE_ENTITY,
     ResolvedSecretNotAllowedException: HTTPStatus.UNPROCESSABLE_ENTITY,
     InvalidArtifactStorageException: HTTPStatus.BAD_GATEWAY,
     InvalidTemporalDataException: HTTPStatus.BAD_GATEWAY,
