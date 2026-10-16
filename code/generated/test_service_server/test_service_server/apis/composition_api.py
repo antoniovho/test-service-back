@@ -188,6 +188,38 @@ async def create_test_set_version(
 
 
 @router.post(
+    "/v1/projects/{projectKey}/test-sets/{testSetId}/restorations",
+    responses={
+        201: {"model": TestSet, "description": "Draft version restored."},
+        400: {"model": ErrorDetails, "description": "The request is invalid."},
+        401: {"model": ErrorDetails, "description": "Authentication is required or failed."},
+        403: {"model": ErrorDetails, "description": "The authenticated principal is not allowed to perform the operation."},
+        404: {"model": ErrorDetails, "description": "The requested resource was not found."},
+        409: {"model": ErrorDetails, "description": "The operation conflicts with the current state of the resource."},
+        422: {"model": ErrorDetails, "description": "The request is syntactically valid but violates a domain rule."},
+        500: {"model": ErrorDetails, "description": "An unexpected server error occurred."},
+        503: {"model": ErrorDetails, "description": "The service is temporarily unavailable."},
+    },
+    tags=["Composition"],
+    summary="Restore a deprecated test set version",
+    response_model_by_alias=True,
+)
+async def restore_test_set(
+    projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+,
+    testSetId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the immutable test set version.")] = Path(..., description="UUID of the immutable test set version.")
+,
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth
+    ),
+) -> TestSet:
+    """Clones the selected deprecated snapshot as the next immutable draft version. The historical snapshot remains deprecated and unchanged."""
+    if not BaseCompositionApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseCompositionApi.subclasses[0]().restore_test_set(projectKey, testSetId)
+
+
+@router.post(
     "/v1/projects/{projectKey}/test-sets/{testSetId}/activations",
     responses={
         200: {"model": TestSet, "description": "Activated"},
@@ -432,6 +464,38 @@ async def create_test_plan_version(
     if not BaseCompositionApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
     return await BaseCompositionApi.subclasses[0]().create_test_plan_version(projectKey, testPlanId, create_test_plan_request)
+
+
+@router.post(
+    "/v1/projects/{projectKey}/test-plans/{testPlanId}/restorations",
+    responses={
+        201: {"model": TestPlan, "description": "Draft version restored."},
+        400: {"model": ErrorDetails, "description": "The request is invalid."},
+        401: {"model": ErrorDetails, "description": "Authentication is required or failed."},
+        403: {"model": ErrorDetails, "description": "The authenticated principal is not allowed to perform the operation."},
+        404: {"model": ErrorDetails, "description": "The requested resource was not found."},
+        409: {"model": ErrorDetails, "description": "The operation conflicts with the current state of the resource."},
+        422: {"model": ErrorDetails, "description": "The request is syntactically valid but violates a domain rule."},
+        500: {"model": ErrorDetails, "description": "An unexpected server error occurred."},
+        503: {"model": ErrorDetails, "description": "The service is temporarily unavailable."},
+    },
+    tags=["Composition"],
+    summary="Restore a deprecated test plan version",
+    response_model_by_alias=True,
+)
+async def restore_test_plan(
+    projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+,
+    testPlanId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the immutable test plan version.")] = Path(..., description="UUID of the immutable test plan version.")
+,
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth
+    ),
+) -> TestPlan:
+    """Clones the selected deprecated snapshot as the next immutable draft version. The historical snapshot remains deprecated and unchanged."""
+    if not BaseCompositionApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseCompositionApi.subclasses[0]().restore_test_plan(projectKey, testPlanId)
 
 
 @router.post(

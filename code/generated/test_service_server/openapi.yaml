@@ -7,7 +7,7 @@ info:
     \ executing validated plans, and publishing read-only projections to an external\
     \ testing viewer."
   title: Test Service
-  version: 0.3.5
+  version: 0.4.0
 servers:
 - description: Local development server
   url: http://localhost:8080
@@ -1140,6 +1140,126 @@ paths:
       summary: Create a new immutable test case version
       tags:
       - Authoring
+  /v1/projects/{projectKey}/test-cases/{testCaseId}/restorations:
+    post:
+      description: Clones the selected deprecated snapshot as the next immutable draft
+        version. The historical snapshot remains deprecated and unchanged.
+      operationId: restoreTestCase
+      parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
+      - description: UUID of the test case version.
+        explode: false
+        in: path
+        name: testCaseId
+        required: true
+        schema:
+          $ref: "#/components/schemas/UUID"
+        style: simple
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TestCase"
+          description: Draft version restored.
+        "400":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/bad-request
+                status: 400
+                title: Bad Request
+                detail: The request is invalid.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The request is invalid.
+        "401":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/unauthorized
+                status: 401
+                title: Unauthorized
+                detail: Authentication is required or the credentials are invalid.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: Authentication is required or failed.
+        "403":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/forbidden
+                status: 403
+                title: Forbidden
+                detail: The authenticated principal lacks the required permission.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The authenticated principal is not allowed to perform the operation.
+        "404":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/not-found
+                status: 404
+                title: Not Found
+                detail: The requested resource was not found.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The requested resource was not found.
+        "409":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/conflict
+                status: 409
+                title: Conflict
+                detail: The resource state conflicts with this operation.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The operation conflicts with the current state of the resource.
+        "422":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/domain-validation
+                status: 422
+                title: Unprocessable Entity
+                detail: The request violates a domain rule.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The request is syntactically valid but violates a domain rule.
+        "500":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/internal-server-error
+                status: 500
+                title: Internal Server Error
+                detail: An unexpected server error occurred.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: An unexpected server error occurred.
+        "503":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/service-unavailable
+                status: 503
+                title: Service Unavailable
+                detail: The service is temporarily unavailable.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The service is temporarily unavailable.
+      summary: Restore a deprecated test case version
+      tags:
+      - Authoring
   /v1/projects/{projectKey}/test-cases/{testCaseId}/activations:
     post:
       description: Activates a draft test case version for future compositions and
@@ -2081,6 +2201,126 @@ paths:
                 $ref: "#/components/schemas/ErrorDetails"
           description: The service is temporarily unavailable.
       summary: Create a precondition version
+      tags:
+      - Authoring
+  /v1/projects/{projectKey}/preconditions/{preconditionId}/restorations:
+    post:
+      description: Clones the selected deprecated snapshot as the next immutable draft
+        version. The historical snapshot remains deprecated and unchanged.
+      operationId: restorePrecondition
+      parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
+      - description: UUID of the precondition version.
+        explode: false
+        in: path
+        name: preconditionId
+        required: true
+        schema:
+          $ref: "#/components/schemas/UUID"
+        style: simple
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Precondition"
+          description: Draft version restored.
+        "400":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/bad-request
+                status: 400
+                title: Bad Request
+                detail: The request is invalid.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The request is invalid.
+        "401":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/unauthorized
+                status: 401
+                title: Unauthorized
+                detail: Authentication is required or the credentials are invalid.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: Authentication is required or failed.
+        "403":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/forbidden
+                status: 403
+                title: Forbidden
+                detail: The authenticated principal lacks the required permission.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The authenticated principal is not allowed to perform the operation.
+        "404":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/not-found
+                status: 404
+                title: Not Found
+                detail: The requested resource was not found.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The requested resource was not found.
+        "409":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/conflict
+                status: 409
+                title: Conflict
+                detail: The resource state conflicts with this operation.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The operation conflicts with the current state of the resource.
+        "422":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/domain-validation
+                status: 422
+                title: Unprocessable Entity
+                detail: The request violates a domain rule.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The request is syntactically valid but violates a domain rule.
+        "500":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/internal-server-error
+                status: 500
+                title: Internal Server Error
+                detail: An unexpected server error occurred.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: An unexpected server error occurred.
+        "503":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/service-unavailable
+                status: 503
+                title: Service Unavailable
+                detail: The service is temporarily unavailable.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The service is temporarily unavailable.
+      summary: Restore a deprecated precondition version
       tags:
       - Authoring
   /v1/projects/{projectKey}/preconditions/{preconditionId}/activations:
@@ -3025,6 +3265,126 @@ paths:
       summary: Create a test set version
       tags:
       - Composition
+  /v1/projects/{projectKey}/test-sets/{testSetId}/restorations:
+    post:
+      description: Clones the selected deprecated snapshot as the next immutable draft
+        version. The historical snapshot remains deprecated and unchanged.
+      operationId: restoreTestSet
+      parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
+      - description: UUID of the immutable test set version.
+        explode: false
+        in: path
+        name: testSetId
+        required: true
+        schema:
+          $ref: "#/components/schemas/UUID"
+        style: simple
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TestSet"
+          description: Draft version restored.
+        "400":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/bad-request
+                status: 400
+                title: Bad Request
+                detail: The request is invalid.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The request is invalid.
+        "401":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/unauthorized
+                status: 401
+                title: Unauthorized
+                detail: Authentication is required or the credentials are invalid.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: Authentication is required or failed.
+        "403":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/forbidden
+                status: 403
+                title: Forbidden
+                detail: The authenticated principal lacks the required permission.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The authenticated principal is not allowed to perform the operation.
+        "404":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/not-found
+                status: 404
+                title: Not Found
+                detail: The requested resource was not found.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The requested resource was not found.
+        "409":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/conflict
+                status: 409
+                title: Conflict
+                detail: The resource state conflicts with this operation.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The operation conflicts with the current state of the resource.
+        "422":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/domain-validation
+                status: 422
+                title: Unprocessable Entity
+                detail: The request violates a domain rule.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The request is syntactically valid but violates a domain rule.
+        "500":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/internal-server-error
+                status: 500
+                title: Internal Server Error
+                detail: An unexpected server error occurred.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: An unexpected server error occurred.
+        "503":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/service-unavailable
+                status: 503
+                title: Service Unavailable
+                detail: The service is temporarily unavailable.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The service is temporarily unavailable.
+      summary: Restore a deprecated test set version
+      tags:
+      - Composition
   /v1/projects/{projectKey}/test-sets/{testSetId}/activations:
     post:
       description: Marks a test set version as active for new compositions.
@@ -3954,6 +4314,126 @@ paths:
                 $ref: "#/components/schemas/ErrorDetails"
           description: The service is temporarily unavailable.
       summary: Create a test plan version
+      tags:
+      - Composition
+  /v1/projects/{projectKey}/test-plans/{testPlanId}/restorations:
+    post:
+      description: Clones the selected deprecated snapshot as the next immutable draft
+        version. The historical snapshot remains deprecated and unchanged.
+      operationId: restoreTestPlan
+      parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
+      - description: UUID of the immutable test plan version.
+        explode: false
+        in: path
+        name: testPlanId
+        required: true
+        schema:
+          $ref: "#/components/schemas/UUID"
+        style: simple
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TestPlan"
+          description: Draft version restored.
+        "400":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/bad-request
+                status: 400
+                title: Bad Request
+                detail: The request is invalid.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The request is invalid.
+        "401":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/unauthorized
+                status: 401
+                title: Unauthorized
+                detail: Authentication is required or the credentials are invalid.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: Authentication is required or failed.
+        "403":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/forbidden
+                status: 403
+                title: Forbidden
+                detail: The authenticated principal lacks the required permission.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The authenticated principal is not allowed to perform the operation.
+        "404":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/not-found
+                status: 404
+                title: Not Found
+                detail: The requested resource was not found.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The requested resource was not found.
+        "409":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/conflict
+                status: 409
+                title: Conflict
+                detail: The resource state conflicts with this operation.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The operation conflicts with the current state of the resource.
+        "422":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/domain-validation
+                status: 422
+                title: Unprocessable Entity
+                detail: The request violates a domain rule.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The request is syntactically valid but violates a domain rule.
+        "500":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/internal-server-error
+                status: 500
+                title: Internal Server Error
+                detail: An unexpected server error occurred.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: An unexpected server error occurred.
+        "503":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/service-unavailable
+                status: 503
+                title: Service Unavailable
+                detail: The service is temporarily unavailable.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The service is temporarily unavailable.
+      summary: Restore a deprecated test plan version
       tags:
       - Composition
   /v1/projects/{projectKey}/test-plans/{testPlanId}/activations:

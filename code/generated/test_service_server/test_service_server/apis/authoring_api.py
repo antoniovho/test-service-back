@@ -187,6 +187,38 @@ async def create_test_case_version(
 
 
 @router.post(
+    "/v1/projects/{projectKey}/test-cases/{testCaseId}/restorations",
+    responses={
+        201: {"model": TestCase, "description": "Draft version restored."},
+        400: {"model": ErrorDetails, "description": "The request is invalid."},
+        401: {"model": ErrorDetails, "description": "Authentication is required or failed."},
+        403: {"model": ErrorDetails, "description": "The authenticated principal is not allowed to perform the operation."},
+        404: {"model": ErrorDetails, "description": "The requested resource was not found."},
+        409: {"model": ErrorDetails, "description": "The operation conflicts with the current state of the resource."},
+        422: {"model": ErrorDetails, "description": "The request is syntactically valid but violates a domain rule."},
+        500: {"model": ErrorDetails, "description": "An unexpected server error occurred."},
+        503: {"model": ErrorDetails, "description": "The service is temporarily unavailable."},
+    },
+    tags=["Authoring"],
+    summary="Restore a deprecated test case version",
+    response_model_by_alias=True,
+)
+async def restore_test_case(
+    projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+,
+    testCaseId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the test case version.")] = Path(..., description="UUID of the test case version.")
+,
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth
+    ),
+) -> TestCase:
+    """Clones the selected deprecated snapshot as the next immutable draft version. The historical snapshot remains deprecated and unchanged."""
+    if not BaseAuthoringApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseAuthoringApi.subclasses[0]().restore_test_case(projectKey, testCaseId)
+
+
+@router.post(
     "/v1/projects/{projectKey}/test-cases/{testCaseId}/activations",
     responses={
         200: {"model": TestCase, "description": "Activated"},
@@ -432,6 +464,38 @@ async def create_precondition_version(
     if not BaseAuthoringApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
     return await BaseAuthoringApi.subclasses[0]().create_precondition_version(projectKey, preconditionId, create_precondition_request)
+
+
+@router.post(
+    "/v1/projects/{projectKey}/preconditions/{preconditionId}/restorations",
+    responses={
+        201: {"model": Precondition, "description": "Draft version restored."},
+        400: {"model": ErrorDetails, "description": "The request is invalid."},
+        401: {"model": ErrorDetails, "description": "Authentication is required or failed."},
+        403: {"model": ErrorDetails, "description": "The authenticated principal is not allowed to perform the operation."},
+        404: {"model": ErrorDetails, "description": "The requested resource was not found."},
+        409: {"model": ErrorDetails, "description": "The operation conflicts with the current state of the resource."},
+        422: {"model": ErrorDetails, "description": "The request is syntactically valid but violates a domain rule."},
+        500: {"model": ErrorDetails, "description": "An unexpected server error occurred."},
+        503: {"model": ErrorDetails, "description": "The service is temporarily unavailable."},
+    },
+    tags=["Authoring"],
+    summary="Restore a deprecated precondition version",
+    response_model_by_alias=True,
+)
+async def restore_precondition(
+    projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+,
+    preconditionId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the precondition version.")] = Path(..., description="UUID of the precondition version.")
+,
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth
+    ),
+) -> Precondition:
+    """Clones the selected deprecated snapshot as the next immutable draft version. The historical snapshot remains deprecated and unchanged."""
+    if not BaseAuthoringApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseAuthoringApi.subclasses[0]().restore_precondition(projectKey, preconditionId)
 
 
 @router.post(

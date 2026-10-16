@@ -68,6 +68,15 @@ class BaseCompositionApi:
         ...
 
 
+    async def restore_test_set(
+        self,
+        projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
+        testSetId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the immutable test set version.")],
+    ) -> TestSet:
+        """Clones the selected deprecated snapshot as the next immutable draft version. The historical snapshot remains deprecated and unchanged."""
+        ...
+
+
     async def activate_test_set(
         self,
         projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
@@ -140,6 +149,15 @@ class BaseCompositionApi:
         create_test_plan_request: CreateTestPlanRequest,
     ) -> TestPlan:
         """Creates a new immutable draft version of a test plan."""
+        ...
+
+
+    async def restore_test_plan(
+        self,
+        projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
+        testPlanId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the immutable test plan version.")],
+    ) -> TestPlan:
+        """Clones the selected deprecated snapshot as the next immutable draft version. The historical snapshot remains deprecated and unchanged."""
         ...
 
 

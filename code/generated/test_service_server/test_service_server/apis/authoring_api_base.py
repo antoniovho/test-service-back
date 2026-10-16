@@ -67,6 +67,15 @@ class BaseAuthoringApi:
         ...
 
 
+    async def restore_test_case(
+        self,
+        projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
+        testCaseId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the test case version.")],
+    ) -> TestCase:
+        """Clones the selected deprecated snapshot as the next immutable draft version. The historical snapshot remains deprecated and unchanged."""
+        ...
+
+
     async def activate_test_case(
         self,
         projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
@@ -139,6 +148,15 @@ class BaseAuthoringApi:
         create_precondition_request: CreatePreconditionRequest,
     ) -> Precondition:
         """Creates a new immutable version for the selected precondition key."""
+        ...
+
+
+    async def restore_precondition(
+        self,
+        projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
+        preconditionId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the precondition version.")],
+    ) -> Precondition:
+        """Clones the selected deprecated snapshot as the next immutable draft version. The historical snapshot remains deprecated and unchanged."""
         ...
 
 
