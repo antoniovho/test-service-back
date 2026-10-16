@@ -6,6 +6,7 @@ from test_service_server.models.create_test_case_request import CreateTestCaseRe
 from test_service_server.models.definition import Definition as ApiDefinition
 from test_service_server.models.precondition_version_reference import PreconditionVersionReference
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
+from test_service_server.models.version_status import VersionStatus as ApiVersionStatus
 
 from test_service.domain.application.queries.pagination import Page, PaginationParams, SortOrder
 from test_service.domain.model.authoring.definition import Action, Definition
@@ -93,7 +94,7 @@ class TestTestCaseMapper:
         assert pagination.sort_by == "created_at"
         assert pagination.order is SortOrder.DESC
         assert TestCaseMapper.to_pagination(None, None, None, None).limit == 20
-        assert TestCaseMapper.to_status("ACTIVE") is VersionStatus.ACTIVE
+        assert TestCaseMapper.to_status(ApiVersionStatus.ACTIVE) is VersionStatus.ACTIVE
         assert TestCaseMapper.to_status(None) is None
         assert TestCaseMapper.to_get_query("IAG", identifier).project_key == "IAG"
         assert TestCaseMapper.to_activate_command("IAG", identifier, "ok").reason == "ok"

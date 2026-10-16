@@ -3,6 +3,7 @@ from uuid import uuid4
 
 from test_service_server.models.create_test_set_request import CreateTestSetRequest
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
+from test_service_server.models.version_status import VersionStatus as ApiVersionStatus
 
 from test_service.domain.application.queries.pagination import Page, SortOrder
 from test_service.domain.model.composition.test_set import TestSet
@@ -52,7 +53,7 @@ class TestTestSetMapper:
 
         assert pagination.order is SortOrder.DESC
         assert default_pagination == TestSetMapper.to_pagination(0, 20, "version", ApiSortOrder.ASC)
-        assert TestSetMapper.to_status("ACTIVE") is VersionStatus.ACTIVE
+        assert TestSetMapper.to_status(ApiVersionStatus.ACTIVE) is VersionStatus.ACTIVE
         assert TestSetMapper.to_status(None) is None
         assert TestSetMapper.to_get_query("IAG", snapshot.identifier).project_key == "IAG"
         assert (

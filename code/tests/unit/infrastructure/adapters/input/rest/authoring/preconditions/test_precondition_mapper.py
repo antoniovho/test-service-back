@@ -5,6 +5,7 @@ from test_service_server.models.action import Action as ApiAction
 from test_service_server.models.create_precondition_request import CreatePreconditionRequest
 from test_service_server.models.definition import Definition as ApiDefinition
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
+from test_service_server.models.version_status import VersionStatus as ApiVersionStatus
 
 from test_service.domain.application.queries.pagination import Page, PaginationParams, SortOrder
 from test_service.domain.model.authoring.definition import Action, Definition
@@ -73,7 +74,7 @@ class TestPreconditionMapper:
         assert pagination.sort_by == "created_at"
         assert pagination.order is SortOrder.DESC
         assert PreconditionMapper.to_pagination(None, None, None, None).limit == 20
-        assert PreconditionMapper.to_status("ACTIVE") is VersionStatus.ACTIVE
+        assert PreconditionMapper.to_status(ApiVersionStatus.ACTIVE) is VersionStatus.ACTIVE
         assert PreconditionMapper.to_status(None) is None
         assert PreconditionMapper.to_list_query("IAG", pagination, None).project_key == "IAG"
         assert (
