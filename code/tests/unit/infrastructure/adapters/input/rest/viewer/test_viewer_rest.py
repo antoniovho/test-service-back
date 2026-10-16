@@ -5,6 +5,7 @@ from uuid import uuid4
 
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 from test_service_server.models.viewer_operation_request import ViewerOperationRequest
+from test_service_server.models.viewer_sync_record_sort_by import ViewerSyncRecordSortBy
 from test_service_server.models.viewer_type import ViewerType as ApiViewerType
 
 from test_service.domain.application.queries.pagination import Page
@@ -162,7 +163,9 @@ class TestViewerRest:
         assert drift.viewer_type is ViewerType.XRAY
 
     def test_when_mapping_viewer_type_filter_expect_domain_query_filter(self) -> None:
-        pagination = ViewerMapper.to_pagination(0, 10, "createdAt", ApiSortOrder.ASC)
+        pagination = ViewerMapper.to_pagination(
+            0, 10, ViewerSyncRecordSortBy.CREATEDAT, ApiSortOrder.ASC
+        )
 
         query = ViewerMapper.to_list_project_sync_records_query(
             "IAG", pagination, ApiViewerType.XRAY

@@ -1,6 +1,7 @@
 """Mapping between the Authoring REST contract and Precondition domain types."""
 
 from datetime import datetime
+from enum import Enum
 
 from test_service_server.models.action import Action as ApiAction
 from test_service_server.models.create_precondition_request import CreatePreconditionRequest
@@ -24,7 +25,7 @@ from test_service.domain.application.queries.pagination import Page, PaginationP
 from test_service.domain.model.authoring.definition import Action, Definition
 from test_service.domain.model.authoring.precondition import Precondition
 from test_service.domain.model.lifecycle import VersionStatus
-from test_service.infrastructure.adapters.input.rest.versioned_resource_mapper import (
+from test_service.infrastructure.adapters.input.rest.common.versioned_resource_mapper import (
     VersionedResourceMapper,
 )
 
@@ -59,7 +60,7 @@ class PreconditionMapper:
 
     @staticmethod
     def to_pagination(
-        offset: int | None, limit: int | None, sort_by: str | None, order
+        offset: int | None, limit: int | None, sort_by: str | Enum | None, order
     ) -> PaginationParams:
         return VersionedResourceMapper.to_pagination(offset, limit, sort_by, order)
 

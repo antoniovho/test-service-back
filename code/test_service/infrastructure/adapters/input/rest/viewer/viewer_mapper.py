@@ -30,6 +30,7 @@ from test_service.domain.model.viewer.records import (
     ViewerSyncRecord,
     ViewerType,
 )
+from test_service.infrastructure.adapters.input.rest.common.api_value import enum_value
 
 
 class ViewerMapper:
@@ -67,7 +68,7 @@ class ViewerMapper:
         return PaginationParams(
             offset=offset or 0,
             limit=limit or 20,
-            sort_by=sort_fields.get(sort_by or "createdAt", "created_at"),
+            sort_by=sort_fields.get(enum_value(sort_by) or "createdAt", "created_at"),
             order=SortOrder(order.value) if order else SortOrder.ASC,
         )
 

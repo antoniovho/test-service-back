@@ -22,10 +22,26 @@ Desde este directorio, instala las dependencias de desarrollo bloqueadas:
 uv sync --extra dev --locked
 ```
 
+La configuración local se guarda exclusivamente en `code/.env`. Crea el
+archivo a partir de la plantilla y completa sus valores:
+
+```bash
+cp .env.example .env
+```
+
+Para desarrollo local, `AUTH_MOCK_ENABLED=true` permite usar la API sin un
+proveedor de identidad. No lo habilites fuera de ese entorno.
+
 ## Ejecutar El Servicio
 
 ```bash
 uv run uvicorn test_service.main:app --reload
+```
+
+Como alternativa, el paquete ofrece un punto de entrada local sin recarga:
+
+```bash
+uv run python -m test_service
 ```
 
 El servidor queda disponible en `http://127.0.0.1:8000`; la documentacion

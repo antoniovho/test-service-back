@@ -1,6 +1,7 @@
 """Mapping between the generated Projects REST models and domain Project Catalog types."""
 
 from datetime import datetime
+from enum import Enum
 from types import MappingProxyType
 
 from test_service_server.models.create_project_request import CreateProjectRequest
@@ -17,6 +18,7 @@ from test_service.domain.application.queries.pagination import Page, PaginationP
 from test_service.domain.application.queries.pagination import SortOrder as DomainSortOrder
 from test_service.domain.application.queries.projects import GetProjectQuery, ListProjectsQuery
 from test_service.domain.model.projects.project import Project
+from test_service.infrastructure.adapters.input.rest.common.api_value import enum_value
 
 _BASE_SORT_FIELDS: MappingProxyType = MappingProxyType(
     {
@@ -33,7 +35,7 @@ class ProjectMapper:
     def to_pagination_params(
         offset: int | None,
         limit: int | None,
-        sort_by: str | None,
+        sort_by: str | Enum | None,
         order: ApiSortOrder | None,
     ) -> PaginationParams:
         """Build validated domain pagination parameters from REST query parameters."""
@@ -105,13 +107,15 @@ class ProjectMapper:
     def _build_pagination(
         offset: int | None,
         limit: int | None,
-        sort_by: str | None,
+        sort_by: str | Enum | None,
         order: ApiSortOrder | None,
         sort_fields: MappingProxyType,
     ) -> PaginationParams:
         return PaginationParams(
             offset=offset if offset is not None else 0,
             limit=limit if limit is not None else 20,
-            sort_by=sort_fields.get(sort_by, "created_at") if sort_by is not None else "created_at",
+            sort_by=sort_fields.get(enum_value(sort_by), "created_at")
+            if sort_by is not None
+            else "created_at",
             order=DomainSortOrder(order.value) if order is not None else DomainSortOrder("ASC"),
         )

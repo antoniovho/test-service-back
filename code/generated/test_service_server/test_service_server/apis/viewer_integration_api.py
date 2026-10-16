@@ -23,17 +23,20 @@ from fastapi import (  # noqa: F401
 )
 
 from test_service_server.models.extra_models import TokenModel  # noqa: F401
-from pydantic import Field, StrictStr, field_validator
+from pydantic import Field
 from typing import Optional
 from typing_extensions import Annotated
 from uuid import UUID
 from test_service_server.models.drift_event_list_response import DriftEventListResponse
+from test_service_server.models.drift_event_sort_by import DriftEventSortBy
 from test_service_server.models.error_details import ErrorDetails
 from test_service_server.models.sort_order import SortOrder
 from test_service_server.models.viewer_operation import ViewerOperation
 from test_service_server.models.viewer_operation_list_response import ViewerOperationListResponse
 from test_service_server.models.viewer_operation_request import ViewerOperationRequest
+from test_service_server.models.viewer_operation_sort_by import ViewerOperationSortBy
 from test_service_server.models.viewer_sync_record_list_response import ViewerSyncRecordListResponse
+from test_service_server.models.viewer_sync_record_sort_by import ViewerSyncRecordSortBy
 from test_service_server.models.viewer_type import ViewerType
 from test_service_server.security_api import get_token_bearerAuth
 
@@ -62,7 +65,7 @@ for _, name, _ in pkgutil.iter_modules(ns_pkg.__path__, ns_pkg.__name__ + "."):
     response_model_by_alias=True,
 )
 async def publish_viewer_projection(
-    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+    projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
 ,
     viewer_operation_request: Annotated[ViewerOperationRequest, Field(description="External viewer that receives the project projection.")] = Body(..., description="External viewer that receives the project projection.")
 ,
@@ -94,7 +97,7 @@ async def publish_viewer_projection(
     response_model_by_alias=True,
 )
 async def check_viewer_drift(
-    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+    projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
 ,
     viewer_operation_request: Annotated[ViewerOperationRequest, Field(description="External viewer whose project projection is checked for drift.")] = Body(..., description="External viewer whose project projection is checked for drift.")
 ,
@@ -126,15 +129,15 @@ async def check_viewer_drift(
     response_model_by_alias=True,
 )
 async def list_project_viewer_sync_records(
-    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+    projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
 ,
     viewer_type: Annotated[Optional[ViewerType], Field(description="Optional external viewer integration used to filter the result set.")] = Query(None, description="Optional external viewer integration used to filter the result set.", alias="viewerType", examples=["XRAY"])
 ,
-    offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
+    offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
 ,
-    limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
+    limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
 ,
-    sort_by: Annotated[Optional[StrictStr], Field(description="Field used to sort the result set.")] = Query('createdAt', description="Field used to sort the result set.", alias="sortBy", examples=["createdAt"])
+    sort_by: Annotated[Optional[ViewerSyncRecordSortBy], Field(description="Field used to sort the result set.")] = Query('createdAt', description="Field used to sort the result set.", alias="sortBy")
 ,
     order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
 ,
@@ -166,15 +169,15 @@ async def list_project_viewer_sync_records(
     response_model_by_alias=True,
 )
 async def list_project_viewer_drift_events(
-    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+    projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
 ,
     viewer_type: Annotated[Optional[ViewerType], Field(description="Optional external viewer integration used to filter the result set.")] = Query(None, description="Optional external viewer integration used to filter the result set.", alias="viewerType", examples=["XRAY"])
 ,
-    offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
+    offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
 ,
-    limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
+    limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
 ,
-    sort_by: Annotated[Optional[StrictStr], Field(description="Field used to sort the result set.")] = Query('detectedAt', description="Field used to sort the result set.", alias="sortBy", examples=["detectedAt"])
+    sort_by: Annotated[Optional[DriftEventSortBy], Field(description="Field used to sort the result set.")] = Query('detectedAt', description="Field used to sort the result set.", alias="sortBy")
 ,
     order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
 ,
@@ -204,15 +207,15 @@ async def list_project_viewer_drift_events(
     response_model_by_alias=True,
 )
 async def list_project_viewer_operations(
-    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+    projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
 ,
     viewer_type: Annotated[Optional[ViewerType], Field(description="Optional external viewer integration used to filter the result set.")] = Query(None, description="Optional external viewer integration used to filter the result set.", alias="viewerType", examples=["XRAY"])
 ,
-    offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
+    offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
 ,
-    limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
+    limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
 ,
-    sort_by: Annotated[Optional[StrictStr], Field(description="Field used to sort asynchronous Viewer operations.")] = Query('createdAt', description="Field used to sort asynchronous Viewer operations.", alias="sortBy", examples=["createdAt"])
+    sort_by: Annotated[Optional[ViewerOperationSortBy], Field(description="Field used to sort asynchronous Viewer operations.")] = Query('createdAt', description="Field used to sort asynchronous Viewer operations.", alias="sortBy")
 ,
     order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
 ,
@@ -242,9 +245,9 @@ async def list_project_viewer_operations(
     response_model_by_alias=True,
 )
 async def get_project_viewer_operation(
-    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+    projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
 ,
-    viewerOperationId: UUID = Path(..., description="")
+    viewerOperationId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="")] = Path(..., description="")
 ,
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
@@ -276,11 +279,11 @@ async def get_project_viewer_operation(
 async def list_viewer_sync_records(
     viewer_type: Annotated[Optional[ViewerType], Field(description="Optional external viewer integration used to filter the result set.")] = Query(None, description="Optional external viewer integration used to filter the result set.", alias="viewerType", examples=["XRAY"])
 ,
-    offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
+    offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
 ,
-    limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
+    limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
 ,
-    sort_by: Annotated[Optional[StrictStr], Field(description="Field used to sort the result set.")] = Query('createdAt', description="Field used to sort the result set.", alias="sortBy", examples=["createdAt"])
+    sort_by: Annotated[Optional[ViewerSyncRecordSortBy], Field(description="Field used to sort the result set.")] = Query('createdAt', description="Field used to sort the result set.", alias="sortBy")
 ,
     order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
 ,
@@ -314,11 +317,11 @@ async def list_viewer_sync_records(
 async def list_viewer_drift_events(
     viewer_type: Annotated[Optional[ViewerType], Field(description="Optional external viewer integration used to filter the result set.")] = Query(None, description="Optional external viewer integration used to filter the result set.", alias="viewerType", examples=["XRAY"])
 ,
-    offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
+    offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
 ,
-    limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
+    limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
 ,
-    sort_by: Annotated[Optional[StrictStr], Field(description="Field used to sort the result set.")] = Query('detectedAt', description="Field used to sort the result set.", alias="sortBy", examples=["detectedAt"])
+    sort_by: Annotated[Optional[DriftEventSortBy], Field(description="Field used to sort the result set.")] = Query('detectedAt', description="Field used to sort the result set.", alias="sortBy")
 ,
     order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
 ,
@@ -349,11 +352,11 @@ async def list_viewer_drift_events(
 async def list_viewer_operations(
     viewer_type: Annotated[Optional[ViewerType], Field(description="Optional external viewer integration used to filter the result set.")] = Query(None, description="Optional external viewer integration used to filter the result set.", alias="viewerType", examples=["XRAY"])
 ,
-    offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
+    offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
 ,
-    limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
+    limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
 ,
-    sort_by: Annotated[Optional[StrictStr], Field(description="Field used to sort asynchronous Viewer operations.")] = Query('createdAt', description="Field used to sort asynchronous Viewer operations.", alias="sortBy", examples=["createdAt"])
+    sort_by: Annotated[Optional[ViewerOperationSortBy], Field(description="Field used to sort asynchronous Viewer operations.")] = Query('createdAt', description="Field used to sort asynchronous Viewer operations.", alias="sortBy")
 ,
     order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
 ,

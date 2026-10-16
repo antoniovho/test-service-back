@@ -2,13 +2,14 @@
 
 from typing import ClassVar, Dict, List, Tuple  # noqa: F401
 
-from pydantic import Field, StrictStr, field_validator
+from pydantic import Field
 from typing import Any, Optional
 from typing_extensions import Annotated
 from test_service_server.models.create_project_request import CreateProjectRequest
 from test_service_server.models.error_details import ErrorDetails
 from test_service_server.models.project import Project
 from test_service_server.models.project_list_response import ProjectListResponse
+from test_service_server.models.project_sort_by import ProjectSortBy
 from test_service_server.models.sort_order import SortOrder
 from test_service_server.security_api import get_token_bearerAuth
 
@@ -20,9 +21,9 @@ class BaseProjectsApi:
         BaseProjectsApi.subclasses = BaseProjectsApi.subclasses + (cls,)
     async def list_projects(
         self,
-        offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")],
-        limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")],
-        sort_by: Annotated[Optional[StrictStr], Field(description="Field used to sort the result set.")],
+        offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")],
+        limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")],
+        sort_by: Annotated[Optional[ProjectSortBy], Field(description="Field used to sort projects.")],
         order: Annotated[Optional[SortOrder], Field(description="Sort direction.")],
     ) -> ProjectListResponse:
         """Returns a paginated list of active projects registered in the local Project Catalog."""
@@ -39,7 +40,7 @@ class BaseProjectsApi:
 
     async def get_project(
         self,
-        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
+        projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
     ) -> Project:
         """Returns a project by its stable project key, including logically deleted projects when explicitly authorized."""
         ...
@@ -47,7 +48,7 @@ class BaseProjectsApi:
 
     async def delete_project(
         self,
-        projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")],
+        projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
     ) -> None:
         """Marks the project as DELETED without deleting tests, sets, plans, executions, results, or artifacts."""
         ...

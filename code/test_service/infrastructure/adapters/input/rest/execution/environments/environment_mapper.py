@@ -1,6 +1,7 @@
 """Mapping between generated Environment REST models and domain types."""
 
 from datetime import datetime
+from enum import Enum
 from typing import Any
 from uuid import UUID
 
@@ -22,6 +23,7 @@ from test_service.domain.application.queries.execution import (
 from test_service.domain.application.queries.pagination import Page, PaginationParams
 from test_service.domain.application.queries.pagination import SortOrder as DomainSortOrder
 from test_service.domain.model.execution.environment import Environment, SecretReference
+from test_service.infrastructure.adapters.input.rest.common.api_value import enum_value
 
 
 class EnvironmentMapper:
@@ -54,7 +56,10 @@ class EnvironmentMapper:
 
     @staticmethod
     def to_list_query(
-        offset: int | None, limit: int | None, sort_by: str | None, order: ApiSortOrder | None
+        offset: int | None,
+        limit: int | None,
+        sort_by: str | Enum | None,
+        order: ApiSortOrder | None,
     ) -> ListEnvironmentsQuery:
         sort_fields = {
             "environmentKey": "environment_key",
@@ -66,7 +71,7 @@ class EnvironmentMapper:
             pagination=PaginationParams(
                 offset=offset if offset is not None else 0,
                 limit=limit if limit is not None else 20,
-                sort_by=sort_fields.get(sort_by or "name", "name"),
+                sort_by=sort_fields.get(enum_value(sort_by) or "name", "name"),
                 order=DomainSortOrder(order.value) if order is not None else DomainSortOrder.ASC,
             )
         )

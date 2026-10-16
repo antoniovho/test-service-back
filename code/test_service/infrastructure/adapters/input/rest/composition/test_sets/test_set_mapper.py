@@ -1,6 +1,7 @@
 """Mapping between the Composition REST contract and Test Set domain types."""
 
 from datetime import datetime
+from enum import Enum
 from uuid import UUID
 
 from test_service_server.models.create_test_set_request import CreateTestSetRequest
@@ -23,7 +24,7 @@ from test_service.domain.application.queries.composition import (
 from test_service.domain.application.queries.pagination import Page, PaginationParams
 from test_service.domain.model.composition.test_set import TestSet
 from test_service.domain.model.lifecycle import VersionStatus
-from test_service.infrastructure.adapters.input.rest.versioned_resource_mapper import (
+from test_service.infrastructure.adapters.input.rest.common.versioned_resource_mapper import (
     VersionedResourceMapper,
 )
 
@@ -58,7 +59,7 @@ class TestSetMapper:
 
     @staticmethod
     def to_pagination(
-        offset: int | None, limit: int | None, sort_by: str | None, order
+        offset: int | None, limit: int | None, sort_by: str | Enum | None, order
     ) -> PaginationParams:
         return VersionedResourceMapper.to_pagination(offset, limit, sort_by, order)
 

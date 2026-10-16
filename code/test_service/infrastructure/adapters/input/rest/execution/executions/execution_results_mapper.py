@@ -1,5 +1,6 @@
 """Mapping between generated execution-result REST models and domain types."""
 
+from enum import Enum
 from uuid import UUID
 
 from test_service_server.models.action_result import ActionResult as ApiActionResult
@@ -27,6 +28,7 @@ from test_service.domain.model.execution.execution import (
     TestResult,
     TestResultArtifact,
 )
+from test_service.infrastructure.adapters.input.rest.common.api_value import enum_value
 
 
 class ExecutionResultsMapper:
@@ -179,11 +181,17 @@ class ExecutionResultsMapper:
         )
 
     @staticmethod
-    def _pagination(offset, limit, sort_by, order, sort_fields) -> PaginationParams:
+    def _pagination(
+        offset: int | None,
+        limit: int | None,
+        sort_by: str | Enum | None,
+        order,
+        sort_fields,
+    ) -> PaginationParams:
         return PaginationParams(
             offset=offset if offset is not None else 0,
             limit=limit if limit is not None else 20,
-            sort_by=sort_fields.get(sort_by or "createdAt", "created_at"),
+            sort_by=sort_fields.get(enum_value(sort_by) or "createdAt", "created_at"),
             order=DomainSortOrder(order.value) if order is not None else DomainSortOrder.ASC,
         )
 

@@ -33,6 +33,7 @@ from test_service_server.models.create_test_case_request import CreateTestCaseRe
 from test_service_server.models.error_details import ErrorDetails
 from test_service_server.models.precondition import Precondition
 from test_service_server.models.precondition_list_response import PreconditionListResponse
+from test_service_server.models.sort_by import SortBy
 from test_service_server.models.sort_order import SortOrder
 from test_service_server.models.test_case import TestCase
 from test_service_server.models.test_case_list_response import TestCaseListResponse
@@ -64,15 +65,15 @@ for _, name, _ in pkgutil.iter_modules(ns_pkg.__path__, ns_pkg.__name__ + "."):
     response_model_by_alias=True,
 )
 async def list_test_cases(
-    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+    projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
 ,
-    status: Annotated[Optional[StrictStr], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")] = Query(None, description="Filter versions by lifecycle status. When omitted, all statuses are returned.", alias="status")
+    status: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")] = Query(None, description="Filter versions by lifecycle status. When omitted, all statuses are returned.", alias="status")
 ,
-    offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
+    offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
 ,
-    limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
+    limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
 ,
-    sort_by: Annotated[Optional[StrictStr], Field(description="Field used to sort the result set.")] = Query('version', description="Field used to sort the result set.", alias="sortBy", examples=["version"])
+    sort_by: Annotated[Optional[SortBy], Field(description="Field used to sort the result set.")] = Query('version', description="Field used to sort the result set.", alias="sortBy")
 ,
     order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
 ,
@@ -104,7 +105,7 @@ async def list_test_cases(
     response_model_by_alias=True,
 )
 async def create_test_case(
-    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+    projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
 ,
     create_test_case_request: CreateTestCaseRequest = Body(..., description="")
 ,
@@ -136,9 +137,9 @@ async def create_test_case(
     response_model_by_alias=True,
 )
 async def get_test_case(
-    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+    projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
 ,
-    testCaseId: Annotated[UUID, Field(description="UUID of the test case version.")] = Path(..., description="UUID of the test case version.")
+    testCaseId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the test case version.")] = Path(..., description="UUID of the test case version.")
 ,
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
@@ -168,9 +169,9 @@ async def get_test_case(
     response_model_by_alias=True,
 )
 async def create_test_case_version(
-    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+    projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
 ,
-    testCaseId: Annotated[UUID, Field(description="UUID of the test case version.")] = Path(..., description="UUID of the test case version.")
+    testCaseId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the test case version.")] = Path(..., description="UUID of the test case version.")
 ,
     create_test_case_request: CreateTestCaseRequest = Body(..., description="")
 ,
@@ -202,9 +203,9 @@ async def create_test_case_version(
     response_model_by_alias=True,
 )
 async def activate_test_case(
-    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+    projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
 ,
-    testCaseId: Annotated[UUID, Field(description="UUID of the test case version.")] = Path(..., description="UUID of the test case version.")
+    testCaseId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the test case version.")] = Path(..., description="UUID of the test case version.")
 ,
     action_request: Optional[ActionRequest] = Body(None, description="")
 ,
@@ -236,9 +237,9 @@ async def activate_test_case(
     response_model_by_alias=True,
 )
 async def deprecate_test_case(
-    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+    projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
 ,
-    testCaseId: Annotated[UUID, Field(description="UUID of the test case version.")] = Path(..., description="UUID of the test case version.")
+    testCaseId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the test case version.")] = Path(..., description="UUID of the test case version.")
 ,
     action_request: Optional[ActionRequest] = Body(None, description="")
 ,
@@ -270,17 +271,17 @@ async def deprecate_test_case(
     response_model_by_alias=True,
 )
 async def list_test_case_versions(
-    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+    projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
 ,
-    testKey: Annotated[str, Field(min_length=1, strict=True, max_length=100, description="Stable business key of the test case.")] = Path(..., description="Stable business key of the test case.", min_length=1, max_length=100, examples=["checkout-happy-path"])
+    testKey: Annotated[Annotated[str, Field(strict=True, min_length=1, max_length=100)], Field(description="Stable business key of the test case.")] = Path(..., description="Stable business key of the test case.", min_length=1, max_length=100, examples=["checkout-happy-path"])
 ,
-    status: Annotated[Optional[StrictStr], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")] = Query(None, description="Filter versions by lifecycle status. When omitted, all statuses are returned.", alias="status")
+    status: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")] = Query(None, description="Filter versions by lifecycle status. When omitted, all statuses are returned.", alias="status")
 ,
-    offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
+    offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
 ,
-    limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
+    limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
 ,
-    sort_by: Annotated[Optional[StrictStr], Field(description="Field used to sort the result set.")] = Query('version', description="Field used to sort the result set.", alias="sortBy", examples=["version"])
+    sort_by: Annotated[Optional[SortBy], Field(description="Field used to sort the result set.")] = Query('version', description="Field used to sort the result set.", alias="sortBy")
 ,
     order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
 ,
@@ -312,15 +313,15 @@ async def list_test_case_versions(
     response_model_by_alias=True,
 )
 async def list_preconditions(
-    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+    projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
 ,
-    status: Annotated[Optional[StrictStr], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")] = Query(None, description="Filter versions by lifecycle status. When omitted, all statuses are returned.", alias="status")
+    status: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")] = Query(None, description="Filter versions by lifecycle status. When omitted, all statuses are returned.", alias="status")
 ,
-    offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
+    offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
 ,
-    limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
+    limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
 ,
-    sort_by: Annotated[Optional[StrictStr], Field(description="Field used to sort the result set.")] = Query('version', description="Field used to sort the result set.", alias="sortBy", examples=["version"])
+    sort_by: Annotated[Optional[SortBy], Field(description="Field used to sort the result set.")] = Query('version', description="Field used to sort the result set.", alias="sortBy")
 ,
     order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
 ,
@@ -352,7 +353,7 @@ async def list_preconditions(
     response_model_by_alias=True,
 )
 async def create_precondition(
-    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+    projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
 ,
     create_precondition_request: CreatePreconditionRequest = Body(..., description="")
 ,
@@ -384,9 +385,9 @@ async def create_precondition(
     response_model_by_alias=True,
 )
 async def get_precondition(
-    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+    projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
 ,
-    preconditionId: Annotated[UUID, Field(description="UUID of the precondition version.")] = Path(..., description="UUID of the precondition version.")
+    preconditionId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the precondition version.")] = Path(..., description="UUID of the precondition version.")
 ,
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
@@ -416,9 +417,9 @@ async def get_precondition(
     response_model_by_alias=True,
 )
 async def create_precondition_version(
-    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+    projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
 ,
-    preconditionId: Annotated[UUID, Field(description="UUID of the precondition version.")] = Path(..., description="UUID of the precondition version.")
+    preconditionId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the precondition version.")] = Path(..., description="UUID of the precondition version.")
 ,
     create_precondition_request: CreatePreconditionRequest = Body(..., description="")
 ,
@@ -450,9 +451,9 @@ async def create_precondition_version(
     response_model_by_alias=True,
 )
 async def activate_precondition(
-    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+    projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
 ,
-    preconditionId: Annotated[UUID, Field(description="UUID of the precondition version.")] = Path(..., description="UUID of the precondition version.")
+    preconditionId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the precondition version.")] = Path(..., description="UUID of the precondition version.")
 ,
     action_request: Optional[ActionRequest] = Body(None, description="")
 ,
@@ -484,9 +485,9 @@ async def activate_precondition(
     response_model_by_alias=True,
 )
 async def deprecate_precondition(
-    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+    projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
 ,
-    preconditionId: Annotated[UUID, Field(description="UUID of the precondition version.")] = Path(..., description="UUID of the precondition version.")
+    preconditionId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the precondition version.")] = Path(..., description="UUID of the precondition version.")
 ,
     action_request: Optional[ActionRequest] = Body(None, description="")
 ,
@@ -518,17 +519,17 @@ async def deprecate_precondition(
     response_model_by_alias=True,
 )
 async def list_precondition_versions(
-    projectKey: Annotated[str, Field(min_length=2, strict=True, max_length=20, description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+    projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
 ,
-    preconditionKey: Annotated[str, Field(min_length=1, strict=True, max_length=100, description="Stable business key of the precondition.")] = Path(..., description="Stable business key of the precondition.", min_length=1, max_length=100, examples=["customer-is-authenticated"])
+    preconditionKey: Annotated[Annotated[str, Field(strict=True, min_length=1, max_length=100)], Field(description="Stable business key of the precondition.")] = Path(..., description="Stable business key of the precondition.", min_length=1, max_length=100, examples=["customer-is-authenticated"])
 ,
-    status: Annotated[Optional[StrictStr], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")] = Query(None, description="Filter versions by lifecycle status. When omitted, all statuses are returned.", alias="status")
+    status: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")] = Query(None, description="Filter versions by lifecycle status. When omitted, all statuses are returned.", alias="status")
 ,
-    offset: Annotated[Optional[Annotated[int, Field(strict=True, ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
+    offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
 ,
-    limit: Annotated[Optional[Annotated[int, Field(le=100, strict=True, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
+    limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
 ,
-    sort_by: Annotated[Optional[StrictStr], Field(description="Field used to sort the result set.")] = Query('version', description="Field used to sort the result set.", alias="sortBy", examples=["version"])
+    sort_by: Annotated[Optional[SortBy], Field(description="Field used to sort the result set.")] = Query('version', description="Field used to sort the result set.", alias="sortBy")
 ,
     order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
 ,

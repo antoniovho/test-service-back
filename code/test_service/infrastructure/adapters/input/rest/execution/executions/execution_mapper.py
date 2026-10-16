@@ -1,6 +1,7 @@
 """Mapping between generated Execution REST models and domain types."""
 
 from datetime import datetime
+from enum import Enum
 from uuid import UUID
 
 from test_service_server.models.create_execution_request import CreateExecutionRequest
@@ -18,6 +19,7 @@ from test_service.domain.application.queries.execution import ExecutionQuery, Li
 from test_service.domain.application.queries.pagination import Page, PaginationParams
 from test_service.domain.application.queries.pagination import SortOrder as DomainSortOrder
 from test_service.domain.model.execution.execution import Execution, TriggerType
+from test_service.infrastructure.adapters.input.rest.common.api_value import enum_value
 
 
 class ExecutionMapper:
@@ -49,7 +51,7 @@ class ExecutionMapper:
         project_key: str,
         offset: int | None,
         limit: int | None,
-        sort_by: str | None,
+        sort_by: str | Enum | None,
         order: ApiSortOrder | None,
     ) -> ListExecutionsQuery:
         sort_fields = {
@@ -64,7 +66,7 @@ class ExecutionMapper:
             pagination=PaginationParams(
                 offset=offset if offset is not None else 0,
                 limit=limit if limit is not None else 20,
-                sort_by=sort_fields.get(sort_by or "createdAt", "created_at"),
+                sort_by=sort_fields.get(enum_value(sort_by) or "createdAt", "created_at"),
                 order=DomainSortOrder(order.value) if order is not None else DomainSortOrder.ASC,
             ),
         )

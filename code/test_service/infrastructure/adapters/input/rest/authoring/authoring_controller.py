@@ -6,6 +6,8 @@ from test_service_server.apis.authoring_api_base import BaseAuthoringApi
 from test_service_server.models.action_request import ActionRequest
 from test_service_server.models.create_precondition_request import CreatePreconditionRequest
 from test_service_server.models.create_test_case_request import CreateTestCaseRequest
+from test_service_server.models.sort_by import SortBy as ApiSortBy
+from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 
 from test_service.infrastructure.adapters.input.rest.authoring.preconditions.preconditions_rest_controller import (  # noqa: E501
     PreconditionsRestController,
@@ -64,8 +66,8 @@ class AuthoringController(BaseAuthoringApi):
         status: str | None,
         offset: int | None,
         limit: int | None,
-        sort_by: str | None,
-        order,
+        sort_by: ApiSortBy | None,
+        order: ApiSortOrder | None,
     ):
         return await self._test_cases.list(projectKey, status, offset, limit, sort_by, order)
 
@@ -76,8 +78,8 @@ class AuthoringController(BaseAuthoringApi):
         status: str | None,
         offset: int | None,
         limit: int | None,
-        sort_by: str | None,
-        order,
+        sort_by: ApiSortBy | None,
+        order: ApiSortOrder | None,
     ):
         return await self._test_cases.list_versions(
             projectKey, testKey, status, offset, limit, sort_by, order
@@ -129,8 +131,8 @@ class AuthoringController(BaseAuthoringApi):
         status: str | None,
         offset: int | None,
         limit: int | None,
-        sort_by: str | None,
-        order,
+        sort_by: ApiSortBy | None,
+        order: ApiSortOrder | None,
     ):  # NOSONAR
         return await self._preconditions.list(projectKey, status, offset, limit, sort_by, order)
 
@@ -141,8 +143,8 @@ class AuthoringController(BaseAuthoringApi):
         status: str | None,
         offset: int | None,
         limit: int | None,
-        sort_by: str | None,
-        order,
+        sort_by: ApiSortBy | None,
+        order: ApiSortOrder | None,
     ):  # NOSONAR
         return await self._preconditions.list_versions(
             projectKey, preconditionKey, status, offset, limit, sort_by, order

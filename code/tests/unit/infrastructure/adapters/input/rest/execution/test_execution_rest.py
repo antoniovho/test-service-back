@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 from test_service_server.models.create_execution_request import CreateExecutionRequest
+from test_service_server.models.execution_outcome_sort_by import ExecutionOutcomeSortBy
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 
 from test_service.domain.application.queries.pagination import Page
@@ -76,7 +77,9 @@ class TestExecutionRest:
         schedule = ExecutionMapper.to_schedule_command(
             "IAG", _request(execution), datetime(2026, 1, 1, tzinfo=UTC)
         )
-        listed = ExecutionMapper.to_list_query("IAG", 0, 10, "durationMs", ApiSortOrder.DESC)
+        listed = ExecutionMapper.to_list_query(
+            "IAG", 0, 10, ExecutionOutcomeSortBy.STARTEDAT, ApiSortOrder.DESC
+        )
 
         assert schedule.project_key == "IAG"
         assert schedule.trigger_type is TriggerType.API
@@ -85,7 +88,7 @@ class TestExecutionRest:
             ExecutionMapper.to_cancel_command("IAG", execution.identifier).identifier
             == execution.identifier
         )
-        assert listed.pagination.sort_by == "duration_ms"
+        assert listed.pagination.sort_by == "started_at"
 
     def test_when_mapping_execution_expect_api_resource_and_page(self):
         execution = _execution()

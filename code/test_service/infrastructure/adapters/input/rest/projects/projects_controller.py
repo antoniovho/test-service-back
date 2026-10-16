@@ -6,6 +6,7 @@ from test_service_server.apis.projects_api_base import BaseProjectsApi
 from test_service_server.models.create_project_request import CreateProjectRequest
 from test_service_server.models.project import Project as ApiProject
 from test_service_server.models.project_list_response import ProjectListResponse
+from test_service_server.models.project_sort_by import ProjectSortBy as ApiProjectSortBy
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 
 from test_service.bootstrap.container import get_injector
@@ -43,7 +44,7 @@ class ProjectsController(BaseProjectsApi):
         self,
         offset: int | None,
         limit: int | None,
-        sort_by: str | None,
+        sort_by: ApiProjectSortBy | None,
         order: ApiSortOrder | None,
     ) -> ProjectListResponse:
         """Return a paginated list of active projects."""
