@@ -9,8 +9,10 @@ from test_service_server.models.precondition import Precondition as ApiPrecondit
 from test_service_server.models.precondition_list_response import PreconditionListResponse
 from test_service_server.models.sort_by import SortBy as ApiSortBy
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
+from test_service_server.models.version_status import VersionStatus as ApiVersionStatus
 
 from test_service.bootstrap.container import get_injector
+from test_service.domain.application.commands.authoring import RestorePreconditionCommand
 from test_service.domain.application.queries.projects import GetProjectQuery
 from test_service.domain.ports.input.use_cases.authoring.preconditions.activate_precondition_use_case import (  # noqa: E501
     ActivatePreconditionUseCase,
@@ -33,6 +35,9 @@ from test_service.domain.ports.input.use_cases.authoring.preconditions.list_prec
 from test_service.domain.ports.input.use_cases.authoring.preconditions.list_preconditions_use_case import (  # noqa: E501
     ListPreconditionsUseCase,
 )
+from test_service.domain.ports.input.use_cases.authoring.preconditions.restore_precondition_use_case import (  # noqa: E501
+    RestorePreconditionUseCase,
+)
 from test_service.domain.ports.input.use_cases.projects.get_project_use_case import (
     GetProjectUseCase,
 )
@@ -51,6 +56,7 @@ class PreconditionsRestController:
         injector = get_injector()
         self._create = injector.inject(CreatePreconditionUseCase)
         self._create_version = injector.inject(CreatePreconditionVersionUseCase)
+        self._restore = injector.inject(RestorePreconditionUseCase)
         self._get = injector.inject(GetPreconditionUseCase)
         self._activate = injector.inject(ActivatePreconditionUseCase)
         self._deprecate = injector.inject(DeprecatePreconditionUseCase)
@@ -83,6 +89,15 @@ class PreconditionsRestController:
         precondition = await self._create_version.execute(command)
         return PreconditionMapper.to_api(precondition, project.name)
 
+    async def restore(self, project_key: str, precondition_id: UUID) -> ApiPrecondition:
+        project = await self._get_project.execute(GetProjectQuery(project_key))
+        precondition = await self._restore.execute(
+            RestorePreconditionCommand(
+                project_key, precondition_id, get_current_identity(), datetime.now(UTC)
+            )
+        )
+        return PreconditionMapper.to_api(precondition, project.name)
+
     async def activate(
         self, project_key: str, precondition_id: UUID, request: ActionRequest | None
     ) -> ApiPrecondition:
@@ -106,7 +121,7 @@ class PreconditionsRestController:
     async def list(
         self,
         project_key: str,
-        status: str | None,
+        status: ApiVersionStatus | None,
         offset: int | None,
         limit: int | None,
         sort_by: ApiSortBy | None,
@@ -125,7 +140,7 @@ class PreconditionsRestController:
         self,
         project_key: str,
         precondition_key: str,
-        status: str | None,
+        status: ApiVersionStatus | None,
         offset: int | None,
         limit: int | None,
         sort_by: ApiSortBy | None,

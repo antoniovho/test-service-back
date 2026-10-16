@@ -8,6 +8,7 @@ from test_service_server.models.create_test_plan_request import CreateTestPlanRe
 from test_service_server.models.create_test_set_request import CreateTestSetRequest
 from test_service_server.models.sort_by import SortBy as ApiSortBy
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
+from test_service_server.models.version_status import VersionStatus as ApiVersionStatus
 
 from test_service.infrastructure.adapters.input.rest.composition.test_plans.test_plans_rest_controller import (  # noqa: E501
     TestPlansRestController,
@@ -42,6 +43,9 @@ class CompositionController(BaseCompositionApi):
     ):
         return await self._test_sets.create_version(projectKey, testSetId, create_test_set_request)
 
+    async def restore_test_set(self, projectKey: str, testSetId: UUID):  # NOSONAR
+        return await self._test_sets.restore(projectKey, testSetId)
+
     async def activate_test_set(
         self,
         projectKey: str,  # NOSONAR
@@ -61,7 +65,7 @@ class CompositionController(BaseCompositionApi):
     async def list_test_sets(
         self,
         projectKey: str,  # NOSONAR
-        status: str | None,
+        status: ApiVersionStatus | None,
         offset: int | None,
         limit: int | None,
         sort_by: ApiSortBy | None,
@@ -73,7 +77,7 @@ class CompositionController(BaseCompositionApi):
         self,
         projectKey: str,  # NOSONAR
         setKey: str,  # NOSONAR
-        status: str | None,
+        status: ApiVersionStatus | None,
         offset: int | None,
         limit: int | None,
         sort_by: ApiSortBy | None,
@@ -103,6 +107,9 @@ class CompositionController(BaseCompositionApi):
             projectKey, testPlanId, create_test_plan_request
         )
 
+    async def restore_test_plan(self, projectKey: str, testPlanId: UUID):  # NOSONAR
+        return await self._test_plans.restore(projectKey, testPlanId)
+
     async def activate_test_plan(
         self,
         projectKey: str,  # NOSONAR
@@ -122,7 +129,7 @@ class CompositionController(BaseCompositionApi):
     async def list_test_plans(
         self,
         projectKey: str,  # NOSONAR
-        status: str | None,
+        status: ApiVersionStatus | None,
         offset: int | None,
         limit: int | None,
         sort_by: ApiSortBy | None,
@@ -134,7 +141,7 @@ class CompositionController(BaseCompositionApi):
         self,
         projectKey: str,  # NOSONAR
         planKey: str,  # NOSONAR
-        status: str | None,
+        status: ApiVersionStatus | None,
         offset: int | None,
         limit: int | None,
         sort_by: ApiSortBy | None,

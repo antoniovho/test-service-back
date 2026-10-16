@@ -50,6 +50,7 @@ class TestAuthoringController:
             "create",
             "get",
             "create_version",
+            "restore",
             "activate",
             "deprecate",
             "list",
@@ -67,6 +68,7 @@ class TestAuthoringController:
             await controller.create_test_case_version("IAG", identifier, request)
             == "create_version"
         )
+        assert await controller.restore_test_case("IAG", identifier) == "restore"
         assert await controller.activate_test_case("IAG", identifier, ActionRequest()) == "activate"
         assert await controller.deprecate_test_case("IAG", identifier, None) == "deprecate"
         assert await controller.list_test_cases("IAG", None, 0, 10, None, None) == "list"
@@ -83,6 +85,7 @@ class TestAuthoringController:
             "create",
             "get",
             "create_version",
+            "restore",
             "activate",
             "deprecate",
             "list",
@@ -100,6 +103,7 @@ class TestAuthoringController:
             await controller.create_precondition_version("IAG", identifier, request)
             == "create_version"
         )
+        assert await controller.restore_precondition("IAG", identifier) == "restore"
         assert (
             await controller.activate_precondition("IAG", identifier, ActionRequest()) == "activate"
         )

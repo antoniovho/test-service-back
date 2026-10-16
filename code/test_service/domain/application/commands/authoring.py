@@ -87,6 +87,16 @@ class CreateTestCaseVersionCommand:
 
 
 @dataclass(frozen=True, slots=True)
+class RestoreTestCaseCommand:
+    """Request to clone a deprecated TestCase snapshot as the next draft version."""
+
+    project_key: str
+    source_id: UUID
+    requested_by: str
+    requested_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
 class CreatePreconditionCommand:
     """Request to create a draft Precondition snapshot.
 
@@ -136,6 +146,16 @@ class CreatePreconditionVersionCommand:
     requested_by: str
     requested_at: datetime
     metadata: dict[str, object] | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class RestorePreconditionCommand:
+    """Request to clone a deprecated Precondition snapshot as the next draft version."""
+
+    project_key: str
+    source_id: UUID
+    requested_by: str
+    requested_at: datetime
 
 
 @dataclass(frozen=True, slots=True)

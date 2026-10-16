@@ -3,6 +3,7 @@
 from uuid import uuid4
 
 from test_service.domain.application.commands.composition import CreateTestPlanVersionCommand
+from test_service.domain.application.services.resolvers.project_resolver import ProjectResolver
 from test_service.domain.application.services.resolvers.test_case_snapshot_resolver import (
     TestCaseSnapshotResolver,
 )
@@ -11,6 +12,10 @@ from test_service.domain.application.services.resolvers.test_set_snapshot_resolv
 )
 from test_service.domain.model.composition.test_plan import TestPlan
 from test_service.domain.model.exceptions.entity_not_found_exception import EntityNotFoundException
+from test_service.domain.model.exceptions.invalid_test_plan_version_source_exception import (
+    InvalidTestPlanVersionSourceException,
+)
+from test_service.domain.model.lifecycle import VersionStatus
 from test_service.domain.ports.input.use_cases.composition.test_plans.create_test_plan_version_use_case import (  # noqa: E501
     CreateTestPlanVersionUseCase,
 )
@@ -27,18 +32,23 @@ class CreateTestPlanVersionUseCaseImpl(CreateTestPlanVersionUseCase):
         test_plan_repository: TestPlanPersistencePort,
         test_set_snapshot_resolver: TestSetSnapshotResolver,
         test_case_snapshot_resolver: TestCaseSnapshotResolver,
+        project_resolver: ProjectResolver,
     ) -> None:
         self._test_plan_repository = test_plan_repository
         self._test_set_snapshot_resolver = test_set_snapshot_resolver
         self._test_case_snapshot_resolver = test_case_snapshot_resolver
+        self._project_resolver = project_resolver
 
     async def execute(self, request: CreateTestPlanVersionCommand) -> TestPlan:
         """Create and persist the next immutable Test Plan version."""
+        await self._project_resolver.resolve_active(request.project_key)
         source = await self._test_plan_repository.find_by_id(request.source_id)
         if source is None or source.project_key != request.project_key:
             raise EntityNotFoundException(
                 "Test plan", str(request.source_id), f"project '{request.project_key}'"
             )
+        if source.status is VersionStatus.DEPRECATED:
+            raise InvalidTestPlanVersionSourceException(source.identifier)
         latest_version = await self._test_plan_repository.find_latest_version(
             source.project_key, source.plan_key
         )

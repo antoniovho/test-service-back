@@ -10,8 +10,10 @@ from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 from test_service_server.models.test_set import TestSet as ApiTestSet
 from test_service_server.models.test_set_list_response import TestSetListResponse
 from test_service_server.models.test_set_version_list_response import TestSetVersionListResponse
+from test_service_server.models.version_status import VersionStatus as ApiVersionStatus
 
 from test_service.bootstrap.container import get_injector
+from test_service.domain.application.commands.composition import RestoreTestSetCommand
 from test_service.domain.application.queries.projects import GetProjectQuery
 from test_service.domain.ports.input.use_cases.composition.test_sets.activate_test_set_use_case import (  # noqa: E501
     ActivateTestSetUseCase,
@@ -34,6 +36,9 @@ from test_service.domain.ports.input.use_cases.composition.test_sets.list_test_s
 from test_service.domain.ports.input.use_cases.composition.test_sets.list_test_sets_use_case import (  # noqa: E501
     ListTestSetsUseCase,
 )
+from test_service.domain.ports.input.use_cases.composition.test_sets.restore_test_set_use_case import (  # noqa: E501
+    RestoreTestSetUseCase,
+)
 from test_service.domain.ports.input.use_cases.projects.get_project_use_case import (
     GetProjectUseCase,
 )
@@ -52,6 +57,7 @@ class TestSetsRestController:
         injector = get_injector()
         self._create = injector.inject(CreateTestSetUseCase)
         self._create_version = injector.inject(CreateTestSetVersionUseCase)
+        self._restore = injector.inject(RestoreTestSetUseCase)
         self._get = injector.inject(GetTestSetUseCase)
         self._activate = injector.inject(ActivateTestSetUseCase)
         self._deprecate = injector.inject(DeprecateTestSetUseCase)
@@ -82,6 +88,15 @@ class TestSetsRestController:
         test_set = await self._create_version.execute(command)
         return TestSetMapper.to_api(test_set, project.name)
 
+    async def restore(self, project_key: str, test_set_id: UUID) -> ApiTestSet:
+        project = await self._get_project.execute(GetProjectQuery(project_key))
+        test_set = await self._restore.execute(
+            RestoreTestSetCommand(
+                project_key, test_set_id, get_current_identity(), datetime.now(UTC)
+            )
+        )
+        return TestSetMapper.to_api(test_set, project.name)
+
     async def activate(
         self, project_key: str, test_set_id: UUID, request: ActionRequest | None
     ) -> ApiTestSet:
@@ -105,7 +120,7 @@ class TestSetsRestController:
     async def list(
         self,
         project_key: str,
-        status: str | None,
+        status: ApiVersionStatus | None,
         offset: int | None,
         limit: int | None,
         sort_by: ApiSortBy | None,
@@ -122,7 +137,7 @@ class TestSetsRestController:
         self,
         project_key: str,
         set_key: str,
-        status: str | None,
+        status: ApiVersionStatus | None,
         offset: int | None,
         limit: int | None,
         sort_by: ApiSortBy | None,

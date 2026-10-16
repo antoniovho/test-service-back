@@ -84,6 +84,7 @@ class DefinitionCompiler:
             )
             for position, action in enumerate(definition.actions)
         )
+        # Merge environment variables with definition variables, giving precedence to environment variables.
         variables = {**definition.variables, **(environment_variables or {})}
         return CompiledTestCase(str(test_case_id), variables, actions)
 

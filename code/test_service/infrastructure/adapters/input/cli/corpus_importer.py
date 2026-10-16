@@ -76,7 +76,35 @@ class CorpusImporter:
         dry_run: bool = False,
     ) -> ImportReport:
         """Validate and import all JSON documents found below a corpus directory."""
-        documents = tuple(_load_documents(directory))
+        if not directory.is_dir():
+            raise ValueError(f"corpus directory '{directory}' does not exist")
+        return await self.import_files(
+            tuple(sorted(directory.rglob("*.json"))),
+            project_key,
+            requested_by,
+            dry_run,
+            source_description=f"corpus directory '{directory}'",
+        )
+
+    async def import_files(
+        self,
+        paths: Iterable[Path],
+        project_key: str,
+        requested_by: str,
+        dry_run: bool = False,
+        *,
+        source_description: str = "corpus files",
+    ) -> ImportReport:
+        """Validate and import the selected corpus JSON files.
+
+        Preconditions are always imported before test cases, independently of
+        the order in which paths were supplied. This enables intentionally
+        small imports without staging a temporary corpus directory.
+        """
+        paths = tuple(paths)
+        if not paths:
+            raise ValueError(f"{source_description} does not contain JSON documents")
+        documents = tuple(load_document(path) for path in paths)
         preconditions = tuple(
             item for item in documents if isinstance(item, PreconditionCorpusDocument)
         )
@@ -269,12 +297,6 @@ def load_document(path: Path) -> CorpusDocument:
         return TestCaseCorpusDocument.model_validate(payload)
     except ValidationError as exc:
         raise ValueError(f"invalid corpus document '{path}': {exc}") from exc
-
-
-def _load_documents(directory: Path) -> Iterable[CorpusDocument]:
-    if not directory.is_dir():
-        raise ValueError(f"corpus directory '{directory}' does not exist")
-    yield from (load_document(path) for path in sorted(directory.rglob("*.json")))
 
 
 @lru_cache

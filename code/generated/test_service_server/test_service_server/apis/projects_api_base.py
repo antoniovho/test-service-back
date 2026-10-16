@@ -52,3 +52,11 @@ class BaseProjectsApi:
     ) -> None:
         """Marks the project as DELETED without deleting tests, sets, plans, executions, results, or artifacts."""
         ...
+
+
+    async def restore_project(
+        self,
+        projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
+    ) -> Project:
+        """Restores a locally deleted project after confirming that the exact Jira project key remains accessible. Existing Test Service history is preserved."""
+        ...

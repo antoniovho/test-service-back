@@ -13,6 +13,7 @@ from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 from test_service.domain.application.commands.projects import (
     CreateProjectCommand,
     DeleteProjectCommand,
+    RestoreProjectCommand,
 )
 from test_service.domain.application.queries.pagination import Page, PaginationParams
 from test_service.domain.application.queries.pagination import SortOrder as DomainSortOrder
@@ -71,6 +72,17 @@ class ProjectMapper:
     ) -> DeleteProjectCommand:
         """Build the command used to logically delete a project."""
         return DeleteProjectCommand(
+            key=project_key,
+            requested_by=requested_by,
+            requested_at=requested_at,
+        )
+
+    @staticmethod
+    def to_restore_command(
+        project_key: str, requested_by: str, requested_at: datetime
+    ) -> RestoreProjectCommand:
+        """Build the command used to restore a logically deleted project."""
+        return RestoreProjectCommand(
             key=project_key,
             requested_by=requested_by,
             requested_at=requested_at,

@@ -9,6 +9,9 @@ from test_service.domain.model.exceptions.invalid_project_deletion_exception imp
 from test_service.domain.model.exceptions.invalid_project_key_exception import (
     InvalidProjectKeyException,
 )
+from test_service.domain.model.exceptions.project_already_active_exception import (
+    ProjectAlreadyActiveException,
+)
 from test_service.domain.model.exceptions.project_already_deleted_exception import (
     ProjectAlreadyDeletedException,
 )
@@ -164,4 +167,24 @@ class TestProjectDelete:
             project.delete(deleted_at=deleted_at, deleted_by=deleted_by)
 
         assert exc.value.code == "PROJECT_ALREADY_DELETED"
+        assert exc.value.origin is ErrorOrigin.USER
+
+
+class TestProjectRestore:
+    def test_when_deleted_expect_active_project_with_deletion_metadata_cleared(self):
+        deleted = _project().delete(
+            deleted_at=datetime(2026, 2, 1, tzinfo=UTC), deleted_by="admin@example.com"
+        )
+
+        restored = deleted.restore()
+
+        assert restored.status is ProjectStatus.ACTIVE
+        assert restored.deleted_at is None
+        assert restored.deleted_by is None
+
+    def test_when_already_active_expect_exception(self):
+        with pytest.raises(ProjectAlreadyActiveException) as exc:
+            _project().restore()
+
+        assert exc.value.code == "PROJECT_ALREADY_ACTIVE"
         assert exc.value.origin is ErrorOrigin.USER

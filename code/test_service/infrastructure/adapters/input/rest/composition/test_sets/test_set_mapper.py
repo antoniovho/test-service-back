@@ -64,7 +64,7 @@ class TestSetMapper:
         return VersionedResourceMapper.to_pagination(offset, limit, sort_by, order)
 
     @staticmethod
-    def to_status(value: str | None) -> VersionStatus | None:
+    def to_status(value: str | Enum | None) -> VersionStatus | None:
         return VersionedResourceMapper.to_status(value)
 
     @staticmethod

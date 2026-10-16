@@ -51,6 +51,9 @@ from test_service.domain.application.use_cases.authoring.preconditions.list_prec
 from test_service.domain.application.use_cases.authoring.preconditions.list_preconditions_use_case import (  # noqa: E501
     ListPreconditionsUseCaseImpl,
 )
+from test_service.domain.application.use_cases.authoring.preconditions.restore_precondition_use_case import (  # noqa: E501
+    RestorePreconditionUseCaseImpl,
+)
 from test_service.domain.application.use_cases.authoring.test_cases.activate_test_case_use_case import (  # noqa: E501
     ActivateTestCaseUseCaseImpl,
 )
@@ -71,6 +74,9 @@ from test_service.domain.application.use_cases.authoring.test_cases.list_test_ca
 )
 from test_service.domain.application.use_cases.authoring.test_cases.list_test_cases_use_case import (  # noqa: E501
     ListTestCasesUseCaseImpl,
+)
+from test_service.domain.application.use_cases.authoring.test_cases.restore_test_case_use_case import (  # noqa: E501
+    RestoreTestCaseUseCaseImpl,
 )
 from test_service.domain.application.use_cases.composition.test_plans.activate_test_plan_use_case import (  # noqa: E501
     ActivateTestPlanUseCaseImpl,
@@ -93,6 +99,9 @@ from test_service.domain.application.use_cases.composition.test_plans.list_test_
 from test_service.domain.application.use_cases.composition.test_plans.list_test_plans_use_case import (  # noqa: E501
     ListTestPlansUseCaseImpl,
 )
+from test_service.domain.application.use_cases.composition.test_plans.restore_test_plan_use_case import (  # noqa: E501
+    RestoreTestPlanUseCaseImpl,
+)
 from test_service.domain.application.use_cases.composition.test_sets.activate_test_set_use_case import (  # noqa: E501
     ActivateTestSetUseCaseImpl,
 )
@@ -113,6 +122,9 @@ from test_service.domain.application.use_cases.composition.test_sets.list_test_s
 )
 from test_service.domain.application.use_cases.composition.test_sets.list_test_sets_use_case import (  # noqa: E501
     ListTestSetsUseCaseImpl,
+)
+from test_service.domain.application.use_cases.composition.test_sets.restore_test_set_use_case import (  # noqa: E501
+    RestoreTestSetUseCaseImpl,
 )
 from test_service.domain.application.use_cases.execution.environments.activate_environment_use_case import (  # noqa: E501
     ActivateEnvironmentUseCaseImpl,
@@ -168,6 +180,9 @@ from test_service.domain.application.use_cases.projects.get_project_use_case imp
 from test_service.domain.application.use_cases.projects.list_projects_use_case import (
     ListProjectsUseCaseImpl,
 )
+from test_service.domain.application.use_cases.projects.restore_project_use_case import (
+    RestoreProjectUseCaseImpl,
+)
 from test_service.domain.application.use_cases.viewer.check_viewer_drift_use_case import (
     CheckViewerDriftUseCaseImpl,
 )
@@ -216,6 +231,9 @@ from test_service.domain.ports.input.use_cases.authoring.preconditions.list_prec
 from test_service.domain.ports.input.use_cases.authoring.preconditions.list_preconditions_use_case import (  # noqa: E501
     ListPreconditionsUseCase,
 )
+from test_service.domain.ports.input.use_cases.authoring.preconditions.restore_precondition_use_case import (  # noqa: E501
+    RestorePreconditionUseCase,
+)
 from test_service.domain.ports.input.use_cases.authoring.test_cases.activate_test_case_use_case import (  # noqa: E501
     ActivateTestCaseUseCase,
 )
@@ -236,6 +254,9 @@ from test_service.domain.ports.input.use_cases.authoring.test_cases.list_test_ca
 )
 from test_service.domain.ports.input.use_cases.authoring.test_cases.list_test_cases_use_case import (  # noqa: E501
     ListTestCasesUseCase,
+)
+from test_service.domain.ports.input.use_cases.authoring.test_cases.restore_test_case_use_case import (  # noqa: E501
+    RestoreTestCaseUseCase,
 )
 from test_service.domain.ports.input.use_cases.composition.test_plans.activate_test_plan_use_case import (  # noqa: E501
     ActivateTestPlanUseCase,
@@ -258,6 +279,9 @@ from test_service.domain.ports.input.use_cases.composition.test_plans.list_test_
 from test_service.domain.ports.input.use_cases.composition.test_plans.list_test_plans_use_case import (  # noqa: E501
     ListTestPlansUseCase,
 )
+from test_service.domain.ports.input.use_cases.composition.test_plans.restore_test_plan_use_case import (  # noqa: E501
+    RestoreTestPlanUseCase,
+)
 from test_service.domain.ports.input.use_cases.composition.test_sets.activate_test_set_use_case import (  # noqa: E501
     ActivateTestSetUseCase,
 )
@@ -278,6 +302,9 @@ from test_service.domain.ports.input.use_cases.composition.test_sets.list_test_s
 )
 from test_service.domain.ports.input.use_cases.composition.test_sets.list_test_sets_use_case import (  # noqa: E501
     ListTestSetsUseCase,
+)
+from test_service.domain.ports.input.use_cases.composition.test_sets.restore_test_set_use_case import (  # noqa: E501
+    RestoreTestSetUseCase,
 )
 from test_service.domain.ports.input.use_cases.execution.environments.activate_environment_use_case import (  # noqa: E501
     ActivateEnvironmentUseCase,
@@ -333,6 +360,9 @@ from test_service.domain.ports.input.use_cases.projects.get_project_use_case imp
 from test_service.domain.ports.input.use_cases.projects.list_projects_use_case import (
     ListProjectsUseCase,
 )
+from test_service.domain.ports.input.use_cases.projects.restore_project_use_case import (
+    RestoreProjectUseCase,
+)
 from test_service.domain.ports.input.use_cases.viewer.check_viewer_drift_use_case import (
     CheckViewerDriftUseCase,
 )
@@ -370,6 +400,7 @@ class ProjectsModule(Module):
         self.bind(CreateProjectUseCase, to_class=CreateProjectUseCaseImpl)
         self.bind(GetProjectUseCase, to_class=GetProjectUseCaseImpl)
         self.bind(DeleteProjectUseCase, to_class=DeleteProjectUseCaseImpl)
+        self.bind(RestoreProjectUseCase, to_class=RestoreProjectUseCaseImpl)
 
 
 class TestCasesModule(Module):
@@ -379,6 +410,7 @@ class TestCasesModule(Module):
         self.bind(PreconditionReferenceResolver)
         self.bind(CreateTestCaseUseCase, to_class=CreateTestCaseUseCaseImpl)
         self.bind(CreateTestCaseVersionUseCase, to_class=CreateTestCaseVersionUseCaseImpl)
+        self.bind(RestoreTestCaseUseCase, to_class=RestoreTestCaseUseCaseImpl)
         self.bind(ActivateTestCaseUseCase, to_class=ActivateTestCaseUseCaseImpl)
         self.bind(DeprecateTestCaseUseCase, to_class=DeprecateTestCaseUseCaseImpl)
         self.bind(GetTestCaseUseCase, to_class=GetTestCaseUseCaseImpl)
@@ -392,6 +424,7 @@ class PreconditionsModule(Module):
     def configure(self) -> None:
         self.bind(CreatePreconditionUseCase, to_class=CreatePreconditionUseCaseImpl)
         self.bind(CreatePreconditionVersionUseCase, to_class=CreatePreconditionVersionUseCaseImpl)
+        self.bind(RestorePreconditionUseCase, to_class=RestorePreconditionUseCaseImpl)
         self.bind(ActivatePreconditionUseCase, to_class=ActivatePreconditionUseCaseImpl)
         self.bind(DeprecatePreconditionUseCase, to_class=DeprecatePreconditionUseCaseImpl)
         self.bind(GetPreconditionUseCase, to_class=GetPreconditionUseCaseImpl)
@@ -406,6 +439,7 @@ class TestSetsModule(Module):
         self.bind(TestCaseSnapshotResolver)
         self.bind(CreateTestSetUseCase, to_class=CreateTestSetUseCaseImpl)
         self.bind(CreateTestSetVersionUseCase, to_class=CreateTestSetVersionUseCaseImpl)
+        self.bind(RestoreTestSetUseCase, to_class=RestoreTestSetUseCaseImpl)
         self.bind(ActivateTestSetUseCase, to_class=ActivateTestSetUseCaseImpl)
         self.bind(DeprecateTestSetUseCase, to_class=DeprecateTestSetUseCaseImpl)
         self.bind(GetTestSetUseCase, to_class=GetTestSetUseCaseImpl)
@@ -420,6 +454,7 @@ class TestPlansModule(Module):
         self.bind(TestSetSnapshotResolver)
         self.bind(CreateTestPlanUseCase, to_class=CreateTestPlanUseCaseImpl)
         self.bind(CreateTestPlanVersionUseCase, to_class=CreateTestPlanVersionUseCaseImpl)
+        self.bind(RestoreTestPlanUseCase, to_class=RestoreTestPlanUseCaseImpl)
         self.bind(ActivateTestPlanUseCase, to_class=ActivateTestPlanUseCaseImpl)
         self.bind(DeprecateTestPlanUseCase, to_class=DeprecateTestPlanUseCaseImpl)
         self.bind(GetTestPlanUseCase, to_class=GetTestPlanUseCaseImpl)

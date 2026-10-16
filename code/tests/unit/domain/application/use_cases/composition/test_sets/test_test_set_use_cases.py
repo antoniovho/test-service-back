@@ -246,7 +246,9 @@ class TestTestSetUseCases:
             "author@example.test",
         )
         use_case = CreateTestSetVersionUseCaseImpl(
-            _TestSetRepository((source,)), TestCaseSnapshotResolver(_TestCaseRepository(test_case))
+            _TestSetRepository((source,)),
+            TestCaseSnapshotResolver(_TestCaseRepository(test_case)),
+            _project_resolver(),
         )
         request = CreateTestSetVersionCommand(
             source.identifier,

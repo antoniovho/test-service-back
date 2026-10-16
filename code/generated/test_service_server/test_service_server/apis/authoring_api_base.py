@@ -2,7 +2,7 @@
 
 from typing import ClassVar, Dict, List, Tuple  # noqa: F401
 
-from pydantic import Field, StrictStr, field_validator
+from pydantic import Field
 from typing import Optional
 from typing_extensions import Annotated
 from uuid import UUID
@@ -17,6 +17,7 @@ from test_service_server.models.sort_order import SortOrder
 from test_service_server.models.test_case import TestCase
 from test_service_server.models.test_case_list_response import TestCaseListResponse
 from test_service_server.models.test_case_version_list_response import TestCaseVersionListResponse
+from test_service_server.models.version_status import VersionStatus
 from test_service_server.security_api import get_token_bearerAuth
 
 class BaseAuthoringApi:
@@ -28,7 +29,7 @@ class BaseAuthoringApi:
     async def list_test_cases(
         self,
         projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
-        status: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")],
+        status: Annotated[Optional[VersionStatus], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")],
         offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")],
         limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")],
         sort_by: Annotated[Optional[SortBy], Field(description="Field used to sort the result set.")],
@@ -66,6 +67,15 @@ class BaseAuthoringApi:
         ...
 
 
+    async def restore_test_case(
+        self,
+        projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
+        testCaseId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the test case version.")],
+    ) -> TestCase:
+        """Clones the selected deprecated snapshot as the next immutable draft version. The historical snapshot remains deprecated and unchanged."""
+        ...
+
+
     async def activate_test_case(
         self,
         projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
@@ -90,7 +100,7 @@ class BaseAuthoringApi:
         self,
         projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
         testKey: Annotated[Annotated[str, Field(strict=True, min_length=1, max_length=100)], Field(description="Stable business key of the test case.")],
-        status: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")],
+        status: Annotated[Optional[VersionStatus], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")],
         offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")],
         limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")],
         sort_by: Annotated[Optional[SortBy], Field(description="Field used to sort the result set.")],
@@ -103,7 +113,7 @@ class BaseAuthoringApi:
     async def list_preconditions(
         self,
         projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
-        status: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")],
+        status: Annotated[Optional[VersionStatus], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")],
         offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")],
         limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")],
         sort_by: Annotated[Optional[SortBy], Field(description="Field used to sort the result set.")],
@@ -141,6 +151,15 @@ class BaseAuthoringApi:
         ...
 
 
+    async def restore_precondition(
+        self,
+        projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
+        preconditionId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the precondition version.")],
+    ) -> Precondition:
+        """Clones the selected deprecated snapshot as the next immutable draft version. The historical snapshot remains deprecated and unchanged."""
+        ...
+
+
     async def activate_precondition(
         self,
         projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
@@ -165,7 +184,7 @@ class BaseAuthoringApi:
         self,
         projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
         preconditionKey: Annotated[Annotated[str, Field(strict=True, min_length=1, max_length=100)], Field(description="Stable business key of the precondition.")],
-        status: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")],
+        status: Annotated[Optional[VersionStatus], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")],
         offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")],
         limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")],
         sort_by: Annotated[Optional[SortBy], Field(description="Field used to sort the result set.")],

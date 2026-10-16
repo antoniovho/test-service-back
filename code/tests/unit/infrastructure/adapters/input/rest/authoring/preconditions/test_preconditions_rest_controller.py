@@ -33,6 +33,9 @@ from test_service.domain.ports.input.use_cases.authoring.preconditions.list_prec
 from test_service.domain.ports.input.use_cases.authoring.preconditions.list_preconditions_use_case import (  # noqa: E501
     ListPreconditionsUseCase,
 )
+from test_service.domain.ports.input.use_cases.authoring.preconditions.restore_precondition_use_case import (  # noqa: E501
+    RestorePreconditionUseCase,
+)
 from test_service.domain.ports.input.use_cases.projects.get_project_use_case import (
     GetProjectUseCase,
 )
@@ -78,6 +81,7 @@ def _controller(precondition: Precondition) -> PreconditionsRestController:
     controller.__dict__.update(
         _create=SimpleNamespace(execute=AsyncMock(return_value=precondition)),
         _create_version=SimpleNamespace(execute=AsyncMock(return_value=precondition)),
+        _restore=SimpleNamespace(execute=AsyncMock(return_value=precondition)),
         _get=SimpleNamespace(execute=AsyncMock(return_value=precondition)),
         _activate=SimpleNamespace(execute=AsyncMock(return_value=precondition)),
         _deprecate=SimpleNamespace(execute=AsyncMock(return_value=precondition)),
@@ -92,7 +96,7 @@ def _controller(precondition: Precondition) -> PreconditionsRestController:
 
 class TestPreconditionsRestController:
     def test_when_constructed_expect_all_required_use_cases_injected(self, monkeypatch):
-        injector = SimpleNamespace(inject=MagicMock(side_effect=range(8)))
+        injector = SimpleNamespace(inject=MagicMock(side_effect=range(9)))
         monkeypatch.setattr(
             "test_service.infrastructure.adapters.input.rest.authoring.preconditions."
             "preconditions_rest_controller.get_injector",
@@ -102,10 +106,11 @@ class TestPreconditionsRestController:
         controller = PreconditionsRestController()
 
         assert controller._create == 0
-        assert controller._get_project == 7
+        assert controller._get_project == 8
         assert injector.inject.call_args_list == [
             ((CreatePreconditionUseCase,),),
             ((CreatePreconditionVersionUseCase,),),
+            ((RestorePreconditionUseCase,),),
             ((GetPreconditionUseCase,),),
             ((ActivatePreconditionUseCase,),),
             ((DeprecatePreconditionUseCase,),),
@@ -128,6 +133,7 @@ class TestPreconditionsRestController:
         created = await controller.create("IAG", _request())
         found = await controller.get("IAG", precondition.identifier)
         version = await controller.create_version("IAG", precondition.identifier, _request())
+        restored = await controller.restore("IAG", precondition.identifier)
         activated = await controller.activate(
             "IAG", precondition.identifier, ActionRequest(reason="approved")
         )
@@ -136,6 +142,7 @@ class TestPreconditionsRestController:
         assert created.id == precondition.identifier
         assert found.project.name == "AI Gateway"
         assert version.precondition_key == precondition.precondition_key
+        assert restored.id == precondition.identifier
         assert activated.status == "DRAFT"
         assert deprecated.validation_definition.actions[0].id == "session"
 

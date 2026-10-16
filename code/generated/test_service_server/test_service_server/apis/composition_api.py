@@ -23,7 +23,7 @@ from fastapi import (  # noqa: F401
 )
 
 from test_service_server.models.extra_models import TokenModel  # noqa: F401
-from pydantic import Field, StrictStr, field_validator
+from pydantic import Field
 from typing import Optional
 from typing_extensions import Annotated
 from uuid import UUID
@@ -39,6 +39,7 @@ from test_service_server.models.test_plan_version_list_response import TestPlanV
 from test_service_server.models.test_set import TestSet
 from test_service_server.models.test_set_list_response import TestSetListResponse
 from test_service_server.models.test_set_version_list_response import TestSetVersionListResponse
+from test_service_server.models.version_status import VersionStatus
 from test_service_server.security_api import get_token_bearerAuth
 
 router = APIRouter()
@@ -68,7 +69,7 @@ for _, name, _ in pkgutil.iter_modules(ns_pkg.__path__, ns_pkg.__name__ + "."):
 async def list_test_sets(
     projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
 ,
-    status: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")] = Query(None, description="Filter versions by lifecycle status. When omitted, all statuses are returned.", alias="status")
+    status: Annotated[Optional[VersionStatus], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")] = Query(None, description="Filter versions by lifecycle status. When omitted, all statuses are returned.", alias="status")
 ,
     offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
 ,
@@ -187,6 +188,38 @@ async def create_test_set_version(
 
 
 @router.post(
+    "/v1/projects/{projectKey}/test-sets/{testSetId}/restorations",
+    responses={
+        201: {"model": TestSet, "description": "Draft version restored."},
+        400: {"model": ErrorDetails, "description": "The request is invalid."},
+        401: {"model": ErrorDetails, "description": "Authentication is required or failed."},
+        403: {"model": ErrorDetails, "description": "The authenticated principal is not allowed to perform the operation."},
+        404: {"model": ErrorDetails, "description": "The requested resource was not found."},
+        409: {"model": ErrorDetails, "description": "The operation conflicts with the current state of the resource."},
+        422: {"model": ErrorDetails, "description": "The request is syntactically valid but violates a domain rule."},
+        500: {"model": ErrorDetails, "description": "An unexpected server error occurred."},
+        503: {"model": ErrorDetails, "description": "The service is temporarily unavailable."},
+    },
+    tags=["Composition"],
+    summary="Restore a deprecated test set version",
+    response_model_by_alias=True,
+)
+async def restore_test_set(
+    projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+,
+    testSetId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the immutable test set version.")] = Path(..., description="UUID of the immutable test set version.")
+,
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth
+    ),
+) -> TestSet:
+    """Clones the selected deprecated snapshot as the next immutable draft version. The historical snapshot remains deprecated and unchanged."""
+    if not BaseCompositionApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseCompositionApi.subclasses[0]().restore_test_set(projectKey, testSetId)
+
+
+@router.post(
     "/v1/projects/{projectKey}/test-sets/{testSetId}/activations",
     responses={
         200: {"model": TestSet, "description": "Activated"},
@@ -276,7 +309,7 @@ async def list_test_set_versions(
 ,
     setKey: Annotated[Annotated[str, Field(strict=True, min_length=1, max_length=100)], Field(description="Stable business key of the test set.")] = Path(..., description="Stable business key of the test set.", min_length=1, max_length=100, examples=["checkout-regression"])
 ,
-    status: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")] = Query(None, description="Filter versions by lifecycle status. When omitted, all statuses are returned.", alias="status")
+    status: Annotated[Optional[VersionStatus], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")] = Query(None, description="Filter versions by lifecycle status. When omitted, all statuses are returned.", alias="status")
 ,
     offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
 ,
@@ -315,7 +348,7 @@ async def list_test_set_versions(
 async def list_test_plans(
     projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
 ,
-    status: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")] = Query(None, description="Filter versions by lifecycle status. When omitted, all statuses are returned.", alias="status")
+    status: Annotated[Optional[VersionStatus], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")] = Query(None, description="Filter versions by lifecycle status. When omitted, all statuses are returned.", alias="status")
 ,
     offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
 ,
@@ -434,6 +467,38 @@ async def create_test_plan_version(
 
 
 @router.post(
+    "/v1/projects/{projectKey}/test-plans/{testPlanId}/restorations",
+    responses={
+        201: {"model": TestPlan, "description": "Draft version restored."},
+        400: {"model": ErrorDetails, "description": "The request is invalid."},
+        401: {"model": ErrorDetails, "description": "Authentication is required or failed."},
+        403: {"model": ErrorDetails, "description": "The authenticated principal is not allowed to perform the operation."},
+        404: {"model": ErrorDetails, "description": "The requested resource was not found."},
+        409: {"model": ErrorDetails, "description": "The operation conflicts with the current state of the resource."},
+        422: {"model": ErrorDetails, "description": "The request is syntactically valid but violates a domain rule."},
+        500: {"model": ErrorDetails, "description": "An unexpected server error occurred."},
+        503: {"model": ErrorDetails, "description": "The service is temporarily unavailable."},
+    },
+    tags=["Composition"],
+    summary="Restore a deprecated test plan version",
+    response_model_by_alias=True,
+)
+async def restore_test_plan(
+    projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+,
+    testPlanId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the immutable test plan version.")] = Path(..., description="UUID of the immutable test plan version.")
+,
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth
+    ),
+) -> TestPlan:
+    """Clones the selected deprecated snapshot as the next immutable draft version. The historical snapshot remains deprecated and unchanged."""
+    if not BaseCompositionApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseCompositionApi.subclasses[0]().restore_test_plan(projectKey, testPlanId)
+
+
+@router.post(
     "/v1/projects/{projectKey}/test-plans/{testPlanId}/activations",
     responses={
         200: {"model": TestPlan, "description": "Activated"},
@@ -523,7 +588,7 @@ async def list_test_plan_versions(
 ,
     planKey: Annotated[Annotated[str, Field(strict=True, min_length=1, max_length=100)], Field(description="Stable business key of the test plan.")] = Path(..., description="Stable business key of the test plan.", min_length=1, max_length=100, examples=["checkout-nightly"])
 ,
-    status: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")] = Query(None, description="Filter versions by lifecycle status. When omitted, all statuses are returned.", alias="status")
+    status: Annotated[Optional[VersionStatus], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")] = Query(None, description="Filter versions by lifecycle status. When omitted, all statuses are returned.", alias="status")
 ,
     offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
 ,

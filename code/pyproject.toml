@@ -35,11 +35,11 @@ generator-command = "npx --yes @openapitools/openapi-generator-cli@2.41.0"
 generator-version = "7.25.0"
 
 [tool.openapi-contracts.contracts.test-service]
-version = "0.3.4"
+version = "0.4.0"
 repository = "antoniovho/app-devtools"
 tag = "test-service-api-v{version}"
 artifact = "test-service-api-{version}.yml"
-sha256 = "7097bc76cdda25210c3f49ecdb556d3a7696e2a883feab96c5dba403af0a9995"
+sha256 = "e141d3540e7cfd6b2f18d6aeab9fc6efbd3561280db2e20059cc56fe0f8291d8"
 output = "contracts/open_api/test-service-api.yml"
 
 [tool.openapi-contracts.generators.rest.server.test-service-server]
@@ -88,6 +88,10 @@ cache_invalidation_files = ["tests/**/*.py"]
 only_mutate = [
   "test_service/domain/application/use_cases/execution/executions/cancel_execution_use_case.py",
   "test_service/domain/application/use_cases/execution/executions/process_next_execution_use_case.py",
+  "test_service/domain/application/use_cases/authoring/preconditions/restore_precondition_use_case.py",
+  "test_service/domain/application/use_cases/authoring/test_cases/restore_test_case_use_case.py",
+  "test_service/domain/application/use_cases/composition/test_plans/restore_test_plan_use_case.py",
+  "test_service/domain/application/use_cases/composition/test_sets/restore_test_set_use_case.py",
   "test_service/domain/ports/output/runners/runner_dtos.py",
   "test_service/infrastructure/adapters/output/execution/executions/execution_persistence_adapter.py",
   "test_service/infrastructure/adapters/output/execution/executions/persistence/repositories/execution_repository.py",
@@ -101,6 +105,7 @@ pytest_add_cli_args_test_selection = [
   "tests/unit/infrastructure/adapters/output/execution/executions/persistence/",
   "tests/unit/infrastructure/adapters/output/projects/jira/",
   "tests/unit/infrastructure/adapters/output/runners/tavern/",
+  "tests/unit/domain/application/use_cases/test_restore_version_use_cases.py",
 ]
 
 [tool.uv.sources]

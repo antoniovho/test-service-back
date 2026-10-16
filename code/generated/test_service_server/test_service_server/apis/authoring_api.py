@@ -23,7 +23,7 @@ from fastapi import (  # noqa: F401
 )
 
 from test_service_server.models.extra_models import TokenModel  # noqa: F401
-from pydantic import Field, StrictStr, field_validator
+from pydantic import Field
 from typing import Optional
 from typing_extensions import Annotated
 from uuid import UUID
@@ -38,6 +38,7 @@ from test_service_server.models.sort_order import SortOrder
 from test_service_server.models.test_case import TestCase
 from test_service_server.models.test_case_list_response import TestCaseListResponse
 from test_service_server.models.test_case_version_list_response import TestCaseVersionListResponse
+from test_service_server.models.version_status import VersionStatus
 from test_service_server.security_api import get_token_bearerAuth
 
 router = APIRouter()
@@ -67,7 +68,7 @@ for _, name, _ in pkgutil.iter_modules(ns_pkg.__path__, ns_pkg.__name__ + "."):
 async def list_test_cases(
     projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
 ,
-    status: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")] = Query(None, description="Filter versions by lifecycle status. When omitted, all statuses are returned.", alias="status")
+    status: Annotated[Optional[VersionStatus], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")] = Query(None, description="Filter versions by lifecycle status. When omitted, all statuses are returned.", alias="status")
 ,
     offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
 ,
@@ -186,6 +187,38 @@ async def create_test_case_version(
 
 
 @router.post(
+    "/v1/projects/{projectKey}/test-cases/{testCaseId}/restorations",
+    responses={
+        201: {"model": TestCase, "description": "Draft version restored."},
+        400: {"model": ErrorDetails, "description": "The request is invalid."},
+        401: {"model": ErrorDetails, "description": "Authentication is required or failed."},
+        403: {"model": ErrorDetails, "description": "The authenticated principal is not allowed to perform the operation."},
+        404: {"model": ErrorDetails, "description": "The requested resource was not found."},
+        409: {"model": ErrorDetails, "description": "The operation conflicts with the current state of the resource."},
+        422: {"model": ErrorDetails, "description": "The request is syntactically valid but violates a domain rule."},
+        500: {"model": ErrorDetails, "description": "An unexpected server error occurred."},
+        503: {"model": ErrorDetails, "description": "The service is temporarily unavailable."},
+    },
+    tags=["Authoring"],
+    summary="Restore a deprecated test case version",
+    response_model_by_alias=True,
+)
+async def restore_test_case(
+    projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+,
+    testCaseId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the test case version.")] = Path(..., description="UUID of the test case version.")
+,
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth
+    ),
+) -> TestCase:
+    """Clones the selected deprecated snapshot as the next immutable draft version. The historical snapshot remains deprecated and unchanged."""
+    if not BaseAuthoringApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseAuthoringApi.subclasses[0]().restore_test_case(projectKey, testCaseId)
+
+
+@router.post(
     "/v1/projects/{projectKey}/test-cases/{testCaseId}/activations",
     responses={
         200: {"model": TestCase, "description": "Activated"},
@@ -275,7 +308,7 @@ async def list_test_case_versions(
 ,
     testKey: Annotated[Annotated[str, Field(strict=True, min_length=1, max_length=100)], Field(description="Stable business key of the test case.")] = Path(..., description="Stable business key of the test case.", min_length=1, max_length=100, examples=["checkout-happy-path"])
 ,
-    status: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")] = Query(None, description="Filter versions by lifecycle status. When omitted, all statuses are returned.", alias="status")
+    status: Annotated[Optional[VersionStatus], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")] = Query(None, description="Filter versions by lifecycle status. When omitted, all statuses are returned.", alias="status")
 ,
     offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
 ,
@@ -315,7 +348,7 @@ async def list_test_case_versions(
 async def list_preconditions(
     projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
 ,
-    status: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")] = Query(None, description="Filter versions by lifecycle status. When omitted, all statuses are returned.", alias="status")
+    status: Annotated[Optional[VersionStatus], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")] = Query(None, description="Filter versions by lifecycle status. When omitted, all statuses are returned.", alias="status")
 ,
     offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
 ,
@@ -434,6 +467,38 @@ async def create_precondition_version(
 
 
 @router.post(
+    "/v1/projects/{projectKey}/preconditions/{preconditionId}/restorations",
+    responses={
+        201: {"model": Precondition, "description": "Draft version restored."},
+        400: {"model": ErrorDetails, "description": "The request is invalid."},
+        401: {"model": ErrorDetails, "description": "Authentication is required or failed."},
+        403: {"model": ErrorDetails, "description": "The authenticated principal is not allowed to perform the operation."},
+        404: {"model": ErrorDetails, "description": "The requested resource was not found."},
+        409: {"model": ErrorDetails, "description": "The operation conflicts with the current state of the resource."},
+        422: {"model": ErrorDetails, "description": "The request is syntactically valid but violates a domain rule."},
+        500: {"model": ErrorDetails, "description": "An unexpected server error occurred."},
+        503: {"model": ErrorDetails, "description": "The service is temporarily unavailable."},
+    },
+    tags=["Authoring"],
+    summary="Restore a deprecated precondition version",
+    response_model_by_alias=True,
+)
+async def restore_precondition(
+    projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+,
+    preconditionId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the precondition version.")] = Path(..., description="UUID of the precondition version.")
+,
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth
+    ),
+) -> Precondition:
+    """Clones the selected deprecated snapshot as the next immutable draft version. The historical snapshot remains deprecated and unchanged."""
+    if not BaseAuthoringApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseAuthoringApi.subclasses[0]().restore_precondition(projectKey, preconditionId)
+
+
+@router.post(
     "/v1/projects/{projectKey}/preconditions/{preconditionId}/activations",
     responses={
         200: {"model": Precondition, "description": "Activated"},
@@ -523,7 +588,7 @@ async def list_precondition_versions(
 ,
     preconditionKey: Annotated[Annotated[str, Field(strict=True, min_length=1, max_length=100)], Field(description="Stable business key of the precondition.")] = Path(..., description="Stable business key of the precondition.", min_length=1, max_length=100, examples=["customer-is-authenticated"])
 ,
-    status: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")] = Query(None, description="Filter versions by lifecycle status. When omitted, all statuses are returned.", alias="status")
+    status: Annotated[Optional[VersionStatus], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")] = Query(None, description="Filter versions by lifecycle status. When omitted, all statuses are returned.", alias="status")
 ,
     offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
 ,

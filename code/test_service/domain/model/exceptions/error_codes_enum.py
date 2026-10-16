@@ -10,6 +10,11 @@ class DomainError(Enum):
     ENTITY_FORBIDDEN = ("ENTITY_FORBIDDEN", "Access to the entity is forbidden")
     PROJECT_ALREADY_EXISTS = ("PROJECT_ALREADY_EXISTS", "Project already exists")
     PROJECT_ALREADY_DELETED = ("PROJECT_ALREADY_DELETED", "Project is already deleted")
+    PROJECT_ALREADY_ACTIVE = ("PROJECT_ALREADY_ACTIVE", "Project is already active")
+    PROJECT_RESTORE_REQUIRED = (
+        "PROJECT_RESTORE_REQUIRED",
+        "Project is deleted; use the restore project endpoint",
+    )
     TEST_CASE_VERSION_ALREADY_EXISTS = (
         "TEST_CASE_VERSION_ALREADY_EXISTS",
         "Test case version already exists",
@@ -57,6 +62,7 @@ class DomainError(Enum):
         "Execution manifest is invalid",
     )
     INVALID_LIFECYCLE_TRANSITION = ("INVALID_LIFECYCLE_TRANSITION", "Invalid lifecycle transition")
+    INVALID_VERSION_SOURCE = ("INVALID_VERSION_SOURCE", "Invalid version source")
     INVALID_TEMPORAL_DATA = ("INVALID_TEMPORAL_DATA", "Invalid temporal data")
     INVALID_ARTIFACT_STORAGE = ("INVALID_ARTIFACT_STORAGE", "Invalid artifact storage metadata")
     VIEWER_PROJECTION_INVALID = (
