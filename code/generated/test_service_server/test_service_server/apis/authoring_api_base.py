@@ -12,6 +12,7 @@ from test_service_server.models.create_test_case_request import CreateTestCaseRe
 from test_service_server.models.error_details import ErrorDetails
 from test_service_server.models.precondition import Precondition
 from test_service_server.models.precondition_list_response import PreconditionListResponse
+from test_service_server.models.sort_by import SortBy
 from test_service_server.models.sort_order import SortOrder
 from test_service_server.models.test_case import TestCase
 from test_service_server.models.test_case_list_response import TestCaseListResponse
@@ -30,7 +31,7 @@ class BaseAuthoringApi:
         status: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")],
         offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")],
         limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")],
-        sort_by: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Field used to sort the result set.")],
+        sort_by: Annotated[Optional[SortBy], Field(description="Field used to sort the result set.")],
         order: Annotated[Optional[SortOrder], Field(description="Sort direction.")],
     ) -> TestCaseListResponse:
         """Returns a paginated list of immutable test case versions."""
@@ -92,7 +93,7 @@ class BaseAuthoringApi:
         status: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")],
         offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")],
         limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")],
-        sort_by: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Field used to sort the result set.")],
+        sort_by: Annotated[Optional[SortBy], Field(description="Field used to sort the result set.")],
         order: Annotated[Optional[SortOrder], Field(description="Sort direction.")],
     ) -> TestCaseVersionListResponse:
         """Returns all immutable versions associated with a test case key."""
@@ -105,7 +106,7 @@ class BaseAuthoringApi:
         status: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")],
         offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")],
         limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")],
-        sort_by: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Field used to sort the result set.")],
+        sort_by: Annotated[Optional[SortBy], Field(description="Field used to sort the result set.")],
         order: Annotated[Optional[SortOrder], Field(description="Sort direction.")],
     ) -> PreconditionListResponse:
         """Returns a paginated list of versioned preconditions."""
@@ -167,7 +168,7 @@ class BaseAuthoringApi:
         status: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")],
         offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")],
         limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")],
-        sort_by: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Field used to sort the result set.")],
+        sort_by: Annotated[Optional[SortBy], Field(description="Field used to sort the result set.")],
         order: Annotated[Optional[SortOrder], Field(description="Sort direction.")],
     ) -> PreconditionListResponse:
         """Returns all immutable versions associated with a precondition key."""

@@ -7,7 +7,7 @@ info:
     \ executing validated plans, and publishing read-only projections to an external\
     \ testing viewer."
   title: Test Service
-  version: 0.3.3
+  version: 0.3.4
 servers:
 - description: Local development server
   url: http://localhost:8080
@@ -53,14 +53,7 @@ paths:
         name: sortBy
         required: false
         schema:
-          default: createdAt
-          enum:
-          - key
-          - name
-          - status
-          - createdAt
-          example: createdAt
-          type: string
+          $ref: "#/components/schemas/ProjectSortBy"
         style: form
       - description: Sort direction.
         explode: true
@@ -552,13 +545,7 @@ paths:
         name: sortBy
         required: false
         schema:
-          default: version
-          enum:
-          - status
-          - version
-          - name
-          example: version
-          type: string
+          $ref: "#/components/schemas/SortBy"
         style: form
       - description: Sort direction.
         explode: true
@@ -1354,13 +1341,7 @@ paths:
         name: sortBy
         required: false
         schema:
-          default: version
-          enum:
-          - status
-          - version
-          - name
-          example: version
-          type: string
+          $ref: "#/components/schemas/SortBy"
         style: form
       - description: Sort direction.
         explode: true
@@ -1516,13 +1497,7 @@ paths:
         name: sortBy
         required: false
         schema:
-          default: version
-          enum:
-          - status
-          - version
-          - name
-          example: version
-          type: string
+          $ref: "#/components/schemas/SortBy"
         style: form
       - description: Sort direction.
         explode: true
@@ -2315,13 +2290,7 @@ paths:
         name: sortBy
         required: false
         schema:
-          default: version
-          enum:
-          - status
-          - version
-          - name
-          example: version
-          type: string
+          $ref: "#/components/schemas/SortBy"
         style: form
       - description: Sort direction.
         explode: true
@@ -2477,13 +2446,7 @@ paths:
         name: sortBy
         required: false
         schema:
-          default: version
-          enum:
-          - status
-          - version
-          - name
-          example: version
-          type: string
+          $ref: "#/components/schemas/SortBy"
         style: form
       - description: Sort direction.
         explode: true
@@ -3277,13 +3240,7 @@ paths:
         name: sortBy
         required: false
         schema:
-          default: version
-          enum:
-          - status
-          - version
-          - name
-          example: version
-          type: string
+          $ref: "#/components/schemas/SortBy"
         style: form
       - description: Sort direction.
         explode: true
@@ -3439,13 +3396,7 @@ paths:
         name: sortBy
         required: false
         schema:
-          default: version
-          enum:
-          - status
-          - version
-          - name
-          example: version
-          type: string
+          $ref: "#/components/schemas/SortBy"
         style: form
       - description: Sort direction.
         explode: true
@@ -4228,13 +4179,7 @@ paths:
         name: sortBy
         required: false
         schema:
-          default: version
-          enum:
-          - status
-          - version
-          - name
-          example: version
-          type: string
+          $ref: "#/components/schemas/SortBy"
         style: form
       - description: Sort direction.
         explode: true
@@ -4370,13 +4315,7 @@ paths:
         name: sortBy
         required: false
         schema:
-          default: name
-          enum:
-          - name
-          - status
-          - createdAt
-          example: name
-          type: string
+          $ref: "#/components/schemas/EnvironmentSortBy"
         style: form
       - description: Sort direction.
         explode: true
@@ -4982,14 +4921,7 @@ paths:
         name: sortBy
         required: false
         schema:
-          default: createdAt
-          enum:
-          - status
-          - startedAt
-          - finishedAt
-          - createdAt
-          example: createdAt
-          type: string
+          $ref: "#/components/schemas/ExecutionOutcomeSortBy"
         style: form
       - description: Sort direction.
         explode: true
@@ -5494,14 +5426,7 @@ paths:
         name: sortBy
         required: false
         schema:
-          default: createdAt
-          enum:
-          - status
-          - startedAt
-          - finishedAt
-          - createdAt
-          example: createdAt
-          type: string
+          $ref: "#/components/schemas/ExecutionOutcomeSortBy"
         style: form
       - description: Sort direction.
         explode: true
@@ -5788,14 +5713,7 @@ paths:
         name: sortBy
         required: false
         schema:
-          default: createdAt
-          enum:
-          - status
-          - startedAt
-          - finishedAt
-          - createdAt
-          example: createdAt
-          type: string
+          $ref: "#/components/schemas/ExecutionOutcomeSortBy"
         style: form
       - description: Sort direction.
         explode: true
@@ -5955,12 +5873,7 @@ paths:
         name: sortBy
         required: false
         schema:
-          default: createdAt
-          enum:
-          - artifactType
-          - createdAt
-          example: createdAt
-          type: string
+          $ref: "#/components/schemas/TestResultArtifactSortBy"
         style: form
       - description: Sort direction.
         explode: true
@@ -6352,14 +6265,7 @@ paths:
         name: sortBy
         required: false
         schema:
-          default: createdAt
-          enum:
-          - entityType
-          - syncStatus
-          - lastSyncedAt
-          - createdAt
-          example: createdAt
-          type: string
+          $ref: "#/components/schemas/ViewerSyncRecordSortBy"
         style: form
       - description: Sort direction.
         explode: true
@@ -6513,14 +6419,7 @@ paths:
         name: sortBy
         required: false
         schema:
-          default: detectedAt
-          enum:
-          - detectedAt
-          - driftType
-          - notificationStatus
-          - createdAt
-          example: detectedAt
-          type: string
+          $ref: "#/components/schemas/DriftEventSortBy"
         style: form
       - description: Sort direction.
         explode: true
@@ -6674,15 +6573,7 @@ paths:
         name: sortBy
         required: false
         schema:
-          default: createdAt
-          enum:
-          - status
-          - operationType
-          - createdAt
-          - startedAt
-          - finishedAt
-          example: createdAt
-          type: string
+          $ref: "#/components/schemas/ViewerOperationSortBy"
         style: form
       - description: Sort direction.
         explode: true
@@ -6903,14 +6794,7 @@ paths:
         name: sortBy
         required: false
         schema:
-          default: createdAt
-          enum:
-          - entityType
-          - syncStatus
-          - lastSyncedAt
-          - createdAt
-          example: createdAt
-          type: string
+          $ref: "#/components/schemas/ViewerSyncRecordSortBy"
         style: form
       - description: Sort direction.
         explode: true
@@ -7056,14 +6940,7 @@ paths:
         name: sortBy
         required: false
         schema:
-          default: detectedAt
-          enum:
-          - detectedAt
-          - driftType
-          - notificationStatus
-          - createdAt
-          example: detectedAt
-          type: string
+          $ref: "#/components/schemas/DriftEventSortBy"
         style: form
       - description: Sort direction.
         explode: true
@@ -7208,15 +7085,7 @@ paths:
         name: sortBy
         required: false
         schema:
-          default: createdAt
-          enum:
-          - status
-          - operationType
-          - createdAt
-          - startedAt
-          - finishedAt
-          example: createdAt
-          type: string
+          $ref: "#/components/schemas/ViewerOperationSortBy"
         style: form
       - description: Sort direction.
         explode: true
@@ -7318,14 +7187,7 @@ components:
       name: sortBy
       required: false
       schema:
-        default: createdAt
-        enum:
-        - key
-        - name
-        - status
-        - createdAt
-        example: createdAt
-        type: string
+        $ref: "#/components/schemas/ProjectSortBy"
       style: form
     order:
       description: Sort direction.
@@ -7366,13 +7228,7 @@ components:
       name: sortBy
       required: false
       schema:
-        default: version
-        enum:
-        - status
-        - version
-        - name
-        example: version
-        type: string
+        $ref: "#/components/schemas/SortBy"
       style: form
     TestCaseId:
       description: UUID of the test case version.
@@ -7465,13 +7321,7 @@ components:
       name: sortBy
       required: false
       schema:
-        default: name
-        enum:
-        - name
-        - status
-        - createdAt
-        example: name
-        type: string
+        $ref: "#/components/schemas/EnvironmentSortBy"
       style: form
     EnvironmentId:
       description: UUID of the environment.
@@ -7490,14 +7340,7 @@ components:
       name: sortBy
       required: false
       schema:
-        default: createdAt
-        enum:
-        - status
-        - startedAt
-        - finishedAt
-        - createdAt
-        example: createdAt
-        type: string
+        $ref: "#/components/schemas/ExecutionOutcomeSortBy"
       style: form
     ExecutionId:
       description: UUID of the execution.
@@ -7524,12 +7367,7 @@ components:
       name: sortBy
       required: false
       schema:
-        default: createdAt
-        enum:
-        - artifactType
-        - createdAt
-        example: createdAt
-        type: string
+        $ref: "#/components/schemas/TestResultArtifactSortBy"
       style: form
     ViewerType:
       description: Optional external viewer integration used to filter the result
@@ -7549,14 +7387,7 @@ components:
       name: sortBy
       required: false
       schema:
-        default: createdAt
-        enum:
-        - entityType
-        - syncStatus
-        - lastSyncedAt
-        - createdAt
-        example: createdAt
-        type: string
+        $ref: "#/components/schemas/ViewerSyncRecordSortBy"
       style: form
     DriftEventSortBy:
       description: Field used to sort the result set.
@@ -7565,14 +7396,7 @@ components:
       name: sortBy
       required: false
       schema:
-        default: detectedAt
-        enum:
-        - detectedAt
-        - driftType
-        - notificationStatus
-        - createdAt
-        example: detectedAt
-        type: string
+        $ref: "#/components/schemas/DriftEventSortBy"
       style: form
     ViewerOperationSortBy:
       description: Field used to sort asynchronous Viewer operations.
@@ -7581,15 +7405,7 @@ components:
       name: sortBy
       required: false
       schema:
-        default: createdAt
-        enum:
-        - status
-        - operationType
-        - createdAt
-        - startedAt
-        - finishedAt
-        example: createdAt
-        type: string
+        $ref: "#/components/schemas/ViewerOperationSortBy"
       style: form
   responses:
     BadRequest400:
@@ -7696,6 +7512,17 @@ components:
       minimum: 1
       title: Limit
       type: integer
+    ProjectSortBy:
+      default: createdAt
+      description: Field used to sort projects.
+      enum:
+      - key
+      - name
+      - status
+      - createdAt
+      example: createdAt
+      title: ProjectSortBy
+      type: string
     SortOrder:
       default: ASC
       description: Sort direction for ordered collection results.
@@ -7912,6 +7739,16 @@ components:
       - name
       title: CreateProjectRequest
       type: object
+    SortBy:
+      default: version
+      description: Field used to sort the result set.
+      enum:
+      - status
+      - version
+      - name
+      example: version
+      title: SortBy
+      type: string
     UUID:
       description: Universally unique identifier.
       example: 550e8400-e29b-41d4-a716-446655440000
@@ -9309,6 +9146,16 @@ components:
           limit: 60
           total: 125
       title: TestPlanVersionListResponse
+    EnvironmentSortBy:
+      default: name
+      description: Field used to sort the result set.
+      enum:
+      - name
+      - status
+      - createdAt
+      example: name
+      title: EnvironmentSortBy
+      type: string
     Environment:
       additionalProperties: false
       description: Target environment configuration used by test executions.
@@ -9450,6 +9297,18 @@ components:
       - name
       title: CreateEnvironmentRequest
       type: object
+    ExecutionOutcomeSortBy:
+      default: createdAt
+      description: "Field used to sort the result set. Shared by executions, test\
+        \ results, and action results, which expose the same sortable fields."
+      enum:
+      - status
+      - startedAt
+      - finishedAt
+      - createdAt
+      example: createdAt
+      title: ExecutionOutcomeSortBy
+      type: string
     Execution:
       additionalProperties: false
       description: Execution instance created from a test plan and environment.
@@ -9879,6 +9738,15 @@ components:
       - pagination
       title: ActionResultListResponse
       type: object
+    TestResultArtifactSortBy:
+      default: createdAt
+      description: Field used to sort the result set.
+      enum:
+      - artifactType
+      - createdAt
+      example: createdAt
+      title: TestResultArtifactSortBy
+      type: string
     TestResultArtifact:
       additionalProperties: false
       description: Artifact generated while executing a test result.
@@ -10084,6 +9952,17 @@ components:
       - viewerType
       title: ViewerOperation
       type: object
+    ViewerSyncRecordSortBy:
+      default: createdAt
+      description: Field used to sort the result set.
+      enum:
+      - entityType
+      - syncStatus
+      - lastSyncedAt
+      - createdAt
+      example: createdAt
+      title: ViewerSyncRecordSortBy
+      type: string
     ViewerSyncRecord:
       additionalProperties: false
       description: |
@@ -10204,6 +10083,17 @@ components:
       - pagination
       title: ViewerSyncRecordListResponse
       type: object
+    DriftEventSortBy:
+      default: detectedAt
+      description: Field used to sort the result set.
+      enum:
+      - detectedAt
+      - driftType
+      - notificationStatus
+      - createdAt
+      example: detectedAt
+      title: DriftEventSortBy
+      type: string
     DriftEvent:
       additionalProperties: false
       description: |
@@ -10303,6 +10193,18 @@ components:
       - pagination
       title: DriftEventListResponse
       type: object
+    ViewerOperationSortBy:
+      default: createdAt
+      description: Field used to sort asynchronous Viewer operations.
+      enum:
+      - status
+      - operationType
+      - createdAt
+      - startedAt
+      - finishedAt
+      example: createdAt
+      title: ViewerOperationSortBy
+      type: string
     ViewerOperationListResponse:
       additionalProperties: false
       example:

@@ -23,7 +23,7 @@ from fastapi import (  # noqa: F401
 )
 
 from test_service_server.models.extra_models import TokenModel  # noqa: F401
-from pydantic import Field, StrictStr, field_validator
+from pydantic import Field
 from typing import Optional
 from typing_extensions import Annotated
 from uuid import UUID
@@ -33,12 +33,15 @@ from test_service_server.models.create_environment_request import CreateEnvironm
 from test_service_server.models.create_execution_request import CreateExecutionRequest
 from test_service_server.models.environment import Environment
 from test_service_server.models.environment_list_response import EnvironmentListResponse
+from test_service_server.models.environment_sort_by import EnvironmentSortBy
 from test_service_server.models.error_details import ErrorDetails
 from test_service_server.models.execution import Execution
 from test_service_server.models.execution_list_response import ExecutionListResponse
+from test_service_server.models.execution_outcome_sort_by import ExecutionOutcomeSortBy
 from test_service_server.models.sort_order import SortOrder
 from test_service_server.models.test_result import TestResult
 from test_service_server.models.test_result_artifact_list_response import TestResultArtifactListResponse
+from test_service_server.models.test_result_artifact_sort_by import TestResultArtifactSortBy
 from test_service_server.models.test_result_list_response import TestResultListResponse
 from test_service_server.security_api import get_token_bearerAuth
 
@@ -71,7 +74,7 @@ async def list_environments(
 ,
     limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
 ,
-    sort_by: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Field used to sort the result set.")] = Query('name', description="Field used to sort the result set.", alias="sortBy", examples=["name"])
+    sort_by: Annotated[Optional[EnvironmentSortBy], Field(description="Field used to sort the result set.")] = Query('name', description="Field used to sort the result set.", alias="sortBy")
 ,
     order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
 ,
@@ -233,7 +236,7 @@ async def list_executions(
 ,
     limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
 ,
-    sort_by: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Field used to sort the result set. Shared by executions, test results, and action results, which expose the same sortable fields.")] = Query('createdAt', description="Field used to sort the result set. Shared by executions, test results, and action results, which expose the same sortable fields.", alias="sortBy", examples=["createdAt"])
+    sort_by: Annotated[Optional[ExecutionOutcomeSortBy], Field(description="Field used to sort the result set. Shared by executions, test results, and action results, which expose the same sortable fields.")] = Query('createdAt', description="Field used to sort the result set. Shared by executions, test results, and action results, which expose the same sortable fields.", alias="sortBy")
 ,
     order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
 ,
@@ -369,7 +372,7 @@ async def list_execution_results(
 ,
     limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
 ,
-    sort_by: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Field used to sort the result set. Shared by executions, test results, and action results, which expose the same sortable fields.")] = Query('createdAt', description="Field used to sort the result set. Shared by executions, test results, and action results, which expose the same sortable fields.", alias="sortBy", examples=["createdAt"])
+    sort_by: Annotated[Optional[ExecutionOutcomeSortBy], Field(description="Field used to sort the result set. Shared by executions, test results, and action results, which expose the same sortable fields.")] = Query('createdAt', description="Field used to sort the result set. Shared by executions, test results, and action results, which expose the same sortable fields.", alias="sortBy")
 ,
     order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
 ,
@@ -445,7 +448,7 @@ async def list_execution_result_actions(
 ,
     limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
 ,
-    sort_by: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Field used to sort the result set. Shared by executions, test results, and action results, which expose the same sortable fields.")] = Query('createdAt', description="Field used to sort the result set. Shared by executions, test results, and action results, which expose the same sortable fields.", alias="sortBy", examples=["createdAt"])
+    sort_by: Annotated[Optional[ExecutionOutcomeSortBy], Field(description="Field used to sort the result set. Shared by executions, test results, and action results, which expose the same sortable fields.")] = Query('createdAt', description="Field used to sort the result set. Shared by executions, test results, and action results, which expose the same sortable fields.", alias="sortBy")
 ,
     order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
 ,
@@ -487,7 +490,7 @@ async def list_execution_result_artifacts(
 ,
     limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
 ,
-    sort_by: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Field used to sort the result set.")] = Query('createdAt', description="Field used to sort the result set.", alias="sortBy", examples=["createdAt"])
+    sort_by: Annotated[Optional[TestResultArtifactSortBy], Field(description="Field used to sort the result set.")] = Query('createdAt', description="Field used to sort the result set.", alias="sortBy")
 ,
     order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
 ,

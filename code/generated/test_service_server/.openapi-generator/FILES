@@ -35,11 +35,14 @@ test_service_server/models/create_test_set_request.py
 test_service_server/models/definition.py
 test_service_server/models/drift_event.py
 test_service_server/models/drift_event_list_response.py
+test_service_server/models/drift_event_sort_by.py
 test_service_server/models/environment.py
 test_service_server/models/environment_list_response.py
+test_service_server/models/environment_sort_by.py
 test_service_server/models/error_details.py
 test_service_server/models/execution.py
 test_service_server/models/execution_list_response.py
+test_service_server/models/execution_outcome_sort_by.py
 test_service_server/models/extra_models.py
 test_service_server/models/pagination.py
 test_service_server/models/precondition.py
@@ -49,6 +52,8 @@ test_service_server/models/precondition_version_reference.py
 test_service_server/models/project.py
 test_service_server/models/project_list_response.py
 test_service_server/models/project_reference.py
+test_service_server/models/project_sort_by.py
+test_service_server/models/sort_by.py
 test_service_server/models/sort_order.py
 test_service_server/models/test_case.py
 test_service_server/models/test_case_list_response.py
@@ -59,6 +64,7 @@ test_service_server/models/test_plan_version_list_response.py
 test_service_server/models/test_result.py
 test_service_server/models/test_result_artifact.py
 test_service_server/models/test_result_artifact_list_response.py
+test_service_server/models/test_result_artifact_sort_by.py
 test_service_server/models/test_result_list_response.py
 test_service_server/models/test_set.py
 test_service_server/models/test_set_list_response.py
@@ -66,8 +72,10 @@ test_service_server/models/test_set_version_list_response.py
 test_service_server/models/viewer_operation.py
 test_service_server/models/viewer_operation_list_response.py
 test_service_server/models/viewer_operation_request.py
+test_service_server/models/viewer_operation_sort_by.py
 test_service_server/models/viewer_sync_record.py
 test_service_server/models/viewer_sync_record_list_response.py
+test_service_server/models/viewer_sync_record_sort_by.py
 test_service_server/models/viewer_type.py
 test_service_server/security_api.py
 tests/conftest.py

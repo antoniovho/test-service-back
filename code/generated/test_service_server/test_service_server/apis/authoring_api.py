@@ -33,6 +33,7 @@ from test_service_server.models.create_test_case_request import CreateTestCaseRe
 from test_service_server.models.error_details import ErrorDetails
 from test_service_server.models.precondition import Precondition
 from test_service_server.models.precondition_list_response import PreconditionListResponse
+from test_service_server.models.sort_by import SortBy
 from test_service_server.models.sort_order import SortOrder
 from test_service_server.models.test_case import TestCase
 from test_service_server.models.test_case_list_response import TestCaseListResponse
@@ -72,7 +73,7 @@ async def list_test_cases(
 ,
     limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
 ,
-    sort_by: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Field used to sort the result set.")] = Query('version', description="Field used to sort the result set.", alias="sortBy", examples=["version"])
+    sort_by: Annotated[Optional[SortBy], Field(description="Field used to sort the result set.")] = Query('version', description="Field used to sort the result set.", alias="sortBy")
 ,
     order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
 ,
@@ -280,7 +281,7 @@ async def list_test_case_versions(
 ,
     limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
 ,
-    sort_by: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Field used to sort the result set.")] = Query('version', description="Field used to sort the result set.", alias="sortBy", examples=["version"])
+    sort_by: Annotated[Optional[SortBy], Field(description="Field used to sort the result set.")] = Query('version', description="Field used to sort the result set.", alias="sortBy")
 ,
     order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
 ,
@@ -320,7 +321,7 @@ async def list_preconditions(
 ,
     limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
 ,
-    sort_by: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Field used to sort the result set.")] = Query('version', description="Field used to sort the result set.", alias="sortBy", examples=["version"])
+    sort_by: Annotated[Optional[SortBy], Field(description="Field used to sort the result set.")] = Query('version', description="Field used to sort the result set.", alias="sortBy")
 ,
     order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
 ,
@@ -528,7 +529,7 @@ async def list_precondition_versions(
 ,
     limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
 ,
-    sort_by: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Field used to sort the result set.")] = Query('version', description="Field used to sort the result set.", alias="sortBy", examples=["version"])
+    sort_by: Annotated[Optional[SortBy], Field(description="Field used to sort the result set.")] = Query('version', description="Field used to sort the result set.", alias="sortBy")
 ,
     order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
 ,

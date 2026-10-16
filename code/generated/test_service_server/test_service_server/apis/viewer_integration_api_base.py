@@ -2,17 +2,20 @@
 
 from typing import ClassVar, Dict, List, Tuple  # noqa: F401
 
-from pydantic import Field, StrictStr, field_validator
+from pydantic import Field
 from typing import Optional
 from typing_extensions import Annotated
 from uuid import UUID
 from test_service_server.models.drift_event_list_response import DriftEventListResponse
+from test_service_server.models.drift_event_sort_by import DriftEventSortBy
 from test_service_server.models.error_details import ErrorDetails
 from test_service_server.models.sort_order import SortOrder
 from test_service_server.models.viewer_operation import ViewerOperation
 from test_service_server.models.viewer_operation_list_response import ViewerOperationListResponse
 from test_service_server.models.viewer_operation_request import ViewerOperationRequest
+from test_service_server.models.viewer_operation_sort_by import ViewerOperationSortBy
 from test_service_server.models.viewer_sync_record_list_response import ViewerSyncRecordListResponse
+from test_service_server.models.viewer_sync_record_sort_by import ViewerSyncRecordSortBy
 from test_service_server.models.viewer_type import ViewerType
 from test_service_server.security_api import get_token_bearerAuth
 
@@ -46,7 +49,7 @@ class BaseViewerIntegrationApi:
         viewer_type: Annotated[Optional[ViewerType], Field(description="Optional external viewer integration used to filter the result set.")],
         offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")],
         limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")],
-        sort_by: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Field used to sort the result set.")],
+        sort_by: Annotated[Optional[ViewerSyncRecordSortBy], Field(description="Field used to sort the result set.")],
         order: Annotated[Optional[SortOrder], Field(description="Sort direction.")],
     ) -> ViewerSyncRecordListResponse:
         """Returns a paginated list of canonical-to-viewer synchronization records for one project."""
@@ -59,7 +62,7 @@ class BaseViewerIntegrationApi:
         viewer_type: Annotated[Optional[ViewerType], Field(description="Optional external viewer integration used to filter the result set.")],
         offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")],
         limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")],
-        sort_by: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Field used to sort the result set.")],
+        sort_by: Annotated[Optional[DriftEventSortBy], Field(description="Field used to sort the result set.")],
         order: Annotated[Optional[SortOrder], Field(description="Sort direction.")],
     ) -> DriftEventListResponse:
         """Returns a paginated list of detected viewer changes and notification states for one project."""
@@ -72,7 +75,7 @@ class BaseViewerIntegrationApi:
         viewer_type: Annotated[Optional[ViewerType], Field(description="Optional external viewer integration used to filter the result set.")],
         offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")],
         limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")],
-        sort_by: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Field used to sort asynchronous Viewer operations.")],
+        sort_by: Annotated[Optional[ViewerOperationSortBy], Field(description="Field used to sort asynchronous Viewer operations.")],
         order: Annotated[Optional[SortOrder], Field(description="Sort direction.")],
     ) -> ViewerOperationListResponse:
         """Returns a paginated list of asynchronous Viewer operations within a specific project."""
@@ -93,7 +96,7 @@ class BaseViewerIntegrationApi:
         viewer_type: Annotated[Optional[ViewerType], Field(description="Optional external viewer integration used to filter the result set.")],
         offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")],
         limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")],
-        sort_by: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Field used to sort the result set.")],
+        sort_by: Annotated[Optional[ViewerSyncRecordSortBy], Field(description="Field used to sort the result set.")],
         order: Annotated[Optional[SortOrder], Field(description="Sort direction.")],
     ) -> ViewerSyncRecordListResponse:
         """Returns a paginated list of canonical-to-viewer synchronization records."""
@@ -105,7 +108,7 @@ class BaseViewerIntegrationApi:
         viewer_type: Annotated[Optional[ViewerType], Field(description="Optional external viewer integration used to filter the result set.")],
         offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")],
         limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")],
-        sort_by: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Field used to sort the result set.")],
+        sort_by: Annotated[Optional[DriftEventSortBy], Field(description="Field used to sort the result set.")],
         order: Annotated[Optional[SortOrder], Field(description="Sort direction.")],
     ) -> DriftEventListResponse:
         """Returns a paginated list of detected viewer changes and notification states."""
@@ -117,7 +120,7 @@ class BaseViewerIntegrationApi:
         viewer_type: Annotated[Optional[ViewerType], Field(description="Optional external viewer integration used to filter the result set.")],
         offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")],
         limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")],
-        sort_by: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Field used to sort asynchronous Viewer operations.")],
+        sort_by: Annotated[Optional[ViewerOperationSortBy], Field(description="Field used to sort asynchronous Viewer operations.")],
         order: Annotated[Optional[SortOrder], Field(description="Sort direction.")],
     ) -> ViewerOperationListResponse:
         """Returns a paginated list of asynchronous Viewer operations."""

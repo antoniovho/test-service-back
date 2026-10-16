@@ -10,6 +10,7 @@ from test_service_server.models.action_request import ActionRequest
 from test_service_server.models.create_test_plan_request import CreateTestPlanRequest
 from test_service_server.models.create_test_set_request import CreateTestSetRequest
 from test_service_server.models.error_details import ErrorDetails
+from test_service_server.models.sort_by import SortBy
 from test_service_server.models.sort_order import SortOrder
 from test_service_server.models.test_plan import TestPlan
 from test_service_server.models.test_plan_list_response import TestPlanListResponse
@@ -31,7 +32,7 @@ class BaseCompositionApi:
         status: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")],
         offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")],
         limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")],
-        sort_by: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Field used to sort the result set.")],
+        sort_by: Annotated[Optional[SortBy], Field(description="Field used to sort the result set.")],
         order: Annotated[Optional[SortOrder], Field(description="Sort direction.")],
     ) -> TestSetListResponse:
         """Returns a paginated list of versioned test set snapshots."""
@@ -93,7 +94,7 @@ class BaseCompositionApi:
         status: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")],
         offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")],
         limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")],
-        sort_by: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Field used to sort the result set.")],
+        sort_by: Annotated[Optional[SortBy], Field(description="Field used to sort the result set.")],
         order: Annotated[Optional[SortOrder], Field(description="Sort direction.")],
     ) -> TestSetVersionListResponse:
         """Returns all immutable versions associated with a test set key."""
@@ -106,7 +107,7 @@ class BaseCompositionApi:
         status: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")],
         offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")],
         limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")],
-        sort_by: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Field used to sort the result set.")],
+        sort_by: Annotated[Optional[SortBy], Field(description="Field used to sort the result set.")],
         order: Annotated[Optional[SortOrder], Field(description="Sort direction.")],
     ) -> TestPlanListResponse:
         """Returns a paginated list of versioned test plan snapshots."""
@@ -168,7 +169,7 @@ class BaseCompositionApi:
         status: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Filter versions by lifecycle status. When omitted, all statuses are returned.")],
         offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")],
         limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")],
-        sort_by: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Field used to sort the result set.")],
+        sort_by: Annotated[Optional[SortBy], Field(description="Field used to sort the result set.")],
         order: Annotated[Optional[SortOrder], Field(description="Sort direction.")],
     ) -> TestPlanVersionListResponse:
         """Returns all immutable versions associated with a test plan key."""

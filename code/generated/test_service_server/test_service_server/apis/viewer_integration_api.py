@@ -23,17 +23,20 @@ from fastapi import (  # noqa: F401
 )
 
 from test_service_server.models.extra_models import TokenModel  # noqa: F401
-from pydantic import Field, StrictStr, field_validator
+from pydantic import Field
 from typing import Optional
 from typing_extensions import Annotated
 from uuid import UUID
 from test_service_server.models.drift_event_list_response import DriftEventListResponse
+from test_service_server.models.drift_event_sort_by import DriftEventSortBy
 from test_service_server.models.error_details import ErrorDetails
 from test_service_server.models.sort_order import SortOrder
 from test_service_server.models.viewer_operation import ViewerOperation
 from test_service_server.models.viewer_operation_list_response import ViewerOperationListResponse
 from test_service_server.models.viewer_operation_request import ViewerOperationRequest
+from test_service_server.models.viewer_operation_sort_by import ViewerOperationSortBy
 from test_service_server.models.viewer_sync_record_list_response import ViewerSyncRecordListResponse
+from test_service_server.models.viewer_sync_record_sort_by import ViewerSyncRecordSortBy
 from test_service_server.models.viewer_type import ViewerType
 from test_service_server.security_api import get_token_bearerAuth
 
@@ -134,7 +137,7 @@ async def list_project_viewer_sync_records(
 ,
     limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
 ,
-    sort_by: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Field used to sort the result set.")] = Query('createdAt', description="Field used to sort the result set.", alias="sortBy", examples=["createdAt"])
+    sort_by: Annotated[Optional[ViewerSyncRecordSortBy], Field(description="Field used to sort the result set.")] = Query('createdAt', description="Field used to sort the result set.", alias="sortBy")
 ,
     order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
 ,
@@ -174,7 +177,7 @@ async def list_project_viewer_drift_events(
 ,
     limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
 ,
-    sort_by: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Field used to sort the result set.")] = Query('detectedAt', description="Field used to sort the result set.", alias="sortBy", examples=["detectedAt"])
+    sort_by: Annotated[Optional[DriftEventSortBy], Field(description="Field used to sort the result set.")] = Query('detectedAt', description="Field used to sort the result set.", alias="sortBy")
 ,
     order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
 ,
@@ -212,7 +215,7 @@ async def list_project_viewer_operations(
 ,
     limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
 ,
-    sort_by: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Field used to sort asynchronous Viewer operations.")] = Query('createdAt', description="Field used to sort asynchronous Viewer operations.", alias="sortBy", examples=["createdAt"])
+    sort_by: Annotated[Optional[ViewerOperationSortBy], Field(description="Field used to sort asynchronous Viewer operations.")] = Query('createdAt', description="Field used to sort asynchronous Viewer operations.", alias="sortBy")
 ,
     order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
 ,
@@ -280,7 +283,7 @@ async def list_viewer_sync_records(
 ,
     limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
 ,
-    sort_by: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Field used to sort the result set.")] = Query('createdAt', description="Field used to sort the result set.", alias="sortBy", examples=["createdAt"])
+    sort_by: Annotated[Optional[ViewerSyncRecordSortBy], Field(description="Field used to sort the result set.")] = Query('createdAt', description="Field used to sort the result set.", alias="sortBy")
 ,
     order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
 ,
@@ -318,7 +321,7 @@ async def list_viewer_drift_events(
 ,
     limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
 ,
-    sort_by: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Field used to sort the result set.")] = Query('detectedAt', description="Field used to sort the result set.", alias="sortBy", examples=["detectedAt"])
+    sort_by: Annotated[Optional[DriftEventSortBy], Field(description="Field used to sort the result set.")] = Query('detectedAt', description="Field used to sort the result set.", alias="sortBy")
 ,
     order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
 ,
@@ -353,7 +356,7 @@ async def list_viewer_operations(
 ,
     limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
 ,
-    sort_by: Annotated[Optional[Annotated[str, Field(strict=True)]], Field(description="Field used to sort asynchronous Viewer operations.")] = Query('createdAt', description="Field used to sort asynchronous Viewer operations.", alias="sortBy", examples=["createdAt"])
+    sort_by: Annotated[Optional[ViewerOperationSortBy], Field(description="Field used to sort asynchronous Viewer operations.")] = Query('createdAt', description="Field used to sort asynchronous Viewer operations.", alias="sortBy")
 ,
     order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
 ,
