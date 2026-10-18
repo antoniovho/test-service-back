@@ -37,7 +37,6 @@ class CreateTestSetVersionCommand:
     Args:
         source_id: UUID of the snapshot version selected as the version's parent.
         project_key: Owning project key.
-        set_key: Stable logical test set key.
         name: Human-readable name.
         items: Ordered test case snapshot UUIDs.
         requested_by: Identity creating the snapshot.
@@ -47,7 +46,6 @@ class CreateTestSetVersionCommand:
 
     source_id: UUID
     project_key: str
-    set_key: str
     name: str
     items: tuple[UUID, ...]
     requested_by: str
@@ -103,7 +101,6 @@ class CreateTestPlanVersionCommand:
     Args:
         source_id: UUID of the snapshot version selected as the version's parent.
         project_key: Owning project key.
-        plan_key: Stable logical test plan key.
         name: Human-readable name.
         execution_mode: Plan scheduling mode.
         timeout_seconds: Maximum plan execution time.
@@ -117,7 +114,6 @@ class CreateTestPlanVersionCommand:
 
     source_id: UUID
     project_key: str
-    plan_key: str
     name: str
     execution_mode: ExecutionMode
     timeout_seconds: int
