@@ -64,7 +64,8 @@ class TestTestCaseRepository:
         assert found is dto
         session.merge.assert_awaited_once_with(dto)
         session.commit.assert_awaited_once()
-        assert session.execute.await_count == 2
+        assert session.execute.await_count == 3
+        assert session.execute.await_args_list[0].args[0].is_delete
 
     async def test_when_latest_version_is_requested_expect_database_maximum(self):
         result = MagicMock()
