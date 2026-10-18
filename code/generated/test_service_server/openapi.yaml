@@ -7,7 +7,7 @@ info:
     \ executing validated plans, and publishing read-only projections to an external\
     \ testing viewer."
   title: Test Service
-  version: 0.4.1
+  version: 0.4.2
 servers:
 - description: Local development server
   url: http://localhost:8080
@@ -8424,6 +8424,7 @@ components:
           description: Version of the test definition schema interpreted by the compiler.
           enum:
           - "1.0"
+          - "1.1"
           example: "1.0"
           title: schemaVersion
           type: string
