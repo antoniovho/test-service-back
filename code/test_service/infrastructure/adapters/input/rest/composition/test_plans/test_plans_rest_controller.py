@@ -5,6 +5,7 @@ from uuid import UUID
 
 from test_service_server.models.action_request import ActionRequest
 from test_service_server.models.create_test_plan_request import CreateTestPlanRequest
+from test_service_server.models.create_test_plan_version_request import CreateTestPlanVersionRequest
 from test_service_server.models.sort_by import SortBy as ApiSortBy
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 from test_service_server.models.version_status import VersionStatus as ApiVersionStatus
@@ -77,7 +78,7 @@ class TestPlansRestController:
         )
 
     async def create_version(
-        self, project_key: str, test_plan_id: UUID, request: CreateTestPlanRequest
+        self, project_key: str, test_plan_id: UUID, request: CreateTestPlanVersionRequest
     ):
         project = await self._get_project.execute(GetProjectQuery(project_key))
         command = TestPlanMapper.to_create_version_command(

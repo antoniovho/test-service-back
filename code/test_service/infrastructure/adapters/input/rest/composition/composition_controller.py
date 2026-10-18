@@ -5,7 +5,9 @@ from uuid import UUID
 from test_service_server.apis.composition_api_base import BaseCompositionApi
 from test_service_server.models.action_request import ActionRequest
 from test_service_server.models.create_test_plan_request import CreateTestPlanRequest
+from test_service_server.models.create_test_plan_version_request import CreateTestPlanVersionRequest
 from test_service_server.models.create_test_set_request import CreateTestSetRequest
+from test_service_server.models.create_test_set_version_request import CreateTestSetVersionRequest
 from test_service_server.models.sort_by import SortBy as ApiSortBy
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 from test_service_server.models.version_status import VersionStatus as ApiVersionStatus
@@ -39,9 +41,11 @@ class CompositionController(BaseCompositionApi):
         self,
         projectKey: str,  # NOSONAR
         testSetId: UUID,  # NOSONAR
-        create_test_set_request: CreateTestSetRequest,
+        create_test_set_version_request: CreateTestSetVersionRequest,
     ):
-        return await self._test_sets.create_version(projectKey, testSetId, create_test_set_request)
+        return await self._test_sets.create_version(
+            projectKey, testSetId, create_test_set_version_request
+        )
 
     async def restore_test_set(self, projectKey: str, testSetId: UUID):  # NOSONAR
         return await self._test_sets.restore(projectKey, testSetId)
@@ -101,10 +105,10 @@ class CompositionController(BaseCompositionApi):
         self,
         projectKey: str,  # NOSONAR
         testPlanId: UUID,  # NOSONAR
-        create_test_plan_request: CreateTestPlanRequest,
+        create_test_plan_version_request: CreateTestPlanVersionRequest,
     ):  # NOSONAR
         return await self._test_plans.create_version(
-            projectKey, testPlanId, create_test_plan_request
+            projectKey, testPlanId, create_test_plan_version_request
         )
 
     async def restore_test_plan(self, projectKey: str, testPlanId: UUID):  # NOSONAR

@@ -5,6 +5,7 @@ from enum import Enum
 from uuid import UUID
 
 from test_service_server.models.create_test_plan_request import CreateTestPlanRequest
+from test_service_server.models.create_test_plan_version_request import CreateTestPlanVersionRequest
 from test_service_server.models.project_reference import ProjectReference
 from test_service_server.models.test_plan import TestPlan as ApiTestPlan
 from test_service_server.models.test_plan_list_response import TestPlanListResponse
@@ -31,7 +32,11 @@ from test_service.infrastructure.adapters.input.rest.common.versioned_resource_m
 
 class TestPlanMapper:
     @staticmethod
-    def _fields(request: CreateTestPlanRequest, identity: str, requested_at: datetime) -> dict:
+    def _fields(
+        request: CreateTestPlanRequest | CreateTestPlanVersionRequest,
+        identity: str,
+        requested_at: datetime,
+    ) -> dict:
         return {
             "name": request.name,
             "description": request.description,
@@ -56,12 +61,12 @@ class TestPlanMapper:
     def to_create_version_command(
         project_key: str,
         source_id: UUID,
-        request: CreateTestPlanRequest,
+        request: CreateTestPlanVersionRequest,
         identity: str,
         requested_at: datetime,
     ) -> CreateTestPlanVersionCommand:
         fields = TestPlanMapper._fields(request, identity, requested_at)
-        fields.update(source_id=source_id, project_key=project_key, plan_key=request.plan_key)
+        fields.update(source_id=source_id, project_key=project_key)
         return CreateTestPlanVersionCommand(**fields)
 
     @staticmethod
