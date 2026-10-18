@@ -7,7 +7,7 @@ info:
     \ executing validated plans, and publishing read-only projections to an external\
     \ testing viewer."
   title: Test Service
-  version: 0.4.2
+  version: 0.4.3
 servers:
 - description: Local development server
   url: http://localhost:8080
@@ -1040,7 +1040,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateTestCaseRequest"
+              $ref: "#/components/schemas/CreateTestCaseVersionRequest"
         required: true
       responses:
         "201":
@@ -2103,7 +2103,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreatePreconditionRequest"
+              $ref: "#/components/schemas/CreatePreconditionVersionRequest"
         required: true
       responses:
         "201":
@@ -3165,7 +3165,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateTestSetRequest"
+              $ref: "#/components/schemas/CreateTestSetVersionRequest"
         required: true
       responses:
         "201":
@@ -4216,7 +4216,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateTestPlanRequest"
+              $ref: "#/components/schemas/CreateTestPlanVersionRequest"
         required: true
       responses:
         "201":
@@ -8811,6 +8811,117 @@ components:
       - timeoutSeconds
       title: CreateTestCaseRequest
       type: object
+    CreateTestCaseVersionRequest:
+      additionalProperties: false
+      description: Payload used to create the next immutable version of the test case
+        selected in the path. Its test key is inherited from that source version.
+      example:
+        name: Checkout happy path
+        summary: Customer completes checkout
+        objective: Verify order creation
+        testType: AUTOMATED
+        testLevel: FUNCTIONAL
+        priority: HIGH
+        definition:
+          schemaVersion: "1.0"
+          variables:
+            baseUrl: https://api.example.com
+          actions:
+          - id: login
+            type: HTTP_REQUEST
+            config:
+              method: GET
+        preconditions: []
+        timeoutSeconds: 60
+        metadata:
+          team: payments
+      properties:
+        name:
+          description: Human-readable test case name.
+          example: Checkout happy path
+          maxLength: 255
+          minLength: 1
+          title: name
+          type: string
+        summary:
+          description: Short summary of the scenario.
+          example: Customer completes checkout
+          maxLength: 1000
+          minLength: 1
+          title: summary
+          type: string
+        objective:
+          description: Expected objective of the test.
+          example: Verify order creation
+          maxLength: 2000
+          minLength: 1
+          title: objective
+          type: string
+        testType:
+          description: Test execution modality.
+          enum:
+          - AUTOMATED
+          - MANUAL
+          example: AUTOMATED
+          title: testType
+          type: string
+        testLevel:
+          description: Test level in the quality model.
+          enum:
+          - FUNCTIONAL
+          - ERROR
+          - INTEGRATION
+          - PERFORMANCE
+          - SECURITY
+          - STRESS
+          example: FUNCTIONAL
+          title: testLevel
+          type: string
+        priority:
+          description: Business priority of the test.
+          enum:
+          - LOW
+          - MEDIUM
+          - HIGH
+          - CRITICAL
+          example: HIGH
+          title: priority
+          type: string
+        definition:
+          $ref: "#/components/schemas/Definition"
+        preconditions:
+          default: []
+          description: Ordered immutable precondition versions required before test
+            case execution.
+          example: []
+          items:
+            $ref: "#/components/schemas/PreconditionVersionReference"
+          title: preconditions
+          type: array
+        timeoutSeconds:
+          description: Maximum execution time in seconds.
+          example: 60
+          minimum: 1
+          title: timeoutSeconds
+          type: integer
+        metadata:
+          additionalProperties: true
+          description: Additional domain metadata.
+          example:
+            team: payments
+          title: metadata
+          type: object
+      required:
+      - definition
+      - name
+      - objective
+      - priority
+      - summary
+      - testLevel
+      - testType
+      - timeoutSeconds
+      title: CreateTestCaseVersionRequest
+      type: object
     ActionRequest:
       additionalProperties: false
       description: Optional reason supplied for a lifecycle action.
@@ -9157,6 +9268,52 @@ components:
       - validationDefinition
       title: CreatePreconditionRequest
       type: object
+    CreatePreconditionVersionRequest:
+      additionalProperties: false
+      description: Payload used to create the next immutable version of the precondition
+        selected in the path. Its precondition key is inherited from that source version.
+      example:
+        name: Customer is authenticated
+        description: Checks that the customer session is valid
+        validationDefinition:
+          schemaVersion: "1.0"
+          variables:
+            baseUrl: https://api.example.com
+          actions:
+          - id: login
+            type: HTTP_REQUEST
+            config:
+              method: GET
+        metadata:
+          team: payments
+      properties:
+        name:
+          description: Human-readable precondition name.
+          example: Customer is authenticated
+          maxLength: 255
+          minLength: 1
+          title: name
+          type: string
+        description:
+          description: Behavior validated before execution.
+          example: Checks that the customer session is valid
+          title: description
+          type: string
+        validationDefinition:
+          $ref: "#/components/schemas/Definition"
+        metadata:
+          additionalProperties: true
+          description: Additional domain metadata.
+          example:
+            team: payments
+          title: metadata
+          type: object
+      required:
+      - description
+      - name
+      - validationDefinition
+      title: CreatePreconditionVersionRequest
+      type: object
     TestSet:
       additionalProperties: false
       description: Immutable version of a composed test set.
@@ -9319,6 +9476,43 @@ components:
       - name
       - setKey
       title: CreateTestSetRequest
+      type: object
+    CreateTestSetVersionRequest:
+      additionalProperties: false
+      description: Payload used to create the next immutable version of the test set
+        selected in the path. Its set key is inherited from that source version.
+      example:
+        name: Checkout regression
+        description: Regression tests for checkout
+        items:
+        - 550e8400-e29b-41d4-a716-446655440000
+        - 550e8400-e29b-41d4-a716-446655440000
+      properties:
+        name:
+          description: Human-readable test set name.
+          example: Checkout regression
+          maxLength: 255
+          minLength: 1
+          title: name
+          type: string
+        description:
+          description: Purpose of the test set.
+          example: Regression tests for checkout
+          title: description
+          type: string
+        items:
+          description: Ordered test case versions belonging to this test set. Array
+            order determines execution order.
+          items:
+            $ref: "#/components/schemas/UUID"
+          minItems: 1
+          title: items
+          type: array
+          uniqueItems: true
+      required:
+      - items
+      - name
+      title: CreateTestSetVersionRequest
       type: object
     TestSetVersionListResponse:
       allOf:
@@ -9632,6 +9826,78 @@ components:
       - planKey
       - timeoutSeconds
       title: CreateTestPlanRequest
+      type: object
+    CreateTestPlanVersionRequest:
+      additionalProperties: false
+      description: Payload used to create the next immutable version of the test plan
+        selected in the path. Its plan key is inherited from that source version.
+      example:
+        name: Checkout nightly
+        description: Nightly checkout validation
+        executionMode: SEQUENTIAL
+        timeoutSeconds: 900
+        testSetIds:
+        - 550e8400-e29b-41d4-a716-446655440000
+        testCaseIds:
+        - 550e8400-e29b-41d4-a716-446655440000
+        exclusions: []
+      properties:
+        name:
+          description: Human-readable test plan name.
+          example: Checkout nightly
+          maxLength: 255
+          minLength: 1
+          title: name
+          type: string
+        description:
+          description: Purpose of the test plan.
+          example: Nightly checkout validation
+          title: description
+          type: string
+        executionMode:
+          description: Execution mode for plan items.
+          enum:
+          - SEQUENTIAL
+          example: SEQUENTIAL
+          title: executionMode
+          type: string
+        timeoutSeconds:
+          description: Maximum plan execution time in seconds.
+          example: 900
+          minimum: 1
+          title: timeoutSeconds
+          type: integer
+        testSetIds:
+          description: Test set versions included in the plan.
+          example:
+          - 550e8400-e29b-41d4-a716-446655440000
+          items:
+            $ref: "#/components/schemas/UUID"
+          title: testSetIds
+          type: array
+          uniqueItems: true
+        testCaseIds:
+          description: Individual test case versions included in the plan.
+          example:
+          - 550e8400-e29b-41d4-a716-446655440000
+          items:
+            $ref: "#/components/schemas/UUID"
+          title: testCaseIds
+          type: array
+          uniqueItems: true
+        exclusions:
+          description: Test case versions excluded from execution.
+          example: []
+          items:
+            $ref: "#/components/schemas/UUID"
+          title: exclusions
+          type: array
+          uniqueItems: true
+      required:
+      - executionMode
+      - name
+      - timeoutSeconds
+      title: CreateTestPlanVersionRequest
       type: object
     TestPlanVersionListResponse:
       allOf:
