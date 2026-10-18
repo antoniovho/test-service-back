@@ -5,6 +5,9 @@ from uuid import UUID
 
 from test_service_server.models.action_request import ActionRequest
 from test_service_server.models.create_precondition_request import CreatePreconditionRequest
+from test_service_server.models.create_precondition_version_request import (
+    CreatePreconditionVersionRequest,
+)
 from test_service_server.models.precondition import Precondition as ApiPrecondition
 from test_service_server.models.precondition_list_response import PreconditionListResponse
 from test_service_server.models.sort_by import SortBy as ApiSortBy
@@ -80,7 +83,7 @@ class PreconditionsRestController:
         return PreconditionMapper.to_api(precondition, project.name)
 
     async def create_version(
-        self, project_key: str, precondition_id: UUID, request: CreatePreconditionRequest
+        self, project_key: str, precondition_id: UUID, request: CreatePreconditionVersionRequest
     ) -> ApiPrecondition:
         project = await self._get_project.execute(GetProjectQuery(project_key))
         command = PreconditionMapper.to_create_version_command(

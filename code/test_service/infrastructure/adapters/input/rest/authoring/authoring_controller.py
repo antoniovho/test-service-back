@@ -5,7 +5,11 @@ from uuid import UUID
 from test_service_server.apis.authoring_api_base import BaseAuthoringApi
 from test_service_server.models.action_request import ActionRequest
 from test_service_server.models.create_precondition_request import CreatePreconditionRequest
+from test_service_server.models.create_precondition_version_request import (
+    CreatePreconditionVersionRequest,
+)
 from test_service_server.models.create_test_case_request import CreateTestCaseRequest
+from test_service_server.models.create_test_case_version_request import CreateTestCaseVersionRequest
 from test_service_server.models.sort_by import SortBy as ApiSortBy
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 from test_service_server.models.version_status import VersionStatus as ApiVersionStatus
@@ -39,10 +43,10 @@ class AuthoringController(BaseAuthoringApi):
         self,
         projectKey: str,  # NOSONAR
         testCaseId: UUID,  # NOSONAR
-        create_test_case_request: CreateTestCaseRequest,  # NOSONAR
+        create_test_case_version_request: CreateTestCaseVersionRequest,  # NOSONAR
     ):
         return await self._test_cases.create_version(
-            projectKey, testCaseId, create_test_case_request
+            projectKey, testCaseId, create_test_case_version_request
         )
 
     async def restore_test_case(self, projectKey: str, testCaseId: UUID):  # NOSONAR
@@ -107,10 +111,10 @@ class AuthoringController(BaseAuthoringApi):
         self,
         projectKey: str,  # NOSONAR
         preconditionId: UUID,  # NOSONAR
-        create_precondition_request: CreatePreconditionRequest,  # NOSONAR
+        create_precondition_version_request: CreatePreconditionVersionRequest,  # NOSONAR
     ):  # NOSONAR
         return await self._preconditions.create_version(
-            projectKey, preconditionId, create_precondition_request
+            projectKey, preconditionId, create_precondition_version_request
         )
 
     async def restore_precondition(self, projectKey: str, preconditionId: UUID):  # NOSONAR
