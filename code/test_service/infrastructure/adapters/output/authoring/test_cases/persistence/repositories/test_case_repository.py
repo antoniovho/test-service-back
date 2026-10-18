@@ -25,12 +25,18 @@ class TestCaseRepository:
         self._session_provider = session_provider
 
     async def save(self, test_case: TestCaseDTO) -> TestCaseDTO:
-        """Insert or update one Test Case snapshot."""
+        """Insert or update one Test Case snapshot with its references loaded."""
         async with self._session_provider.session() as session:
             persisted = await session.merge(test_case)
             await session.commit()
-            await session.refresh(persisted)
-            return persisted
+            # ``precondition_links`` and each linked precondition are lazy relationships.
+            # The persistence adapter maps the returned DTO after this session closes, so
+            # returning ``persisted`` would cause a DetachedInstanceError for a Test Case
+            # that references preconditions.
+            saved = await self._find_by_id(session, persisted.id)
+            if saved is None:
+                raise RuntimeError(f"saved test case '{persisted.id}' could not be reloaded")
+            return saved
 
     async def find_by_id(self, identifier: UUID) -> TestCaseDTO | None:
         """Find one Test Case snapshot by UUID."""

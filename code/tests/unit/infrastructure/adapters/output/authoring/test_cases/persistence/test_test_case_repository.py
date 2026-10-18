@@ -64,7 +64,7 @@ class TestTestCaseRepository:
         assert found is dto
         session.merge.assert_awaited_once_with(dto)
         session.commit.assert_awaited_once()
-        session.refresh.assert_awaited_once_with(dto)
+        assert session.execute.await_count == 2
 
     async def test_when_latest_version_is_requested_expect_database_maximum(self):
         result = MagicMock()
@@ -77,6 +77,18 @@ class TestTestCaseRepository:
         )
 
         assert latest_version == 6
+
+    async def test_when_saved_test_case_cannot_be_reloaded_expect_runtime_error(self):
+        dto = _dto()
+        query_result = MagicMock()
+        query_result.scalar_one_or_none.return_value = None
+        session = MagicMock()
+        session.merge = AsyncMock(return_value=dto)
+        session.commit = AsyncMock()
+        session.execute = AsyncMock(return_value=query_result)
+
+        with pytest.raises(RuntimeError, match="could not be reloaded"):
+            await TestCaseRepository(_SessionProvider(session)).save(dto)
 
     async def test_when_pages_are_requested_expect_dtos_and_total(self):
         dto = _dto()
