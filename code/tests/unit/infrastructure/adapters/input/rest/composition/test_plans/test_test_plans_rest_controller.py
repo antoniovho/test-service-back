@@ -5,6 +5,7 @@ from uuid import uuid4
 
 from test_service_server.models.action_request import ActionRequest
 from test_service_server.models.create_test_plan_request import CreateTestPlanRequest
+from test_service_server.models.create_test_plan_version_request import CreateTestPlanVersionRequest
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 
 from test_service.domain.application.queries.pagination import Page
@@ -65,6 +66,12 @@ def _request() -> CreateTestPlanRequest:
     )
 
 
+def _version_request() -> CreateTestPlanVersionRequest:
+    return CreateTestPlanVersionRequest(
+        name="Checkout nightly", executionMode="SEQUENTIAL", timeoutSeconds=900
+    )
+
+
 def _controller(test_plan: TestPlan) -> TestPlansRestController:
     controller = TestPlansRestController.__new__(TestPlansRestController)
     controller.__dict__.update(
@@ -119,7 +126,7 @@ class TestTestPlansRestController:
 
         created = await controller.create("IAG", _request())
         found = await controller.get("IAG", test_plan.identifier)
-        version = await controller.create_version("IAG", test_plan.identifier, _request())
+        version = await controller.create_version("IAG", test_plan.identifier, _version_request())
         restored = await controller.restore("IAG", test_plan.identifier)
         activated = await controller.activate(
             "IAG", test_plan.identifier, ActionRequest(reason="approved")

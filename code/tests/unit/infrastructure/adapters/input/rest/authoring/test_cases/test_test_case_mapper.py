@@ -3,6 +3,7 @@ from uuid import uuid4
 
 from test_service_server.models.action import Action as ApiAction
 from test_service_server.models.create_test_case_request import CreateTestCaseRequest
+from test_service_server.models.create_test_case_version_request import CreateTestCaseVersionRequest
 from test_service_server.models.definition import Definition as ApiDefinition
 from test_service_server.models.precondition_version_reference import PreconditionVersionReference
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
@@ -25,6 +26,25 @@ from test_service.infrastructure.adapters.input.rest.authoring.test_cases.test_c
 def _request() -> CreateTestCaseRequest:
     return CreateTestCaseRequest(
         testKey="IAG-1",
+        name="Gateway test",
+        summary="Checks the gateway",
+        objective="Receive success",
+        testType="AUTOMATED",
+        testLevel="FUNCTIONAL",
+        priority="HIGH",
+        timeoutSeconds=30,
+        metadata={"team": "gateway"},
+        preconditions=[PreconditionVersionReference(id=uuid4())],
+        definition=ApiDefinition(
+            schemaVersion="1.0",
+            variables={"url": "https://example.test"},
+            actions=[ApiAction(id="request", type="HTTP_REQUEST", source="http", config={})],
+        ),
+    )
+
+
+def _version_request() -> CreateTestCaseVersionRequest:
+    return CreateTestCaseVersionRequest(
         name="Gateway test",
         summary="Checks the gateway",
         objective="Receive success",
@@ -76,7 +96,7 @@ class TestTestCaseMapper:
             "IAG", request, "author@example.test", requested_at
         )
         version = TestCaseMapper.to_create_version_command(
-            "IAG", source_id, request, "author@example.test", requested_at
+            "IAG", source_id, _version_request(), "author@example.test", requested_at
         )
 
         assert create.test_key == "IAG-1"

@@ -6,6 +6,9 @@ from uuid import uuid4
 from test_service_server.models.action import Action as ApiAction
 from test_service_server.models.action_request import ActionRequest
 from test_service_server.models.create_precondition_request import CreatePreconditionRequest
+from test_service_server.models.create_precondition_version_request import (
+    CreatePreconditionVersionRequest,
+)
 from test_service_server.models.definition import Definition as ApiDefinition
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 
@@ -76,6 +79,18 @@ def _request() -> CreatePreconditionRequest:
     )
 
 
+def _version_request() -> CreatePreconditionVersionRequest:
+    return CreatePreconditionVersionRequest(
+        name="Authenticated user",
+        description="User has a valid session",
+        validationDefinition=ApiDefinition(
+            schemaVersion="1.0",
+            variables={},
+            actions=[ApiAction(id="session", type="CHECK_SESSION", config={})],
+        ),
+    )
+
+
 def _controller(precondition: Precondition) -> PreconditionsRestController:
     controller = PreconditionsRestController.__new__(PreconditionsRestController)
     controller.__dict__.update(
@@ -132,7 +147,9 @@ class TestPreconditionsRestController:
 
         created = await controller.create("IAG", _request())
         found = await controller.get("IAG", precondition.identifier)
-        version = await controller.create_version("IAG", precondition.identifier, _request())
+        version = await controller.create_version(
+            "IAG", precondition.identifier, _version_request()
+        )
         restored = await controller.restore("IAG", precondition.identifier)
         activated = await controller.activate(
             "IAG", precondition.identifier, ActionRequest(reason="approved")

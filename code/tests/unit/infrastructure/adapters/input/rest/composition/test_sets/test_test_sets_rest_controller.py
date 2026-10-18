@@ -5,6 +5,7 @@ from uuid import uuid4
 
 from test_service_server.models.action_request import ActionRequest
 from test_service_server.models.create_test_set_request import CreateTestSetRequest
+from test_service_server.models.create_test_set_version_request import CreateTestSetVersionRequest
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 
 from test_service.domain.application.queries.pagination import Page
@@ -56,6 +57,10 @@ def _test_set() -> TestSet:
 
 def _request() -> CreateTestSetRequest:
     return CreateTestSetRequest(setKey="checkout", name="Checkout", items=[uuid4()])
+
+
+def _version_request() -> CreateTestSetVersionRequest:
+    return CreateTestSetVersionRequest(name="Checkout", items=[uuid4()])
 
 
 def _controller(test_set: TestSet) -> TestSetsRestController:
@@ -112,7 +117,7 @@ class TestTestSetsRestController:
 
         created = await controller.create("IAG", _request())
         found = await controller.get("IAG", test_set.identifier)
-        version = await controller.create_version("IAG", test_set.identifier, _request())
+        version = await controller.create_version("IAG", test_set.identifier, _version_request())
         restored = await controller.restore("IAG", test_set.identifier)
         activated = await controller.activate(
             "IAG", test_set.identifier, ActionRequest(reason="approved")
