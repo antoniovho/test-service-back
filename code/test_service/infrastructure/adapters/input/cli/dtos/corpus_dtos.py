@@ -99,12 +99,21 @@ class CorpusMetadata(_CorpusModel):
     source: str | None = Field(default=None, max_length=200)
 
 
+class CorpusPreconditionReference(_CorpusModel):
+    """Portable reference to one exact immutable Precondition snapshot."""
+
+    precondition_key: str = Field(alias="preconditionKey", pattern=_IDENTIFIER_PATTERN)
+    version: int = Field(ge=1)
+
+
 class TestCaseCorpusDocument(_CorpusModel):
     kind: Literal["test-case"]
-    schema_version: Literal["1.1.0"] = Field(alias="schemaVersion")
+    schema_version: Literal["1.2.0"] = Field(alias="schemaVersion")
     test_case_key: str = Field(alias="testCaseKey", pattern=_IDENTIFIER_PATTERN)
     summary: str = Field(min_length=1, max_length=500)
-    precondition_keys: list[str] = Field(default_factory=list, alias="preconditionKeys")
+    precondition_references: list[CorpusPreconditionReference] = Field(
+        default_factory=list, alias="preconditionReferences"
+    )
     definition: CorpusDefinition
     metadata: CorpusMetadata = Field(default_factory=CorpusMetadata)
     test_type: TestType = Field(default=TestType.AUTOMATED, alias="testType")
@@ -115,7 +124,7 @@ class TestCaseCorpusDocument(_CorpusModel):
 
 class PreconditionCorpusDocument(_CorpusModel):
     kind: Literal["precondition"]
-    schema_version: Literal["1.1.0"] = Field(alias="schemaVersion")
+    schema_version: Literal["1.2.0"] = Field(alias="schemaVersion")
     precondition_key: str = Field(alias="preconditionKey", pattern=_IDENTIFIER_PATTERN)
     summary: str = Field(min_length=1, max_length=500)
     validation_definition: CorpusDefinition = Field(alias="validationDefinition")

@@ -59,8 +59,12 @@ class InMemoryProjectRepository:
     async def find_by_key(self, key: str) -> Project | None:
         return self._projects_by_key.get(key)
 
-    async def find_page(self, pagination: PaginationParams) -> Page[Project]:
+    async def find_page(
+        self, pagination: PaginationParams, status: ProjectStatus | None = None
+    ) -> Page[Project]:
         projects = tuple(self._projects_by_key.values())
+        if status is not None:
+            projects = tuple(project for project in projects if project.status is status)
         page_items = projects[pagination.offset : pagination.offset + pagination.limit]
         return Page(items=page_items, total=len(projects))
 
@@ -90,6 +94,17 @@ class TestListProjectsUseCaseImpl:
 
         assert page.items == (project,)
         assert page.total == 1
+
+    async def test_when_status_is_supplied_expect_only_projects_in_that_state(self):
+        active = _project()
+        deleted = _project(key="DEL").delete(datetime(2026, 1, 2, tzinfo=UTC), "admin@example.com")
+        use_case = ListProjectsUseCaseImpl(InMemoryProjectRepository((active, deleted)))
+
+        page = await use_case.execute(
+            ListProjectsQuery(pagination=PaginationParams(), status=ProjectStatus.DELETED)
+        )
+
+        assert page.items == (deleted,)
 
 
 class TestCreateProjectUseCaseImpl:

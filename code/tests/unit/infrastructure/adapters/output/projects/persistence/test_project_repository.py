@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from test_service.domain.application.queries.pagination import PaginationParams, SortOrder
+from test_service.domain.model.projects.project import ProjectStatus
 from test_service.infrastructure.adapters.output.projects.persistence.dtos.project_dto import (
     ProjectDTO,
 )
@@ -87,6 +88,20 @@ class TestProjectRepository:
         assert page.items == (first, second)
         assert page.total == 2
         assert session.execute.await_count == 2
+
+    async def test_when_status_is_supplied_expect_filtered_queries(self):
+        total_result = MagicMock()
+        total_result.scalar_one.return_value = 1
+        page_result = MagicMock()
+        page_result.scalars.return_value.all.return_value = [_dto()]
+        session = MagicMock()
+        session.execute = AsyncMock(side_effect=[total_result, page_result])
+        repository = ProjectRepository(_SessionProvider(session))
+
+        page = await repository.find_page(PaginationParams(), ProjectStatus.ACTIVE)
+
+        assert page.total == 1
+        assert "status" in str(session.execute.await_args_list[0].args[0])
 
     async def test_when_sort_field_is_unsupported_expect_value_error(self):
         repository = ProjectRepository(_SessionProvider(MagicMock()))

@@ -7,7 +7,7 @@ info:
     \ executing validated plans, and publishing read-only projections to an external\
     \ testing viewer."
   title: Test Service
-  version: 0.4.0
+  version: 0.4.1
 servers:
 - description: Local development server
   url: http://localhost:8080
@@ -27,8 +27,8 @@ tags:
 paths:
   /v1/projects:
     get:
-      description: Returns a paginated list of active projects registered in the local
-        Project Catalog.
+      description: "Returns a paginated list of projects registered in the local Project\
+        \ Catalog. When status is omitted, projects in all lifecycle states are returned."
       operationId: listProjects
       parameters:
       - description: Number of records to skip before returning results.
@@ -63,13 +63,22 @@ paths:
         schema:
           $ref: "#/components/schemas/SortOrder"
         style: form
+      - description: "Filter projects by lifecycle status. When omitted, projects\
+          \ in all states are returned."
+        explode: true
+        in: query
+        name: status
+        required: false
+        schema:
+          $ref: "#/components/schemas/ProjectStatus"
+        style: form
       responses:
         "200":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProjectListResponse"
-          description: Active projects.
+          description: Projects matching the optional lifecycle-status filter.
         "400":
           content:
             application/problem+json:
@@ -7758,6 +7767,16 @@ components:
       schema:
         $ref: "#/components/schemas/SortOrder"
       style: form
+    ProjectStatusFilter:
+      description: "Filter projects by lifecycle status. When omitted, projects in\
+        \ all states are returned."
+      explode: true
+      in: query
+      name: status
+      required: false
+      schema:
+        $ref: "#/components/schemas/ProjectStatus"
+      style: form
     projectKeyPath:
       description: Stable key of the project in the Project Catalog.
       explode: false
@@ -8088,6 +8107,14 @@ components:
       example: ASC
       title: SortOrder
       type: string
+    ProjectStatus:
+      description: Lifecycle status of a project in the local Project Catalog.
+      enum:
+      - ACTIVE
+      - DELETED
+      example: ACTIVE
+      title: ProjectStatus
+      type: string
     ProjectKey:
       description: Stable key used to identify a project in the Project Catalog.
       example: IAG
@@ -8122,13 +8149,7 @@ components:
           title: name
           type: string
         status:
-          description: Project lifecycle status. DELETED is a logical deletion state.
-          enum:
-          - ACTIVE
-          - DELETED
-          example: ACTIVE
-          title: status
-          type: string
+          $ref: "#/components/schemas/ProjectStatus"
         createdAt:
           description: UTC timestamp when the project was created.
           example: 2026-01-15T10:30:00Z
@@ -8201,7 +8222,7 @@ components:
       type: object
     ProjectListResponse:
       additionalProperties: false
-      description: Paginated collection of active projects in the local Project Catalog.
+      description: Paginated collection of projects in the local Project Catalog.
       example:
         data: []
         pagination:
@@ -8210,7 +8231,7 @@ components:
           total: 0
       properties:
         data:
-          description: Active projects in the requested page.
+          description: Projects in the requested page.
           items:
             $ref: "#/components/schemas/Project"
           maxItems: 100

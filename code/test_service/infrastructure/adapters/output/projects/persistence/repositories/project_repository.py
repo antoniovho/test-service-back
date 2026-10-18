@@ -3,6 +3,7 @@
 from sqlalchemy import asc, desc, func, select
 
 from test_service.domain.application.queries.pagination import Page, PaginationParams, SortOrder
+from test_service.domain.model.projects.project import ProjectStatus
 from test_service.infrastructure.adapters.output.commons.persistence.postgres.postgres_session_provider import (  # noqa: E501
     PostgresSessionProvider,
 )
@@ -36,15 +37,21 @@ class ProjectRepository:
         async with self._session_provider.session() as session:
             return await session.get(ProjectDTO, key)
 
-    async def find_page(self, pagination: PaginationParams) -> Page[ProjectDTO]:
+    async def find_page(
+        self, pagination: PaginationParams, status: ProjectStatus | None = None
+    ) -> Page[ProjectDTO]:
         """Return a deterministically ordered page of Project DTOs."""
         sort_column = self._get_sort_column(pagination.sort_by)
         order_by = desc(sort_column) if pagination.order is SortOrder.DESC else asc(sort_column)
+        conditions = [ProjectDTO.status == status.value] if status is not None else []
 
         async with self._session_provider.session() as session:
-            total_result = await session.execute(select(func.count()).select_from(ProjectDTO))
+            total_result = await session.execute(
+                select(func.count()).select_from(ProjectDTO).where(*conditions)
+            )
             page_result = await session.execute(
                 select(ProjectDTO)
+                .where(*conditions)
                 .order_by(order_by, asc(ProjectDTO.key))
                 .offset(pagination.offset)
                 .limit(pagination.limit)

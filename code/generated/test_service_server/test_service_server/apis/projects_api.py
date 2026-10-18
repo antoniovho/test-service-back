@@ -31,6 +31,7 @@ from test_service_server.models.error_details import ErrorDetails
 from test_service_server.models.project import Project
 from test_service_server.models.project_list_response import ProjectListResponse
 from test_service_server.models.project_sort_by import ProjectSortBy
+from test_service_server.models.project_status import ProjectStatus
 from test_service_server.models.sort_order import SortOrder
 from test_service_server.security_api import get_token_bearerAuth
 
@@ -44,7 +45,7 @@ for _, name, _ in pkgutil.iter_modules(ns_pkg.__path__, ns_pkg.__name__ + "."):
 @router.get(
     "/v1/projects",
     responses={
-        200: {"model": ProjectListResponse, "description": "Active projects."},
+        200: {"model": ProjectListResponse, "description": "Projects matching the optional lifecycle-status filter."},
         400: {"model": ErrorDetails, "description": "The request is invalid."},
         401: {"model": ErrorDetails, "description": "Authentication is required or failed."},
         403: {"model": ErrorDetails, "description": "The authenticated principal is not allowed to perform the operation."},
@@ -67,14 +68,16 @@ async def list_projects(
 ,
     order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
 ,
+    status: Annotated[Optional[ProjectStatus], Field(description="Filter projects by lifecycle status. When omitted, projects in all states are returned.")] = Query(None, description="Filter projects by lifecycle status. When omitted, projects in all states are returned.", alias="status")
+,
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
 ) -> ProjectListResponse:
-    """Returns a paginated list of active projects registered in the local Project Catalog."""
+    """Returns a paginated list of projects registered in the local Project Catalog. When status is omitted, projects in all lifecycle states are returned."""
     if not BaseProjectsApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseProjectsApi.subclasses[0]().list_projects(offset, limit, sort_by, order)
+    return await BaseProjectsApi.subclasses[0]().list_projects(offset, limit, sort_by, order, status)
 
 
 @router.post(

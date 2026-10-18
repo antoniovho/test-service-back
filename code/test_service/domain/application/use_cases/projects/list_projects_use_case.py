@@ -19,4 +19,4 @@ class ListProjectsUseCaseImpl(ListProjectsUseCase):
 
     async def execute(self, request: ListProjectsQuery) -> Page[Project]:
         """Return a page of projects matching the requested pagination."""
-        return await self._project_repository.find_page(request.pagination)
+        return await self._project_repository.find_page(request.pagination, request.status)

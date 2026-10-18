@@ -49,6 +49,20 @@ class PreconditionRepository:
             )
             return result.scalar_one()
 
+    async def find_by_key_and_version(
+        self, project_key: str, precondition_key: str, version: int
+    ) -> PreconditionDTO | None:
+        """Find one exact Precondition snapshot by its stable key and version."""
+        async with self._session_provider.session() as session:
+            result = await session.execute(
+                select(PreconditionDTO).where(
+                    PreconditionDTO.project_key == project_key,
+                    PreconditionDTO.precondition_key == precondition_key,
+                    PreconditionDTO.version == version,
+                )
+            )
+            return result.scalar_one_or_none()
+
     async def find_page(
         self, project_key: str, pagination: PaginationParams, status: VersionStatus | None
     ) -> Page[PreconditionDTO]:

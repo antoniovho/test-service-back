@@ -89,6 +89,21 @@ class TestPreconditionRepository:
 
         assert latest_version == 6
 
+    async def test_when_exact_version_is_requested_expect_matching_snapshot(self):
+        dto = _dto()
+        result = MagicMock()
+        result.scalar_one_or_none.return_value = dto
+        session = MagicMock()
+        session.execute = AsyncMock(return_value=result)
+
+        found = await PreconditionRepository(_SessionProvider(session)).find_by_key_and_version(
+            "IAG", "authenticated", 1
+        )
+
+        assert found is dto
+        assert "precondition_key" in str(session.execute.await_args.args[0])
+        assert "version" in str(session.execute.await_args.args[0])
+
     async def test_when_pages_are_requested_expect_dtos_and_total(self):
         dto = _dto()
         total_result = MagicMock()

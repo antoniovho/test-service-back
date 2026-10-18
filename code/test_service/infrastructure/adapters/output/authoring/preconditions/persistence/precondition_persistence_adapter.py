@@ -38,6 +38,14 @@ class PreconditionPersistenceAdapter(PreconditionPersistencePort):
     async def find_latest_version(self, project_key: str, precondition_key: str) -> int | None:
         return await self._repository.find_latest_version(project_key, precondition_key)
 
+    async def find_by_key_and_version(
+        self, project_key: str, precondition_key: str, version: int
+    ) -> Precondition | None:
+        precondition = await self._repository.find_by_key_and_version(
+            project_key, precondition_key, version
+        )
+        return PreconditionPersistenceMapper.to_domain(precondition) if precondition else None
+
     async def find_page(
         self, project_key: str, pagination: PaginationParams, status: VersionStatus | None = None
     ) -> Page[Precondition]:

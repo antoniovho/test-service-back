@@ -53,6 +53,7 @@ test_service_server/models/project.py
 test_service_server/models/project_list_response.py
 test_service_server/models/project_reference.py
 test_service_server/models/project_sort_by.py
+test_service_server/models/project_status.py
 test_service_server/models/sort_by.py
 test_service_server/models/sort_order.py
 test_service_server/models/test_case.py
