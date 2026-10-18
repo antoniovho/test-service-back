@@ -54,10 +54,19 @@ No se pueden combinar `--directory` y `--file`.
 ## Reglas y resultado
 
 Los documentos deben cumplir el contrato
-[`contracts/corpus/test-corpus-1.1.0.schema.json`](../../../../../contracts/corpus/test-corpus-1.1.0.schema.json).
+[`contracts/corpus/test-corpus-1.2.0.schema.json`](../../../../../contracts/corpus/test-corpus-1.2.0.schema.json).
 Los documentos de tipo `precondition` se crean antes que los `test-case`, y
-las referencias `preconditionKeys` se resuelven a la versión de precondición
-persistida.
+las referencias `preconditionReferences` declaran explícitamente la clave y versión de precondición
+persistida, sin seleccionar implícitamente la versión más alta:
+
+```json
+"preconditionReferences": [
+  {
+    "preconditionKey": "LITELLM_PROXY_READY",
+    "version": 1
+  }
+]
+```
 
 La operación es idempotente por clave lógica dentro del proyecto: si ya existe
 una versión para una precondición o caso de prueba, se omite y se informa en

@@ -5,7 +5,6 @@ from uuid import uuid4
 
 import pytest
 
-from test_service.domain.application.queries.pagination import Page
 from test_service.domain.model.exceptions import (
     test_case_already_exists_exception,
 )
@@ -24,7 +23,7 @@ from test_service.infrastructure.adapters.input.cli.dtos.corpus_dtos import (
 def _valid_document() -> dict[str, object]:
     return {
         "kind": "test-case",
-        "schemaVersion": "1.1.0",
+        "schemaVersion": "1.2.0",
         "testCaseKey": "GW-INT-007",
         "summary": "Returns a healthy dependency state",
         "definition": {
@@ -47,11 +46,15 @@ def _valid_document() -> dict[str, object]:
 def _valid_precondition() -> dict[str, object]:
     return {
         "kind": "precondition",
-        "schemaVersion": "1.1.0",
+        "schemaVersion": "1.2.0",
         "preconditionKey": "DEPENDENCY-HEALTH",
         "summary": "Dependency is healthy",
         "validationDefinition": _valid_document()["definition"],
     }
+
+
+def _reference(key: str) -> list[dict[str, object]]:
+    return [{"preconditionKey": key, "version": 1}]
 
 
 class TestLoadDocument:
@@ -150,7 +153,7 @@ class TestCorpusImporter:
     ) -> None:
         precondition = _valid_precondition()
         test_case = _valid_document()
-        test_case["preconditionKeys"] = ["DEPENDENCY-HEALTH"]
+        test_case["preconditionReferences"] = _reference("DEPENDENCY-HEALTH")
         precondition_path = tmp_path / "precondition.json"
         test_case_path = tmp_path / "test-case.json"
         precondition_path.write_text(json.dumps(precondition), encoding="utf-8")
@@ -164,6 +167,9 @@ class TestCorpusImporter:
         precondition_repository = AsyncMock()
         test_case_repository = AsyncMock()
         precondition_repository.find_latest_version.return_value = None
+        precondition_repository.find_by_key_and_version.return_value = SimpleNamespace(
+            identifier=precondition_identifier
+        )
         test_case_repository.find_latest_version.return_value = None
         importer = CorpusImporter(
             create_precondition,
@@ -187,7 +193,7 @@ class TestCorpusImporter:
     ) -> None:
         precondition = _valid_precondition()
         test_case = _valid_document()
-        test_case["preconditionKeys"] = ["DEPENDENCY-HEALTH"]
+        test_case["preconditionReferences"] = _reference("DEPENDENCY-HEALTH")
         (tmp_path / "01-precondition.json").write_text(json.dumps(precondition), encoding="utf-8")
         (tmp_path / "02-test-case.json").write_text(json.dumps(test_case), encoding="utf-8")
         create_precondition = AsyncMock()
@@ -210,12 +216,12 @@ class TestCorpusImporter:
         create_precondition.execute.assert_not_awaited()
         create_test_case.execute.assert_not_awaited()
 
-    async def test_when_precondition_exists_expect_latest_snapshot_used_for_reference(
+    async def test_when_precondition_exists_expect_explicit_version_used_for_reference(
         self, tmp_path
     ) -> None:
         precondition = _valid_precondition()
         test_case = _valid_document()
-        test_case["preconditionKeys"] = ["DEPENDENCY-HEALTH"]
+        test_case["preconditionReferences"] = _reference("DEPENDENCY-HEALTH")
         (tmp_path / "01-precondition.json").write_text(json.dumps(precondition), encoding="utf-8")
         (tmp_path / "02-test-case.json").write_text(json.dumps(test_case), encoding="utf-8")
         existing_identifier = uuid4()
@@ -224,8 +230,8 @@ class TestCorpusImporter:
         precondition_repository = AsyncMock()
         test_case_repository = AsyncMock()
         precondition_repository.find_latest_version.return_value = 2
-        precondition_repository.find_versions.return_value = Page(
-            (SimpleNamespace(identifier=existing_identifier),), 1
+        precondition_repository.find_by_key_and_version.return_value = SimpleNamespace(
+            identifier=existing_identifier
         )
         test_case_repository.find_latest_version.return_value = None
         importer = CorpusImporter(
@@ -235,18 +241,21 @@ class TestCorpusImporter:
             test_case_repository,
         )
 
-        report = await importer.import_directory(tmp_path, "PROJECT", "migration", dry_run=True)
+        report = await importer.import_directory(tmp_path, "PROJECT", "migration")
 
         assert report.skipped_preconditions == 1
         assert report.created_test_cases == 1
-        precondition_repository.find_versions.assert_awaited_once()
+        precondition_repository.find_by_key_and_version.assert_awaited_once_with(
+            "PROJECT", "DEPENDENCY-HEALTH", 1
+        )
+        assert create_test_case.execute.await_args.args[0].preconditions == (existing_identifier,)
 
     async def test_when_importing_new_documents_expect_authoring_commands_executed(
         self, tmp_path
     ) -> None:
         precondition = _valid_precondition()
         test_case = _valid_document()
-        test_case["preconditionKeys"] = ["DEPENDENCY-HEALTH"]
+        test_case["preconditionReferences"] = _reference("DEPENDENCY-HEALTH")
         (tmp_path / "01-precondition.json").write_text(json.dumps(precondition), encoding="utf-8")
         (tmp_path / "02-test-case.json").write_text(json.dumps(test_case), encoding="utf-8")
         precondition_identifier = uuid4()
@@ -258,6 +267,9 @@ class TestCorpusImporter:
         precondition_repository = AsyncMock()
         test_case_repository = AsyncMock()
         precondition_repository.find_latest_version.return_value = None
+        precondition_repository.find_by_key_and_version.return_value = SimpleNamespace(
+            identifier=precondition_identifier
+        )
         test_case_repository.find_latest_version.return_value = None
         importer = CorpusImporter(
             create_precondition,
@@ -276,13 +288,12 @@ class TestCorpusImporter:
             precondition_identifier,
         )
 
-    async def test_when_precondition_is_created_concurrently_expect_persisted_snapshot_used(
+    async def test_when_precondition_is_created_concurrently_expect_import_skipped(
         self, tmp_path
     ) -> None:
         (tmp_path / "precondition.json").write_text(
             json.dumps(_valid_precondition()), encoding="utf-8"
         )
-        existing_identifier = uuid4()
         create_precondition = AsyncMock()
         create_precondition.execute.side_effect = PreconditionAlreadyExistsException(
             "PROJECT", "DEPENDENCY-HEALTH"
@@ -291,9 +302,6 @@ class TestCorpusImporter:
         precondition_repository = AsyncMock()
         test_case_repository = AsyncMock()
         precondition_repository.find_latest_version.side_effect = [None, object()]
-        precondition_repository.find_versions.return_value = Page(
-            (SimpleNamespace(identifier=existing_identifier),), 1
-        )
         importer = CorpusImporter(
             create_precondition,
             create_test_case,
@@ -305,32 +313,40 @@ class TestCorpusImporter:
 
         assert report.skipped_preconditions == 1
         create_precondition.execute.assert_awaited_once()
-        precondition_repository.find_versions.assert_awaited_once()
         create_test_case.execute.assert_not_awaited()
 
-    async def test_when_precondition_snapshot_is_missing_expect_error(self, tmp_path) -> None:
-        (tmp_path / "precondition.json").write_text(
-            json.dumps(_valid_precondition()), encoding="utf-8"
-        )
+    async def test_when_explicit_precondition_version_is_missing_expect_error(
+        self, tmp_path
+    ) -> None:
+        test_case = _valid_document()
+        test_case["preconditionReferences"] = _reference("DEPENDENCY-HEALTH")
+        (tmp_path / "test-case.json").write_text(json.dumps(test_case), encoding="utf-8")
         precondition_repository = AsyncMock()
-        precondition_repository.find_latest_version.return_value = object()
-        precondition_repository.find_versions.return_value = Page((), 0)
-        importer = CorpusImporter(AsyncMock(), AsyncMock(), precondition_repository, AsyncMock())
+        precondition_repository.find_by_key_and_version.return_value = None
+        test_case_repository = AsyncMock()
+        test_case_repository.find_latest_version.return_value = None
+        importer = CorpusImporter(
+            AsyncMock(), AsyncMock(), precondition_repository, test_case_repository
+        )
 
-        with pytest.raises(ValueError, match="has no persisted snapshot"):
+        with pytest.raises(ValueError, match="DEPENDENCY-HEALTH.*version 1 does not exist"):
             await importer.import_directory(tmp_path, "PROJECT", "migration")
 
     async def test_when_test_case_references_unknown_precondition_expect_error(
         self, tmp_path
     ) -> None:
         test_case = _valid_document()
-        test_case["preconditionKeys"] = ["MISSING"]
+        test_case["preconditionReferences"] = [{"preconditionKey": "MISSING", "version": 1}]
         (tmp_path / "test-case.json").write_text(json.dumps(test_case), encoding="utf-8")
         test_case_repository = AsyncMock()
         test_case_repository.find_latest_version.return_value = None
-        importer = CorpusImporter(AsyncMock(), AsyncMock(), AsyncMock(), test_case_repository)
+        precondition_repository = AsyncMock()
+        precondition_repository.find_by_key_and_version.return_value = None
+        importer = CorpusImporter(
+            AsyncMock(), AsyncMock(), precondition_repository, test_case_repository
+        )
 
-        with pytest.raises(ValueError, match=r"references unavailable preconditions \['MISSING'\]"):
+        with pytest.raises(ValueError, match="MISSING.*version 1 does not exist"):
             await importer.import_directory(tmp_path, "PROJECT", "migration")
 
     async def test_when_test_case_is_created_concurrently_expect_it_skipped(self, tmp_path) -> None:

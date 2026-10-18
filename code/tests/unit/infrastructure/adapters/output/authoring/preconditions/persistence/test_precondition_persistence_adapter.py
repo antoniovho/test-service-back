@@ -47,6 +47,9 @@ class _Repository:
     async def find_latest_version(self, _, __):
         return 4
 
+    async def find_by_key_and_version(self, _, __, ___):
+        return self.dto
+
     async def find_page(self, _, __, ___):
         return Page(
             items=() if self.dto is None else (self.dto,), total=0 if self.dto is None else 1
@@ -84,7 +87,9 @@ class TestPreconditionPersistenceAdapter:
         page = await adapter.find_page("IAG", pagination, VersionStatus.ACTIVE)
         versions = await adapter.find_versions("IAG", "authenticated", pagination)
         latest_version = await adapter.find_latest_version("IAG", "authenticated")
+        exact_version = await adapter.find_by_key_and_version("IAG", "authenticated", 1)
 
         assert page.items == (precondition,)
         assert versions.items == (precondition,)
         assert latest_version == 4
+        assert exact_version == precondition

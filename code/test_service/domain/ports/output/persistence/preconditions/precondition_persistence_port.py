@@ -17,6 +17,12 @@ class PreconditionPersistencePort(VersionedPersistencePort[Precondition], Protoc
         """Return the latest version number for one logical Precondition."""
         ...
 
+    async def find_by_key_and_version(
+        self, project_key: str, precondition_key: str, version: int
+    ) -> Precondition | None:
+        """Find one exact Precondition snapshot by its stable key and version."""
+        ...
+
     async def find_page(
         self,
         project_key: str,

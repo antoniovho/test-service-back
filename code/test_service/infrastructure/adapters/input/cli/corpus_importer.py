@@ -15,7 +15,6 @@ from test_service.domain.application.commands.authoring import (
     CreatePreconditionCommand,
     CreateTestCaseCommand,
 )
-from test_service.domain.application.queries.pagination import PaginationParams, SortOrder
 from test_service.domain.model.authoring.definition import Action, Definition
 from test_service.domain.model.exceptions.precondition_already_exists_exception import (
     PreconditionAlreadyExistsException,
@@ -38,6 +37,7 @@ from test_service.domain.ports.output.persistence.test_cases.test_case_persisten
 from test_service.infrastructure.adapters.input.cli.dtos.corpus_dtos import (
     CorpusDefinition,
     CorpusDocument,
+    CorpusPreconditionReference,
     PreconditionCorpusDocument,
     TestCaseCorpusDocument,
 )
@@ -109,8 +109,16 @@ class CorpusImporter:
             item for item in documents if isinstance(item, PreconditionCorpusDocument)
         )
         test_cases = tuple(item for item in documents if isinstance(item, TestCaseCorpusDocument))
-        precondition_ids, report = await self._import_preconditions(
-            preconditions, project_key, requested_by, dry_run
+        report = await self._import_preconditions(preconditions, project_key, requested_by, dry_run)
+        precondition_ids = await self._resolve_precondition_references(
+            (
+                reference
+                for document in test_cases
+                for reference in document.precondition_references
+            ),
+            preconditions,
+            project_key,
+            dry_run,
         )
         test_case_report = await self._import_test_cases(
             test_cases, precondition_ids, project_key, requested_by, dry_run
@@ -128,17 +136,13 @@ class CorpusImporter:
         project_key: str,
         requested_by: str,
         dry_run: bool,
-    ) -> tuple[dict[str, UUID], ImportReport]:
-        identifiers: dict[str, UUID] = {}
+    ) -> ImportReport:
         report = ImportReport()
         for document in documents:
             existing = await self._precondition_repository.find_latest_version(
                 project_key, document.precondition_key
             )
             if existing is not None:
-                identifiers[document.precondition_key] = await self._latest_precondition_identifier(
-                    project_key, document.precondition_key
-                )
                 report = ImportReport(
                     report.created_preconditions,
                     report.skipped_preconditions + 1,
@@ -147,7 +151,6 @@ class CorpusImporter:
                 )
                 continue
             if dry_run:
-                identifiers[document.precondition_key] = uuid4()
                 report = ImportReport(
                     report.created_preconditions + 1,
                     report.skipped_preconditions,
@@ -156,7 +159,7 @@ class CorpusImporter:
                 )
                 continue
             try:
-                created = await self._create_precondition.execute(
+                await self._create_precondition.execute(
                     CreatePreconditionCommand(
                         project_key=project_key,
                         precondition_key=document.precondition_key,
@@ -174,9 +177,6 @@ class CorpusImporter:
                 )
                 if existing is None:
                     raise
-                identifiers[document.precondition_key] = await self._latest_precondition_identifier(
-                    project_key, document.precondition_key
-                )
                 report = ImportReport(
                     report.created_preconditions,
                     report.skipped_preconditions + 1,
@@ -184,31 +184,46 @@ class CorpusImporter:
                     report.skipped_test_cases,
                 )
             else:
-                identifiers[document.precondition_key] = created.identifier
                 report = ImportReport(
                     report.created_preconditions + 1,
                     report.skipped_preconditions,
                     report.created_test_cases,
                     report.skipped_test_cases,
                 )
-        return identifiers, report
+        return report
 
-    async def _latest_precondition_identifier(
-        self, project_key: str, precondition_key: str
-    ) -> UUID:
-        snapshots = await self._precondition_repository.find_versions(
-            project_key,
-            precondition_key,
-            PaginationParams(limit=1, sort_by="version", order=SortOrder.DESC),
-        )
-        if not snapshots.items:
-            raise ValueError(f"precondition '{precondition_key}' has no persisted snapshot")
-        return snapshots.items[0].identifier
+    async def _resolve_precondition_references(
+        self,
+        references: Iterable[CorpusPreconditionReference],
+        imported_preconditions: Iterable[PreconditionCorpusDocument],
+        project_key: str,
+        dry_run: bool,
+    ) -> dict[tuple[str, int], UUID]:
+        """Resolve exact corpus references without selecting a latest version implicitly."""
+        imported_keys = {document.precondition_key for document in imported_preconditions}
+        identifiers: dict[tuple[str, int], UUID] = {}
+        for reference in references:
+            key = (reference.precondition_key, reference.version)
+            if key in identifiers:
+                continue
+            if dry_run and reference.precondition_key in imported_keys and reference.version == 1:
+                identifiers[key] = uuid4()
+                continue
+            precondition = await self._precondition_repository.find_by_key_and_version(
+                project_key, reference.precondition_key, reference.version
+            )
+            if precondition is None:
+                raise ValueError(
+                    f"precondition '{reference.precondition_key}' version {reference.version} "
+                    "does not exist"
+                )
+            identifiers[key] = precondition.identifier
+        return identifiers
 
     async def _import_test_cases(
         self,
         documents: Iterable[TestCaseCorpusDocument],
-        precondition_ids: Mapping[str, UUID],
+        precondition_ids: Mapping[tuple[str, int], UUID],
         project_key: str,
         requested_by: str,
         dry_run: bool,
@@ -226,7 +241,11 @@ class CorpusImporter:
                     report.skipped_test_cases + 1,
                 )
                 continue
-            missing = set(document.precondition_keys) - set(precondition_ids)
+            references = tuple(
+                (reference.precondition_key, reference.version)
+                for reference in document.precondition_references
+            )
+            missing = set(references) - set(precondition_ids)
             if missing:
                 raise ValueError(
                     f"test case '{document.test_case_key}' references unavailable preconditions "
@@ -256,7 +275,7 @@ class CorpusImporter:
                         requested_by=requested_by,
                         requested_at=datetime.now(UTC),
                         preconditions=tuple(
-                            precondition_ids[key] for key in document.precondition_keys
+                            precondition_ids[reference] for reference in references
                         ),
                         metadata=document.metadata.model_dump(exclude_none=True),
                     )
@@ -301,7 +320,7 @@ def load_document(path: Path) -> CorpusDocument:
 
 @lru_cache
 def _corpus_validator() -> Draft202012Validator:
-    schema_path = Path(__file__).parents[5] / "contracts/corpus/test-corpus-1.1.0.schema.json"
+    schema_path = Path(__file__).parents[5] / "contracts/corpus/test-corpus-1.2.0.schema.json"
     try:
         schema = json.loads(schema_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
