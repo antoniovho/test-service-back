@@ -206,7 +206,7 @@ class TestTavernRunnerAdapter:
         assert supported is expected
 
     async def test_when_http_block_returns_runner_error_expect_error_test_case_outcome(
-        self,
+        self, caplog: pytest.LogCaptureFixture
     ) -> None:
         adapter = TavernRunnerAdapter(_Compiler(), _Executor(), _ResultMapper())
         test_case = CompiledTestCase("case-id", {}, (CompiledAction("first", "HTTP", 0, {}),))
@@ -222,6 +222,9 @@ class TestTavernRunnerAdapter:
         assert outcome.finished_at.tzinfo is UTC
         assert outcome.actions[0].action_id == "first"
         assert outcome.actions[0].action_type == "HTTP"
+        assert "test case 'case-id' stopped at action 'first'" in caplog.text
+        assert "TAVERN_PROCESS_FAILED" in caplog.text
+        assert "Tavern process exited with code 2" in caplog.text
 
     async def test_when_cancelled_before_execution_expect_skipped_test_case_outcome(self) -> None:
         cancellation = asyncio.Event()
@@ -405,6 +408,35 @@ class TestTavernRunnerAdapter:
         assert outcomes[0].finished_at.tzinfo is UTC
         assert variables == {}
 
+    async def test_when_runner_error_is_caught_expect_safe_diagnostic_logged(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        adapter = TavernRunnerAdapter(compiler=_RaisingCompiler(ValueError("secret details")))
+        action = CompiledAction("first", "HTTP", 0, {})
+
+        await adapter._tavern_http_block((action,), {}, asyncio.Event())
+
+        assert "Tavern runner failed while preparing HTTP actions ['first']" in caplog.text
+        assert "ValueError while compiling or starting Tavern" in caplog.text
+        assert "secret details" not in caplog.text
+
+    async def test_when_runner_rejects_unsafe_document_expect_safe_cause_in_outcome(
+        self,
+    ) -> None:
+        adapter = TavernRunnerAdapter(
+            compiler=_RaisingCompiler(
+                ValueError("HTTP action 'first' uses template field 'tavern.env_vars.SECRET'")
+            )
+        )
+        action = CompiledAction("first", "HTTP", 0, {})
+
+        outcomes, _ = await adapter._tavern_http_block((action,), {}, asyncio.Event())
+
+        assert outcomes[0].error_message == (
+            "Tavern failed before receiving an HTTP response: HTTP action 'first' uses "
+            "template field 'tavern.env_vars.SECRET'"
+        )
+
     async def test_when_tavern_saves_variables_expect_variables_returned_in_outcome(self) -> None:
         adapter = TavernRunnerAdapter(_Compiler(), _VariableExecutor(), _PassingResultMapper())
         test_case = CompiledTestCase("case-id", {}, (CompiledAction("first", "HTTP", 0, {}),))
@@ -445,9 +477,13 @@ class TestTavernRunnerAdapter:
             "TAVERN_RUNNER_ERROR",
             "TAVERN_RUNNER_ERROR",
         ]
+        expected_message = (
+            "Tavern failed before receiving an HTTP response: "
+            f"{type(error).__name__} while compiling or starting Tavern"
+        )
         assert [outcome.error_message for outcome in outcomes] == [
-            "Tavern runner execution failed",
-            "Tavern runner execution failed",
+            expected_message,
+            expected_message,
         ]
         assert [outcome.action_id for outcome in outcomes] == ["first", "second"]
         assert [outcome.action_type for outcome in outcomes] == ["HTTP", "HTTP"]
