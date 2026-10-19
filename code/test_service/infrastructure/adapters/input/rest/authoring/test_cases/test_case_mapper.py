@@ -5,6 +5,7 @@ from enum import Enum
 
 from test_service_server.models.action import Action as ApiAction
 from test_service_server.models.create_test_case_request import CreateTestCaseRequest
+from test_service_server.models.create_test_case_version_request import CreateTestCaseVersionRequest
 from test_service_server.models.definition import Definition as ApiDefinition
 from test_service_server.models.precondition_reference import (
     PreconditionReference as ApiPreconditionReference,
@@ -56,7 +57,7 @@ class TestCaseMapper:
     def to_create_version_command(
         project_key: str,
         source_id,
-        request: CreateTestCaseRequest,
+        request: CreateTestCaseVersionRequest,
         identity: str,
         requested_at: datetime,
     ) -> CreateTestCaseVersionCommand:
@@ -169,7 +170,9 @@ class TestCaseMapper:
 
     @staticmethod
     def _request_fields(
-        request: CreateTestCaseRequest, identity: str, requested_at: datetime
+        request: CreateTestCaseRequest | CreateTestCaseVersionRequest,
+        identity: str,
+        requested_at: datetime,
     ) -> dict:
         return {
             "name": request.name,

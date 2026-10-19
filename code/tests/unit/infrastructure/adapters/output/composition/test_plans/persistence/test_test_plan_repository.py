@@ -61,6 +61,8 @@ class TestTestPlanRepository:
             dto,
             attribute_names=["test_set_links", "test_case_links", "exclusion_links"],
         )
+        assert session.execute.await_count == 4
+        assert all(call.args[0].is_delete for call in session.execute.await_args_list[:3])
 
     async def test_when_latest_version_is_requested_expect_database_maximum(self):
         result = MagicMock()

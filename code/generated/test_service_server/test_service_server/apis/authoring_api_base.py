@@ -8,7 +8,9 @@ from typing_extensions import Annotated
 from uuid import UUID
 from test_service_server.models.action_request import ActionRequest
 from test_service_server.models.create_precondition_request import CreatePreconditionRequest
+from test_service_server.models.create_precondition_version_request import CreatePreconditionVersionRequest
 from test_service_server.models.create_test_case_request import CreateTestCaseRequest
+from test_service_server.models.create_test_case_version_request import CreateTestCaseVersionRequest
 from test_service_server.models.error_details import ErrorDetails
 from test_service_server.models.precondition import Precondition
 from test_service_server.models.precondition_list_response import PreconditionListResponse
@@ -61,7 +63,7 @@ class BaseAuthoringApi:
         self,
         projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
         testCaseId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the test case version.")],
-        create_test_case_request: CreateTestCaseRequest,
+        create_test_case_version_request: CreateTestCaseVersionRequest,
     ) -> TestCase:
         """Creates a new version without modifying any existing test case version."""
         ...
@@ -145,7 +147,7 @@ class BaseAuthoringApi:
         self,
         projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
         preconditionId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the precondition version.")],
-        create_precondition_request: CreatePreconditionRequest,
+        create_precondition_version_request: CreatePreconditionVersionRequest,
     ) -> Precondition:
         """Creates a new immutable version for the selected precondition key."""
         ...

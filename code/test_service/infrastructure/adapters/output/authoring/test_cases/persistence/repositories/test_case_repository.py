@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from sqlalchemy import asc, desc, func, select
+from sqlalchemy import asc, delete, desc, func, select
 from sqlalchemy.orm import selectinload
 
 from test_service.domain.application.queries.pagination import Page, PaginationParams, SortOrder
@@ -27,6 +27,15 @@ class TestCaseRepository:
     async def save(self, test_case: TestCaseDTO) -> TestCaseDTO:
         """Insert or update one Test Case snapshot with its references loaded."""
         async with self._session_provider.session() as session:
+            # Domain snapshots only retain precondition IDs, not the identities of
+            # association rows. Replacing the ordered links avoids trying to insert
+            # a second link at an existing ``(test_case_id, position)`` on lifecycle
+            # updates such as activation or deprecation.
+            await session.execute(
+                delete(TestCasePreconditionDTO).where(
+                    TestCasePreconditionDTO.test_case_id == test_case.id
+                )
+            )
             persisted = await session.merge(test_case)
             await session.commit()
             # ``precondition_links`` and each linked precondition are lazy relationships.

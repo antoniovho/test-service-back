@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from sqlalchemy import asc, desc, func, select
+from sqlalchemy import asc, delete, desc, func, select
 from sqlalchemy.orm import selectinload
 
 from test_service.domain.application.queries.pagination import Page, PaginationParams, SortOrder
@@ -12,6 +12,9 @@ from test_service.infrastructure.adapters.output.commons.persistence.postgres.po
 )
 from test_service.infrastructure.adapters.output.composition.test_plans.persistence.dtos.test_plan_dto import (  # noqa: E501
     TestPlanDTO,
+    TestPlanExclusionDTO,
+    TestPlanTestCaseDTO,
+    TestPlanTestSetDTO,
 )
 
 
@@ -31,6 +34,17 @@ class TestPlanRepository:
     async def save(self, test_plan: TestPlanDTO) -> TestPlanDTO:
         """Insert or update one Test Plan snapshot."""
         async with self._session_provider.session() as session:
+            # Persisted plan links are represented as a complete immutable
+            # snapshot. Replacing all three collections keeps lifecycle updates
+            # independent of SQLAlchemy merge identity details.
+            for link_type in (
+                TestPlanTestSetDTO,
+                TestPlanTestCaseDTO,
+                TestPlanExclusionDTO,
+            ):
+                await session.execute(
+                    delete(link_type).where(link_type.test_plan_id == test_plan.id)
+                )
             persisted = await session.merge(test_plan)
             await session.commit()
             await session.refresh(

@@ -3,6 +3,9 @@ from uuid import uuid4
 
 from test_service_server.models.action import Action as ApiAction
 from test_service_server.models.create_precondition_request import CreatePreconditionRequest
+from test_service_server.models.create_precondition_version_request import (
+    CreatePreconditionVersionRequest,
+)
 from test_service_server.models.definition import Definition as ApiDefinition
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 from test_service_server.models.version_status import VersionStatus as ApiVersionStatus
@@ -49,6 +52,19 @@ def _request() -> CreatePreconditionRequest:
     )
 
 
+def _version_request() -> CreatePreconditionVersionRequest:
+    return CreatePreconditionVersionRequest(
+        name="Authenticated user",
+        description="User has a valid session",
+        metadata={"team": "gateway"},
+        validationDefinition=ApiDefinition(
+            schemaVersion="1.0",
+            variables={"tenant": "iag"},
+            actions=[ApiAction(id="session", type="CHECK_SESSION", source="identity", config={})],
+        ),
+    )
+
+
 class TestPreconditionMapper:
     def test_when_create_commands_are_mapped_expect_domain_values(self):
         request = _request()
@@ -59,12 +75,13 @@ class TestPreconditionMapper:
             "IAG", request, "author@example.test", requested_at
         )
         version = PreconditionMapper.to_create_version_command(
-            "IAG", source_id, request, "author@example.test", requested_at
+            "IAG", source_id, _version_request(), "author@example.test", requested_at
         )
 
         assert create.precondition_key == "authenticated"
         assert create.validation_definition.actions[0].source == "identity"
         assert version.source_id == source_id
+        assert not hasattr(version, "precondition_key")
         assert version.metadata == {"team": "gateway"}
 
     def test_when_queries_and_filters_are_mapped_expect_domain_primitives(self):

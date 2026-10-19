@@ -5,6 +5,7 @@ from enum import Enum
 from uuid import UUID
 
 from test_service_server.models.create_test_set_request import CreateTestSetRequest
+from test_service_server.models.create_test_set_version_request import CreateTestSetVersionRequest
 from test_service_server.models.project_reference import ProjectReference
 from test_service_server.models.test_set import TestSet as ApiTestSet
 from test_service_server.models.test_set_list_response import TestSetListResponse
@@ -46,14 +47,13 @@ class TestSetMapper:
     def to_create_version_command(
         project_key: str,
         source_id: UUID,
-        request: CreateTestSetRequest,
+        request: CreateTestSetVersionRequest,
         identity: str,
         requested_at: datetime,
     ) -> CreateTestSetVersionCommand:
         return CreateTestSetVersionCommand(
             source_id=source_id,
             project_key=project_key,
-            set_key=request.set_key,
             **TestSetMapper._request_fields(request, identity, requested_at),
         )
 
@@ -131,7 +131,9 @@ class TestSetMapper:
 
     @staticmethod
     def _request_fields(
-        request: CreateTestSetRequest, identity: str, requested_at: datetime
+        request: CreateTestSetRequest | CreateTestSetVersionRequest,
+        identity: str,
+        requested_at: datetime,
     ) -> dict:
         return {
             "name": request.name,

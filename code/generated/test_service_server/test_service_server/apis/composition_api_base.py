@@ -8,7 +8,9 @@ from typing_extensions import Annotated
 from uuid import UUID
 from test_service_server.models.action_request import ActionRequest
 from test_service_server.models.create_test_plan_request import CreateTestPlanRequest
+from test_service_server.models.create_test_plan_version_request import CreateTestPlanVersionRequest
 from test_service_server.models.create_test_set_request import CreateTestSetRequest
+from test_service_server.models.create_test_set_version_request import CreateTestSetVersionRequest
 from test_service_server.models.error_details import ErrorDetails
 from test_service_server.models.sort_by import SortBy
 from test_service_server.models.sort_order import SortOrder
@@ -62,7 +64,7 @@ class BaseCompositionApi:
         self,
         projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
         testSetId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the immutable test set version.")],
-        create_test_set_request: CreateTestSetRequest,
+        create_test_set_version_request: CreateTestSetVersionRequest,
     ) -> TestSet:
         """Creates a new immutable draft version of a test set."""
         ...
@@ -146,7 +148,7 @@ class BaseCompositionApi:
         self,
         projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
         testPlanId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the immutable test plan version.")],
-        create_test_plan_request: CreateTestPlanRequest,
+        create_test_plan_version_request: CreateTestPlanVersionRequest,
     ) -> TestPlan:
         """Creates a new immutable draft version of a test plan."""
         ...

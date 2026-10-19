@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from sqlalchemy import asc, desc, func, select
+from sqlalchemy import asc, delete, desc, func, select
 from sqlalchemy.orm import selectinload
 
 from test_service.domain.application.queries.pagination import Page, PaginationParams, SortOrder
@@ -12,6 +12,7 @@ from test_service.infrastructure.adapters.output.commons.persistence.postgres.po
 )
 from test_service.infrastructure.adapters.output.composition.test_sets.persistence.dtos.test_set_dto import (  # noqa: E501
     TestSetDTO,
+    TestSetItemDTO,
 )
 
 
@@ -26,6 +27,12 @@ class TestSetRepository:
     async def save(self, test_set: TestSetDTO) -> TestSetDTO:
         """Insert or update one Test Set snapshot."""
         async with self._session_provider.session() as session:
+            # Domain snapshots do not retain association-row IDs. Replacing the
+            # ordered item links avoids duplicate ``(test_set_id, position)`` rows
+            # when a lifecycle transition persists an existing snapshot.
+            await session.execute(
+                delete(TestSetItemDTO).where(TestSetItemDTO.test_set_id == test_set.id)
+            )
             persisted = await session.merge(test_set)
             await session.commit()
             await session.refresh(persisted, attribute_names=["item_links"])

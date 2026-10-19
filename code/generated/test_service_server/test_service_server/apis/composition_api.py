@@ -29,7 +29,9 @@ from typing_extensions import Annotated
 from uuid import UUID
 from test_service_server.models.action_request import ActionRequest
 from test_service_server.models.create_test_plan_request import CreateTestPlanRequest
+from test_service_server.models.create_test_plan_version_request import CreateTestPlanVersionRequest
 from test_service_server.models.create_test_set_request import CreateTestSetRequest
+from test_service_server.models.create_test_set_version_request import CreateTestSetVersionRequest
 from test_service_server.models.error_details import ErrorDetails
 from test_service_server.models.sort_by import SortBy
 from test_service_server.models.sort_order import SortOrder
@@ -175,7 +177,7 @@ async def create_test_set_version(
 ,
     testSetId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the immutable test set version.")] = Path(..., description="UUID of the immutable test set version.")
 ,
-    create_test_set_request: CreateTestSetRequest = Body(..., description="")
+    create_test_set_version_request: CreateTestSetVersionRequest = Body(..., description="")
 ,
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
@@ -184,7 +186,7 @@ async def create_test_set_version(
     """Creates a new immutable draft version of a test set."""
     if not BaseCompositionApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseCompositionApi.subclasses[0]().create_test_set_version(projectKey, testSetId, create_test_set_request)
+    return await BaseCompositionApi.subclasses[0]().create_test_set_version(projectKey, testSetId, create_test_set_version_request)
 
 
 @router.post(
@@ -454,7 +456,7 @@ async def create_test_plan_version(
 ,
     testPlanId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the immutable test plan version.")] = Path(..., description="UUID of the immutable test plan version.")
 ,
-    create_test_plan_request: CreateTestPlanRequest = Body(..., description="")
+    create_test_plan_version_request: CreateTestPlanVersionRequest = Body(..., description="")
 ,
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
@@ -463,7 +465,7 @@ async def create_test_plan_version(
     """Creates a new immutable draft version of a test plan."""
     if not BaseCompositionApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseCompositionApi.subclasses[0]().create_test_plan_version(projectKey, testPlanId, create_test_plan_request)
+    return await BaseCompositionApi.subclasses[0]().create_test_plan_version(projectKey, testPlanId, create_test_plan_version_request)
 
 
 @router.post(

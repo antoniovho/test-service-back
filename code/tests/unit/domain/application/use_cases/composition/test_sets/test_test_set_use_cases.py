@@ -253,7 +253,6 @@ class TestTestSetUseCases:
         request = CreateTestSetVersionCommand(
             source.identifier,
             "IAG",
-            "ignored",
             "Updated",
             (test_case.identifier,),
             "author@example.test",

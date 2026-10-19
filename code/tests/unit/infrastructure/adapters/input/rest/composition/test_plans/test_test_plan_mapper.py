@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 from test_service_server.models.create_test_plan_request import CreateTestPlanRequest
+from test_service_server.models.create_test_plan_version_request import CreateTestPlanVersionRequest
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 from test_service_server.models.version_status import VersionStatus as ApiVersionStatus
 
@@ -16,6 +17,18 @@ from test_service.infrastructure.adapters.input.rest.composition.test_plans.test
 def _request() -> CreateTestPlanRequest:
     return CreateTestPlanRequest(
         planKey="checkout-nightly",
+        name="Checkout nightly",
+        description="Nightly regression",
+        executionMode="SEQUENTIAL",
+        timeoutSeconds=900,
+        testSetIds=[uuid4()],
+        testCaseIds=[uuid4()],
+        exclusions=[uuid4()],
+    )
+
+
+def _version_request() -> CreateTestPlanVersionRequest:
+    return CreateTestPlanVersionRequest(
         name="Checkout nightly",
         description="Nightly regression",
         executionMode="SEQUENTIAL",
@@ -53,13 +66,14 @@ class TestTestPlanMapper:
             "IAG", request, "author@example.test", requested_at
         )
         version = TestPlanMapper.to_create_version_command(
-            "IAG", uuid4(), request, "author@example.test", requested_at
+            "IAG", uuid4(), _version_request(), "author@example.test", requested_at
         )
 
         assert command.plan_key == request.plan_key
         assert command.execution_mode is ExecutionMode.SEQUENTIAL
         assert command.test_set_ids == tuple(request.test_set_ids)
         assert version.source_id is not None
+        assert not hasattr(version, "plan_key")
 
     def test_when_queries_and_responses_are_mapped_expect_contract_values(self):
         snapshot = _snapshot()

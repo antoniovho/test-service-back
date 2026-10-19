@@ -5,6 +5,9 @@ from enum import Enum
 
 from test_service_server.models.action import Action as ApiAction
 from test_service_server.models.create_precondition_request import CreatePreconditionRequest
+from test_service_server.models.create_precondition_version_request import (
+    CreatePreconditionVersionRequest,
+)
 from test_service_server.models.definition import Definition as ApiDefinition
 from test_service_server.models.precondition import Precondition as ApiPrecondition
 from test_service_server.models.precondition_list_response import PreconditionListResponse
@@ -47,14 +50,13 @@ class PreconditionMapper:
     def to_create_version_command(
         project_key: str,
         source_id,
-        request: CreatePreconditionRequest,
+        request: CreatePreconditionVersionRequest,
         identity: str,
         requested_at: datetime,
     ) -> CreatePreconditionVersionCommand:
         return CreatePreconditionVersionCommand(
             source_id=source_id,
             project_key=project_key,
-            precondition_key=request.precondition_key,
             **PreconditionMapper._request_fields(request, identity, requested_at),
         )
 
@@ -141,7 +143,9 @@ class PreconditionMapper:
 
     @staticmethod
     def _request_fields(
-        request: CreatePreconditionRequest, identity: str, requested_at: datetime
+        request: CreatePreconditionRequest | CreatePreconditionVersionRequest,
+        identity: str,
+        requested_at: datetime,
     ) -> dict:
         return {
             "name": request.name,

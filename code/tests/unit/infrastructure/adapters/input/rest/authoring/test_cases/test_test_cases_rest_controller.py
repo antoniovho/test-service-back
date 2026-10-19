@@ -6,6 +6,7 @@ from uuid import uuid4
 from test_service_server.models.action import Action as ApiAction
 from test_service_server.models.action_request import ActionRequest
 from test_service_server.models.create_test_case_request import CreateTestCaseRequest
+from test_service_server.models.create_test_case_version_request import CreateTestCaseVersionRequest
 from test_service_server.models.definition import Definition as ApiDefinition
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 
@@ -86,6 +87,23 @@ def _request() -> CreateTestCaseRequest:
     )
 
 
+def _version_request() -> CreateTestCaseVersionRequest:
+    return CreateTestCaseVersionRequest(
+        name="Gateway test",
+        summary="Checks the gateway",
+        objective="Receive success",
+        testType="AUTOMATED",
+        testLevel="FUNCTIONAL",
+        priority="HIGH",
+        timeoutSeconds=30,
+        definition=ApiDefinition(
+            schemaVersion="1.0",
+            variables={},
+            actions=[ApiAction(id="request", type="HTTP_REQUEST", config={})],
+        ),
+    )
+
+
 def _controller(test_case: TestCase) -> TestCasesRestController:
     controller = TestCasesRestController.__new__(TestCasesRestController)
     controller.__dict__.update(
@@ -138,7 +156,7 @@ class TestTestCasesRestController:
 
         created = await controller.create("IAG", _request())
         found = await controller.get("IAG", test_case.identifier)
-        version = await controller.create_version("IAG", test_case.identifier, _request())
+        version = await controller.create_version("IAG", test_case.identifier, _version_request())
         restored = await controller.restore("IAG", test_case.identifier)
         activated = await controller.activate(
             "IAG", test_case.identifier, ActionRequest(reason="approved")

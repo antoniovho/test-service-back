@@ -29,7 +29,9 @@ from typing_extensions import Annotated
 from uuid import UUID
 from test_service_server.models.action_request import ActionRequest
 from test_service_server.models.create_precondition_request import CreatePreconditionRequest
+from test_service_server.models.create_precondition_version_request import CreatePreconditionVersionRequest
 from test_service_server.models.create_test_case_request import CreateTestCaseRequest
+from test_service_server.models.create_test_case_version_request import CreateTestCaseVersionRequest
 from test_service_server.models.error_details import ErrorDetails
 from test_service_server.models.precondition import Precondition
 from test_service_server.models.precondition_list_response import PreconditionListResponse
@@ -174,7 +176,7 @@ async def create_test_case_version(
 ,
     testCaseId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the test case version.")] = Path(..., description="UUID of the test case version.")
 ,
-    create_test_case_request: CreateTestCaseRequest = Body(..., description="")
+    create_test_case_version_request: CreateTestCaseVersionRequest = Body(..., description="")
 ,
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
@@ -183,7 +185,7 @@ async def create_test_case_version(
     """Creates a new version without modifying any existing test case version."""
     if not BaseAuthoringApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseAuthoringApi.subclasses[0]().create_test_case_version(projectKey, testCaseId, create_test_case_request)
+    return await BaseAuthoringApi.subclasses[0]().create_test_case_version(projectKey, testCaseId, create_test_case_version_request)
 
 
 @router.post(
@@ -454,7 +456,7 @@ async def create_precondition_version(
 ,
     preconditionId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="UUID of the precondition version.")] = Path(..., description="UUID of the precondition version.")
 ,
-    create_precondition_request: CreatePreconditionRequest = Body(..., description="")
+    create_precondition_version_request: CreatePreconditionVersionRequest = Body(..., description="")
 ,
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
@@ -463,7 +465,7 @@ async def create_precondition_version(
     """Creates a new immutable version for the selected precondition key."""
     if not BaseAuthoringApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseAuthoringApi.subclasses[0]().create_precondition_version(projectKey, preconditionId, create_precondition_request)
+    return await BaseAuthoringApi.subclasses[0]().create_precondition_version(projectKey, preconditionId, create_precondition_version_request)
 
 
 @router.post(

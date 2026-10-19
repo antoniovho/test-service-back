@@ -128,7 +128,6 @@ class CreatePreconditionVersionCommand:
     Args:
         source_id: UUID of the snapshot version selected as the version's parent.
         project_key: Owning project key.
-        precondition_key: Stable logical precondition key.
         name: Human-readable name.
         description: Prerequisite purpose.
         validation_definition: Executable validation definition.
@@ -139,7 +138,6 @@ class CreatePreconditionVersionCommand:
 
     source_id: UUID
     project_key: str
-    precondition_key: str
     name: str
     description: str
     validation_definition: Definition

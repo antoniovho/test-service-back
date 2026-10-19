@@ -56,6 +56,8 @@ class TestTestSetRepository:
         assert saved is dto
         assert found is dto
         session.refresh.assert_awaited_once_with(dto, attribute_names=["item_links"])
+        assert session.execute.await_count == 2
+        assert session.execute.await_args_list[0].args[0].is_delete
 
     async def test_when_latest_version_is_requested_expect_database_maximum(self):
         result = MagicMock()

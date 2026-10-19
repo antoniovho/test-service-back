@@ -5,6 +5,7 @@ from uuid import UUID
 
 from test_service_server.models.action_request import ActionRequest
 from test_service_server.models.create_test_set_request import CreateTestSetRequest
+from test_service_server.models.create_test_set_version_request import CreateTestSetVersionRequest
 from test_service_server.models.sort_by import SortBy as ApiSortBy
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 from test_service_server.models.test_set import TestSet as ApiTestSet
@@ -79,7 +80,7 @@ class TestSetsRestController:
         return TestSetMapper.to_api(test_set, project.name)
 
     async def create_version(
-        self, project_key: str, test_set_id: UUID, request: CreateTestSetRequest
+        self, project_key: str, test_set_id: UUID, request: CreateTestSetVersionRequest
     ) -> ApiTestSet:
         project = await self._get_project.execute(GetProjectQuery(project_key))
         command = TestSetMapper.to_create_version_command(
