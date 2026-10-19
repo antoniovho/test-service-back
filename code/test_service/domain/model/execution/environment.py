@@ -7,6 +7,12 @@ from enum import StrEnum
 from uuid import UUID
 
 from test_service.domain.commons.immutable import freeze_mapping
+from test_service.domain.model.exceptions.environment_already_active_exception import (
+    EnvironmentAlreadyActiveException,
+)
+from test_service.domain.model.exceptions.environment_already_inactive_exception import (
+    EnvironmentAlreadyInactiveException,
+)
 from test_service.domain.model.exceptions.invalid_environment_transition_exception import (
     InvalidEnvironmentTransitionException,
 )
@@ -81,7 +87,8 @@ class Environment:
         configuration: Safe unresolved configuration values. Keys that look like
             secrets (password, token, credential, ...) must use a SecretReference
             instead of a raw value.
-        status: Environment availability state.
+    status: Environment availability state. New environments begin inactive and must be
+        explicitly activated after their configuration has been verified.
 
     Raises:
         ResolvedSecretNotAllowedException: If a secret-like configuration key holds a raw value.
@@ -94,7 +101,7 @@ class Environment:
     created_by: str
     description: str | None = None
     configuration: Mapping[str, ConfigurationValue] | None = None
-    status: EnvironmentStatus = EnvironmentStatus.ACTIVE
+    status: EnvironmentStatus = EnvironmentStatus.INACTIVE
 
     def __post_init__(self) -> None:
         """Validate the secrets policy and freeze the mutable configuration mapping.
@@ -119,8 +126,11 @@ class Environment:
             A new active environment.
 
         Raises:
+            EnvironmentAlreadyActiveException: If the environment is already active.
             InvalidEnvironmentTransitionException: If the environment is deprecated.
         """
+        if self.status is EnvironmentStatus.ACTIVE:
+            raise EnvironmentAlreadyActiveException(self.environment_key)
         if self.status is EnvironmentStatus.DEPRECATED:
             raise InvalidEnvironmentTransitionException(
                 "deprecated environments cannot be activated"
@@ -134,8 +144,11 @@ class Environment:
             A new inactive environment.
 
         Raises:
+            EnvironmentAlreadyInactiveException: If the environment is already inactive.
             InvalidEnvironmentTransitionException: If the environment is deprecated.
         """
+        if self.status is EnvironmentStatus.INACTIVE:
+            raise EnvironmentAlreadyInactiveException(self.environment_key)
         if self.status is EnvironmentStatus.DEPRECATED:
             raise InvalidEnvironmentTransitionException(
                 "deprecated environments cannot be deactivated"

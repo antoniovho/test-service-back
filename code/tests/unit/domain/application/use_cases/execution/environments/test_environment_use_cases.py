@@ -29,8 +29,14 @@ from test_service.domain.application.use_cases.execution.environments.list_envir
     ListEnvironmentsUseCaseImpl,
 )
 from test_service.domain.model.exceptions.entity_not_found_exception import EntityNotFoundException
+from test_service.domain.model.exceptions.environment_already_active_exception import (
+    EnvironmentAlreadyActiveException,
+)
 from test_service.domain.model.exceptions.environment_already_exists_exception import (
     EnvironmentAlreadyExistsException,
+)
+from test_service.domain.model.exceptions.environment_already_inactive_exception import (
+    EnvironmentAlreadyInactiveException,
 )
 from test_service.domain.model.execution.environment import Environment, EnvironmentStatus
 
@@ -66,7 +72,7 @@ class _Repository:
 
 
 class TestEnvironmentUseCases:
-    async def test_when_creating_new_environment_expect_active_snapshot_saved(self):
+    async def test_when_creating_new_environment_expect_inactive_snapshot_saved(self):
         repository = _Repository()
         command = CreateEnvironmentCommand(
             environment_key="staging-eu",
@@ -77,7 +83,7 @@ class TestEnvironmentUseCases:
 
         environment = await CreateEnvironmentUseCaseImpl(repository).execute(command)
 
-        assert environment.status is EnvironmentStatus.ACTIVE
+        assert environment.status is EnvironmentStatus.INACTIVE
         assert repository.saved == environment
 
     async def test_when_creating_duplicate_environment_expect_conflict(self):
@@ -137,6 +143,17 @@ class TestEnvironmentUseCases:
         assert result.status is EnvironmentStatus.ACTIVE
         assert repository.saved == result
 
+    async def test_when_active_environment_is_activated_expect_conflict_and_no_save(self):
+        environment = _environment(EnvironmentStatus.ACTIVE)
+        repository = _Repository(environment)
+
+        with pytest.raises(EnvironmentAlreadyActiveException):
+            await ActivateEnvironmentUseCaseImpl(repository).execute(
+                ActivateEnvironmentCommand(environment.identifier)
+            )
+
+        assert repository.saved is None
+
     async def test_when_environment_is_deactivated_expect_saved_inactive_snapshot(self):
         environment = _environment()
         repository = _Repository(environment)
@@ -147,6 +164,17 @@ class TestEnvironmentUseCases:
 
         assert result.status is EnvironmentStatus.INACTIVE
         assert repository.saved == result
+
+    async def test_when_inactive_environment_is_deactivated_expect_conflict_and_no_save(self):
+        environment = _environment(EnvironmentStatus.INACTIVE)
+        repository = _Repository(environment)
+
+        with pytest.raises(EnvironmentAlreadyInactiveException):
+            await DeactivateEnvironmentUseCaseImpl(repository).execute(
+                DeactivateEnvironmentCommand(environment.identifier)
+            )
+
+        assert repository.saved is None
 
     async def test_when_environments_are_listed_expect_repository_page(self):
         environment = _environment()

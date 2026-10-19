@@ -3,6 +3,12 @@ from uuid import uuid4
 
 import pytest
 
+from test_service.domain.model.exceptions.environment_already_active_exception import (
+    EnvironmentAlreadyActiveException,
+)
+from test_service.domain.model.exceptions.environment_already_inactive_exception import (
+    EnvironmentAlreadyInactiveException,
+)
 from test_service.domain.model.exceptions.invalid_environment_transition_exception import (
     InvalidEnvironmentTransitionException,
 )
@@ -69,8 +75,16 @@ class TestEnvironmentSecretsPolicy:
 
 
 class TestEnvironmentLifecycle:
+    def test_when_active_expect_activate_raises_conflict_exception(self):
+        environment = _environment(status=EnvironmentStatus.ACTIVE)
+
+        with pytest.raises(EnvironmentAlreadyActiveException) as exc:
+            environment.activate()
+
+        assert exc.value.code == "ENVIRONMENT_ALREADY_ACTIVE"
+
     def test_when_active_expect_deactivate_returns_inactive(self):
-        environment = _environment()
+        environment = _environment(status=EnvironmentStatus.ACTIVE)
 
         deactivated = environment.deactivate()
 
@@ -82,6 +96,14 @@ class TestEnvironmentLifecycle:
         activated = environment.activate()
 
         assert activated.status is EnvironmentStatus.ACTIVE
+
+    def test_when_inactive_expect_deactivate_raises_conflict_exception(self):
+        environment = _environment(status=EnvironmentStatus.INACTIVE)
+
+        with pytest.raises(EnvironmentAlreadyInactiveException) as exc:
+            environment.deactivate()
+
+        assert exc.value.code == "ENVIRONMENT_ALREADY_INACTIVE"
 
     @pytest.mark.parametrize("method", ["activate", "deactivate"])
     def test_when_deprecated_expect_transition_raises_exception(self, method):

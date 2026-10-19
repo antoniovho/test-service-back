@@ -16,13 +16,13 @@ from test_service.domain.ports.output.persistence.environments.environment_persi
 
 
 class CreateEnvironmentUseCaseImpl(CreateEnvironmentUseCase):
-    """Creates an execution environment with a globally unique business key."""
+    """Creates an inactive execution environment with a globally unique business key."""
 
     def __init__(self, environment_repository: EnvironmentPersistencePort) -> None:
         self._environment_repository = environment_repository
 
     async def execute(self, request: CreateEnvironmentCommand) -> Environment:
-        """Create and persist an active execution environment."""
+        """Create and persist an inactive execution environment."""
         existing_environment = await self._environment_repository.find_by_key(
             request.environment_key
         )
