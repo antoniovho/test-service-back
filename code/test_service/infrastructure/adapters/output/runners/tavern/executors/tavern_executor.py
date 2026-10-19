@@ -4,6 +4,7 @@ import asyncio
 import json
 import os
 import signal
+import sys
 import tempfile
 from collections.abc import Mapping
 from datetime import datetime
@@ -88,7 +89,7 @@ class TavernExecutor:
 
             # Execute the Tavern test document in a subprocess using tavern-ci
             process = await asyncio.create_subprocess_exec(
-                "tavern-ci",
+                _tavern_command(),
                 str(test_file),
                 cwd=root,
                 env=_subprocess_environment(),
@@ -144,6 +145,21 @@ class TavernExecutor:
             if not cancellation_wait.done():
                 cancellation_wait.cancel()
             await asyncio.gather(cancellation_wait, return_exceptions=True)
+
+
+def _tavern_command() -> str:
+    """Resolve Tavern from the active virtual environment before consulting ``PATH``.
+
+    Application launchers such as VS Code invoke the virtual-environment
+    interpreter directly but do not necessarily prepend its ``bin`` directory
+    to ``PATH``. Tavern is installed beside that interpreter, so prefer that
+    executable and retain the bare command for system installations.
+    """
+    executable_name = "tavern-ci.exe" if os.name == "nt" else "tavern-ci"
+    candidate = Path(sys.executable).with_name(executable_name)
+    if candidate.is_file() and os.access(candidate, os.X_OK):
+        return str(candidate)
+    return executable_name
 
 
 def _subprocess_environment() -> dict[str, str]:
@@ -345,8 +361,10 @@ def response_body_evidence(body):
     return {{"truncated": True, "content": serialized[:MAX_RESPONSE_BODY_CHARS]}}
 
 def redact_error_message(message):
-    """Redact common credential assignments and bound persisted error evidence."""
-    text = str(message)
+    """Redact credentials and implementation details from persisted error evidence."""
+    text = str(message) or type(message).__name__
+    text = text.split("Traceback (most recent call last):", maxsplit=1)[0].rstrip()
+    text = re.sub(r' at 0x[0-9a-fA-F]+', '', text)
     for field in SENSITIVE_FIELDS:
         pattern = re.compile(
             r'((?:"|\\')?' + re.escape(field) + r'(?:(?:"|\\'))?\\s*[:=]\\s*)'
