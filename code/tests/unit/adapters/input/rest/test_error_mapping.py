@@ -8,8 +8,14 @@ from test_service.domain.model.exceptions.domain_exception import DomainExceptio
 from test_service.domain.model.exceptions.entity_not_found_exception import (
     EntityNotFoundException,
 )
+from test_service.domain.model.exceptions.environment_already_active_exception import (
+    EnvironmentAlreadyActiveException,
+)
 from test_service.domain.model.exceptions.environment_already_exists_exception import (
     EnvironmentAlreadyExistsException,
+)
+from test_service.domain.model.exceptions.environment_already_inactive_exception import (
+    EnvironmentAlreadyInactiveException,
 )
 from test_service.domain.model.exceptions.error_codes_enum import DomainError
 from test_service.domain.model.exceptions.external_project_access_forbidden_exception import (
@@ -230,10 +236,12 @@ class TestExceptionStatusMap:
             TestPlanAlreadyExistsException: HTTPStatus.CONFLICT,
             PreconditionAlreadyExistsException: HTTPStatus.CONFLICT,
             EnvironmentAlreadyExistsException: HTTPStatus.CONFLICT,
+            EnvironmentAlreadyActiveException: HTTPStatus.CONFLICT,
+            EnvironmentAlreadyInactiveException: HTTPStatus.CONFLICT,
             PreconditionProjectMismatchException: HTTPStatus.UNPROCESSABLE_ENTITY,
             InvalidActionException: HTTPStatus.UNPROCESSABLE_ENTITY,
             InvalidDefinitionException: HTTPStatus.UNPROCESSABLE_ENTITY,
-            InvalidEnvironmentTransitionException: HTTPStatus.UNPROCESSABLE_ENTITY,
+            InvalidEnvironmentTransitionException: HTTPStatus.CONFLICT,
             InvalidExecutionTransitionException: HTTPStatus.UNPROCESSABLE_ENTITY,
             InvalidLifecycleTransitionException: HTTPStatus.UNPROCESSABLE_ENTITY,
             InvalidPreconditionException: HTTPStatus.UNPROCESSABLE_ENTITY,

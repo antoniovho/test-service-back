@@ -181,6 +181,7 @@ class TestExecutionResultsPersistence:
         session = MagicMock()
         session.add = MagicMock()
         session.add_all = MagicMock()
+        session.flush = AsyncMock()
         session.commit = AsyncMock()
         repository = ExecutionResultsRepository(_SessionProvider(session))
 
@@ -188,4 +189,5 @@ class TestExecutionResultsPersistence:
 
         session.add.assert_called_once_with(result)
         assert session.add_all.call_args_list == [call((action,)), call((artifact,))]
+        assert session.flush.await_count == 2
         session.commit.assert_awaited_once()

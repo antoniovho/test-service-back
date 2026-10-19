@@ -52,7 +52,12 @@ class ExecutionResultsRepository:
         """Persist one immutable result tree in a single database transaction."""
         async with self._session_provider.session() as session:
             session.add(result)
+            # The DTOs deliberately expose foreign-key IDs instead of ORM
+            # relationships. Flush each parent level before inserting its children
+            # so PostgreSQL can enforce the result-tree foreign keys.
+            await session.flush()
             session.add_all(actions)
+            await session.flush()
             session.add_all(artifacts)
             await session.commit()
 

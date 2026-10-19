@@ -17,6 +17,7 @@ from test_service.infrastructure.adapters.output.runners.tavern.executors.tavern
     _read_result,
     _reporter_source,
     _subprocess_environment,
+    _tavern_command,
     _terminate_process_group,
     _write_secure,
 )
@@ -108,7 +109,7 @@ class TestTavernExecutor:
         parameters = create_subprocess.await_args.kwargs
         test_file = Path(arguments[1])
 
-        assert arguments[0] == "tavern-ci"
+        assert arguments[0] == _tavern_command()
         assert test_file.name == "test-execution.tavern.yaml"
         assert test_file.parent.name.startswith("test-service-")
         assert parameters["cwd"] == test_file.parent
@@ -120,6 +121,19 @@ class TestTavernExecutor:
         assert "xray-secret" not in environment.values()
         assert "DATABASE_PASSWORD" not in environment
         assert "XRAY_CLIENT_SECRET" not in environment
+
+    def test_when_tavern_is_installed_beside_active_interpreter_expect_that_executable_used(
+        self, monkeypatch, tmp_path: Path
+    ) -> None:
+        virtual_environment = tmp_path / "venv" / "bin"
+        virtual_environment.mkdir(parents=True)
+        interpreter = virtual_environment / "python"
+        tavern = virtual_environment / "tavern-ci"
+        interpreter.touch()
+        tavern.touch(mode=0o755)
+        monkeypatch.setattr(tavern_executor.sys, "executable", str(interpreter))
+
+        assert _tavern_command() == str(tavern)
 
     async def test_when_launching_tavern_expect_expected_temporary_files_written(
         self, monkeypatch
@@ -550,6 +564,101 @@ class TestTavernExecutor:
         assert stage["status"] == "FAILED"
         assert stage["errorCode"] == "TAVERN_ASSERTION_FAILED"
         assert "response-secret" not in stage["errorMessage"]
+
+    def test_when_reporter_error_has_no_text_expect_exception_type_recorded(self) -> None:
+        namespace: dict[str, object] = {}
+        exec(_reporter_source(("request-account",)), namespace)
+        namespace["pytest_tavern_beta_before_every_request"]({})
+        call = SimpleNamespace(when="call", excinfo=SimpleNamespace(value=RuntimeError()))
+
+        namespace["pytest_runtest_makereport"](None, call)
+
+        stage = namespace["result"]["stages"][0]
+        assert stage["status"] == "ERROR"
+        assert stage["errorCode"] == "TAVERN_EXECUTION_ERROR"
+        assert stage["errorMessage"] == "RuntimeError"
+
+    @pytest.mark.parametrize(
+        ("technical_detail", "expected_code", "expected_message"),
+        [
+            (
+                "SSLError: SSL connection timeout; api_key=transport-secret",
+                "TAVERN_TLS_HANDSHAKE_TIMEOUT",
+                "HTTP request timed out while establishing the TLS connection; "
+                "no response was received.",
+            ),
+            (
+                "SSLError: certificate verify failed: self signed certificate",
+                "TAVERN_TLS_CERTIFICATE_ERROR",
+                "TLS certificate verification failed before an HTTP response was received.",
+            ),
+            (
+                "ConnectTimeout: failed to establish a new connection",
+                "TAVERN_CONNECT_TIMEOUT",
+                "HTTP request timed out while connecting to the target; no response was received.",
+            ),
+            (
+                "ReadTimeout: HTTPSConnectionPool read timed out",
+                "TAVERN_READ_TIMEOUT",
+                "HTTP connection was established but no response was received before the timeout.",
+            ),
+            (
+                "ConnectionError: connection refused",
+                "TAVERN_CONNECTION_ERROR",
+                "HTTP connection failed before a response was received.",
+            ),
+        ],
+    )
+    def test_when_reporter_detects_transport_failure_expect_safe_category(
+        self, technical_detail, expected_code, expected_message
+    ) -> None:
+        namespace: dict[str, object] = {}
+        exec(_reporter_source(("request-account",)), namespace)
+        namespace["pytest_tavern_beta_before_every_request"]({})
+        error = RuntimeError("RestRequestException")
+        error.__cause__ = RuntimeError(technical_detail)
+        call = SimpleNamespace(
+            when="call",
+            excinfo=SimpleNamespace(
+                value=error,
+                getrepr=lambda **_: f"Traceback containing {technical_detail}",
+            ),
+        )
+
+        namespace["pytest_runtest_makereport"](None, call)
+
+        stage = namespace["result"]["stages"][0]
+        assert stage["status"] == "ERROR"
+        assert stage["errorCode"] == expected_code
+        assert stage["errorMessage"] == expected_message
+        assert "transport-secret" not in str(stage)
+        assert "Traceback" not in str(stage)
+
+    def test_when_reporter_error_includes_traceback_expect_only_actionable_summary(
+        self,
+    ) -> None:
+        namespace: dict[str, object] = {}
+        exec(_reporter_source(("request-account",)), namespace)
+        namespace["pytest_tavern_beta_before_every_request"]({})
+        message = (
+            "Response header mismatch\n"
+            "- Error calling validate function '<function validate at 0xdeadbeef>':\n"
+            "    Traceback (most recent call last):\n"
+            '      File "/home/user/private/project.py", line 1, in validate'
+        )
+        call = SimpleNamespace(
+            when="call", excinfo=SimpleNamespace(value=TavernAssertionError(message))
+        )
+
+        namespace["pytest_runtest_makereport"](None, call)
+
+        error_message = namespace["result"]["stages"][0]["errorMessage"]
+        assert error_message == (
+            "Response header mismatch\n- Error calling validate function '<function validate>':"
+        )
+        assert "Traceback" not in error_message
+        assert "/home/" not in error_message
+        assert "0x" not in error_message
 
     def test_when_reporter_records_technical_error_expect_error_and_truncated_message(
         self,

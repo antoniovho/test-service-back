@@ -9,7 +9,11 @@ from test_service_server.models.environment_sort_by import EnvironmentSortBy
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 
 from test_service.domain.application.queries.pagination import Page
-from test_service.domain.model.execution.environment import Environment, SecretReference
+from test_service.domain.model.execution.environment import (
+    Environment,
+    EnvironmentStatus,
+    SecretReference,
+)
 from test_service.domain.ports.input.use_cases.execution.environments.activate_environment_use_case import (  # noqa: E501
     ActivateEnvironmentUseCase,
 )
@@ -44,6 +48,7 @@ def _environment() -> Environment:
         created_at=datetime(2026, 1, 1, tzinfo=UTC),
         created_by="author@example.test",
         configuration={"api_token": SecretReference("vault", "staging")},
+        status=EnvironmentStatus.ACTIVE,
     )
 
 

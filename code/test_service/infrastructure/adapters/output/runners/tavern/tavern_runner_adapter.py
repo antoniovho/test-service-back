@@ -7,6 +7,7 @@ infrastructure extension of this adapter rather than a domain concern.
 """
 
 import asyncio
+import logging
 from collections.abc import Mapping
 from datetime import UTC, datetime
 
@@ -34,6 +35,8 @@ from test_service.infrastructure.adapters.output.runners.tavern.mappers.tavern_r
 from test_service.infrastructure.adapters.output.runners.tavern.tavern_exceptions import (
     TavernResultInvalidError,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class TavernRunnerAdapter:
@@ -112,6 +115,7 @@ class TavernRunnerAdapter:
                     None,
                 )
                 if terminal_issue is not None:
+                    self._log_terminal_issue(test_case.test_case_id, terminal_issue)
                     return self._build_test_case_outcome(
                         terminal_issue.status,
                         started_at,
@@ -149,6 +153,10 @@ class TavernRunnerAdapter:
             )
             return self._result_mapper.map(actions, result), result.variables
         except TavernResultInvalidError:
+            logger.warning(
+                "Tavern emitted an invalid result report for HTTP actions %s.",
+                [action.identifier for action in actions],
+            )
             return (
                 tuple(
                     self._error(
@@ -161,19 +169,67 @@ class TavernRunnerAdapter:
                 ),
                 {},
             )
-        except (OSError, TypeError, ValueError):
+        except (OSError, TypeError, ValueError) as exc:
+            error = self._runner_error_message(exc)
+            logger.warning(
+                "Tavern runner failed while preparing HTTP actions %s: %s",
+                [action.identifier for action in actions],
+                error,
+            )
             return (
                 tuple(
                     self._error(
                         action,
                         started_at,
                         "TAVERN_RUNNER_ERROR",
-                        "Tavern runner execution failed",
+                        error,
                     )
                     for action in actions
                 ),
                 {},
             )
+
+    @staticmethod
+    def _runner_error_message(error: OSError | TypeError | ValueError) -> str:
+        """Build a diagnostic for failures that happen before an HTTP response.
+
+        Tavern compilation can render service variables, including secrets. We
+        therefore disclose only error text produced by this adapter's fixed
+        validation rules; arbitrary exception text is reduced to its type.
+        """
+        prefix = "Tavern failed before receiving an HTTP response"
+        if isinstance(error, FileNotFoundError):
+            return f"{prefix}: tavern-ci executable was not found"
+        if isinstance(error, PermissionError):
+            return f"{prefix}: tavern-ci could not be executed"
+
+        message = str(error)
+        safe_prefixes = (
+            "HTTP action configuration must be an object",
+            "HTTP action '",
+            "Tavern document uses ",
+            "expectedJsonSchema must be an object",
+        )
+        if isinstance(error, ValueError) and message.startswith(safe_prefixes):
+            return f"{prefix}: {message}"
+        return f"{prefix}: {type(error).__name__} while compiling or starting Tavern"
+
+    @staticmethod
+    def _log_terminal_issue(test_case_id: str, outcome: RunnerActionOutcome) -> None:
+        """Expose a normalized action failure in the application log.
+
+        ``error_message`` is the same sanitized and bounded diagnostic that is
+        persisted in the result API; logging it makes asynchronous executions
+        observable without adding a separate runner console.
+        """
+        logger.warning(
+            "Execution of test case '%s' stopped at action '%s' with status %s (code: %s): %s",
+            test_case_id,
+            outcome.action_id,
+            outcome.status.value,
+            outcome.error_code or "UNKNOWN",
+            outcome.error_message or "No diagnostic was reported",
+        )
 
     @staticmethod
     def _error(action, started_at, code, error):

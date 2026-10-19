@@ -4,6 +4,7 @@ import asyncio
 import json
 import os
 import signal
+import sys
 import tempfile
 from collections.abc import Mapping
 from datetime import datetime
@@ -88,7 +89,7 @@ class TavernExecutor:
 
             # Execute the Tavern test document in a subprocess using tavern-ci
             process = await asyncio.create_subprocess_exec(
-                "tavern-ci",
+                _tavern_command(),
                 str(test_file),
                 cwd=root,
                 env=_subprocess_environment(),
@@ -144,6 +145,21 @@ class TavernExecutor:
             if not cancellation_wait.done():
                 cancellation_wait.cancel()
             await asyncio.gather(cancellation_wait, return_exceptions=True)
+
+
+def _tavern_command() -> str:
+    """Resolve Tavern from the active virtual environment before consulting ``PATH``.
+
+    Application launchers such as VS Code invoke the virtual-environment
+    interpreter directly but do not necessarily prepend its ``bin`` directory
+    to ``PATH``. Tavern is installed beside that interpreter, so prefer that
+    executable and retain the bare command for system installations.
+    """
+    executable_name = "tavern-ci.exe" if os.name == "nt" else "tavern-ci"
+    candidate = Path(sys.executable).with_name(executable_name)
+    if candidate.is_file() and os.access(candidate, os.X_OK):
+        return str(candidate)
+    return executable_name
 
 
 def _subprocess_environment() -> dict[str, str]:
@@ -345,8 +361,10 @@ def response_body_evidence(body):
     return {{"truncated": True, "content": serialized[:MAX_RESPONSE_BODY_CHARS]}}
 
 def redact_error_message(message):
-    """Redact common credential assignments and bound persisted error evidence."""
-    text = str(message)
+    """Redact credentials and implementation details from persisted error evidence."""
+    text = str(message) or type(message).__name__
+    text = text.split("Traceback (most recent call last):", maxsplit=1)[0].rstrip()
+    text = re.sub(r' at 0x[0-9a-fA-F]+', '', text)
     for field in SENSITIVE_FIELDS:
         pattern = re.compile(
             r'((?:"|\\')?' + re.escape(field) + r'(?:(?:"|\\'))?\\s*[:=]\\s*)'
@@ -355,6 +373,72 @@ def redact_error_message(message):
         )
         text = pattern.sub(r'\\1"[REDACTED]"', text)
     return text[:MAX_ERROR_MESSAGE_CHARS]
+
+def _safe_exception_context(error, excinfo):
+    """Inspect exception metadata without retaining it in the execution report."""
+    details = []
+    current = error
+    visited = set()
+    while current is not None and id(current) not in visited:
+        visited.add(id(current))
+        details.append(type(current).__name__)
+        details.append(str(current))
+        current = current.__cause__ or current.__context__
+    try:
+        details.append(str(excinfo.getrepr(style="short")))
+    except (AttributeError, TypeError, ValueError):
+        pass
+    return "\\n".join(details).lower()
+
+def transport_error(error, excinfo):
+    """Return a safe, actionable category for a failed HTTP transport operation.
+
+    Tavern can wrap ``requests``/``urllib3`` exceptions in a
+    ``RestRequestException`` with no useful string representation. The traceback
+    is examined only to classify the failure; it is never written to the report.
+    """
+    context = _safe_exception_context(error, excinfo)
+    if any(marker in context for marker in (
+        "certificate verify failed", "certificate_verify_failed", "certificateverifyerror",
+    )):
+        return (
+            "TAVERN_TLS_CERTIFICATE_ERROR",
+            "TLS certificate verification failed before an HTTP response was received.",
+        )
+    if any(marker in context for marker in (
+        "ssl connection timeout", "tls handshake", "handshake operation timed out",
+    )):
+        return (
+            "TAVERN_TLS_HANDSHAKE_TIMEOUT",
+            "HTTP request timed out while establishing the TLS connection; "
+            "no response was received.",
+        )
+    if any(marker in context for marker in (
+        "connecttimeout", "connection timed out", "newconnectionerror",
+        "failed to establish a new connection",
+    )):
+        return (
+            "TAVERN_CONNECT_TIMEOUT",
+            "HTTP request timed out while connecting to the target; no response was received.",
+        )
+    if "readtimeout" in context or "read timed out" in context:
+        return (
+            "TAVERN_READ_TIMEOUT",
+            "HTTP connection was established but no response was received before the timeout.",
+        )
+    if "timeout" in context or "timed out" in context:
+        return (
+            "TAVERN_HTTP_TIMEOUT",
+            "HTTP request timed out before a response was received.",
+        )
+    if any(marker in context for marker in (
+        "connectionerror", "connection refused", "connection reset", "connection aborted",
+    )):
+        return (
+            "TAVERN_CONNECTION_ERROR",
+            "HTTP connection failed before a response was received.",
+        )
+    return "TAVERN_EXECUTION_ERROR", redact_error_message(error)
 
 def complete(status, code=None, message=None):
     """Persist the pending stage with its terminal structured status."""
@@ -419,9 +503,13 @@ def pytest_runtest_makereport(item, call):
         pending = {{"identifier": identifier, "startedAt": now()}}
     if pending is not None:
         assertion_failed = isinstance(error, TestFailError)
-        code = "TAVERN_ASSERTION_FAILED" if assertion_failed else "TAVERN_EXECUTION_ERROR"
+        code, message = (
+            ("TAVERN_ASSERTION_FAILED", redact_error_message(error))
+            if assertion_failed
+            else transport_error(error, call.excinfo)
+        )
         status = "FAILED" if assertion_failed else "ERROR"
-        complete(status, code, redact_error_message(error))
+        complete(status, code, message)
 
 def pytest_sessionfinish(session, exitstatus):
     """Write the final structured result for the parent Tavern executor."""

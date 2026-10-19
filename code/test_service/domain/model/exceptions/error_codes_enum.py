@@ -24,6 +24,11 @@ class DomainError(Enum):
     TEST_PLAN_ALREADY_EXISTS = ("TEST_PLAN_ALREADY_EXISTS", "Test plan already exists")
     PRECONDITION_ALREADY_EXISTS = ("PRECONDITION_ALREADY_EXISTS", "Precondition already exists")
     ENVIRONMENT_ALREADY_EXISTS = ("ENVIRONMENT_ALREADY_EXISTS", "Environment already exists")
+    ENVIRONMENT_ALREADY_ACTIVE = ("ENVIRONMENT_ALREADY_ACTIVE", "Environment is already active")
+    ENVIRONMENT_ALREADY_INACTIVE = (
+        "ENVIRONMENT_ALREADY_INACTIVE",
+        "Environment is already inactive",
+    )
     INVALID_PROJECT_DELETION = ("INVALID_PROJECT_DELETION", "Invalid project deletion metadata")
     INVALID_PROJECT_KEY = ("INVALID_PROJECT_KEY", "Invalid project key")
     PRECONDITION_PROJECT_MISMATCH = (
