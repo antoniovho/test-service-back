@@ -128,9 +128,7 @@ class TestViewerRest:
         controller = _controller()
         controller._publish.execute = AsyncMock(return_value=_operation())
 
-        response = await controller.publish_viewer_projection(
-            "IAG", ApiViewerType.XRAY
-        )
+        response = await controller.publish_viewer_projection("IAG", ApiViewerType.XRAY)
 
         assert response.project.key == "IAG"
         assert response.project.name == "AI Gateway"
