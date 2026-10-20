@@ -3,6 +3,7 @@
 import asyncio
 import base64
 import json
+import re
 from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 
@@ -34,6 +35,10 @@ from test_service.infrastructure.adapters.output.viewer.xray_exceptions import (
 )
 
 _TRANSIENT_STATUS_CODES = frozenset({429, 502, 503, 504})
+_SENSITIVE_GRAPHQL_VALUE = re.compile(
+    r"(?i)(authorization|bearer|token|secret|api[_-]?key|password)"
+    r"(\s*[:=]\s*)(?:bearer\s+)?[^\s,;\"'}]+"
+)
 
 
 class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort):
@@ -332,7 +337,10 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort):
     @staticmethod
     def _graphql_data(response: httpx.Response, operation: str) -> Mapping[str, object]:
         if response.status_code in {400, 422}:
-            raise XrayValidationError(f"Xray rejected {operation} (HTTP {response.status_code})")
+            detail = XrayViewerAdapter._graphql_error_detail(response)
+            raise XrayValidationError(
+                f"Xray rejected {operation} (HTTP {response.status_code}){detail}"
+            )
         if response.status_code == 403:
             raise XrayAuthorizationError(f"Xray denied {operation} (HTTP 403)")
         try:
@@ -345,11 +353,44 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort):
         if not isinstance(payload, Mapping):
             raise XrayProtocolError("Xray GraphQL response must be an object")
         if payload.get("errors"):
-            raise XrayValidationError(f"Xray {operation} returned GraphQL errors")
+            detail = XrayViewerAdapter._graphql_errors_detail(payload.get("errors"))
+            raise XrayValidationError(f"Xray {operation} returned GraphQL errors{detail}")
         data = payload.get("data")
         if not isinstance(data, Mapping):
             raise XrayProtocolError("Xray GraphQL response does not contain data")
         return data
+
+    @staticmethod
+    def _graphql_error_detail(response: httpx.Response) -> str:
+        """Extract provider diagnostics without retaining response payloads or secrets."""
+        try:
+            payload = response.json()
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return ""
+        if not isinstance(payload, Mapping):
+            return ""
+        return XrayViewerAdapter._graphql_errors_detail(payload.get("errors"))
+
+    @staticmethod
+    def _graphql_errors_detail(errors: object) -> str:
+        """Return the safe, human-readable messages exposed by GraphQL errors."""
+        if not isinstance(errors, list):
+            return ""
+        messages = [
+            XrayViewerAdapter._redact_graphql_message(error.get("message"))
+            for error in errors
+            if isinstance(error, Mapping) and isinstance(error.get("message"), str)
+        ]
+        safe_messages = [message for message in messages if message]
+        if not safe_messages:
+            return ""
+        return f": {'; '.join(safe_messages[:3])}"[:500]
+
+    @staticmethod
+    def _redact_graphql_message(message: object) -> str:
+        if not isinstance(message, str):
+            return ""
+        return _SENSITIVE_GRAPHQL_VALUE.sub(r"\1\2[REDACTED]", message)[:300]
 
     async def _graphql_once(self, query: str, variables: Mapping[str, object]) -> httpx.Response:
         if self._client is not None:

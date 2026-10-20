@@ -41,8 +41,12 @@ class JiraProjectValidationAdapter(ProjectValidationPort):
             raise ExternalProjectProviderException(provider_name="JIRA") from exc
         if response.status_code == httpx.codes.FORBIDDEN:
             raise ExternalProjectForbiddenException(provider_name="JIRA")
-        if response.status_code == httpx.codes.NOT_FOUND:
+        if response.status_code == httpx.codes.NOT_FOUND and not self._is_temporary_unavailable(
+            response
+        ):
             raise ExternalProjectNotFoundException(project_key, provider_name="JIRA")
+        if response.status_code == httpx.codes.NOT_FOUND:
+            raise ExternalProjectProviderException(provider_name="JIRA")
         if response.is_error:
             raise ExternalProjectProviderException(provider_name="JIRA")
 
@@ -53,3 +57,15 @@ class JiraProjectValidationAdapter(ProjectValidationPort):
         credentials = f"{self._settings.user_email}:{self._settings.api_token.get_secret_value()}"
         token = base64.b64encode(credentials.encode()).decode()
         return {"Authorization": f"Basic {token}", "Accept": "application/json"}
+
+    @staticmethod
+    def _is_temporary_unavailable(response: httpx.Response) -> bool:
+        """Distinguish Jira Cloud's temporary 404 response from a missing project."""
+        try:
+            payload = response.json()
+        except (ValueError, UnicodeDecodeError):
+            return False
+        if not isinstance(payload, dict):
+            return False
+        message = payload.get("errorMessage")
+        return isinstance(message, str) and "temporarily unavailable" in message.casefold()

@@ -102,7 +102,7 @@ class ViewerProjectionService:
             if operation.operation_type is ViewerOperationType.PUBLICATION:
                 return await self._publish(operation)
             return await self._check_drift(operation)
-        except Exception:
+        except Exception as error:
             logger.exception(
                 "Viewer operation failed", extra={"operation_id": str(operation.identifier)}
             )
@@ -111,7 +111,7 @@ class ViewerProjectionService:
                     operation,
                     status=ViewerOperationStatus.FAILED,
                     finished_at=datetime.now(UTC),
-                    error="Viewer operation could not be completed.",
+                    error=self._sync_error(error),
                 )
             )
 
