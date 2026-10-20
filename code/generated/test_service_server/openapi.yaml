@@ -7,7 +7,7 @@ info:
     \ executing validated plans, and publishing read-only projections to an external\
     \ testing viewer."
   title: Test Service
-  version: 0.4.4
+  version: 0.4.5
 servers:
 - description: Local development server
   url: http://localhost:8080
@@ -10860,7 +10860,7 @@ components:
     ViewerSyncRecord:
       additionalProperties: false
       description: |
-        Read-only synchronization state between a logical domain entity and its stable representation in the external viewer. For versioned entities, projectedVersionId identifies the immutable domain version currently projected to the viewer.
+        Read-only synchronization state between a logical domain entity and its stable representation in the external viewer. For versioned entities, entityVersion and projectedVersionId identify the immutable domain version currently projected to the viewer.
       properties:
         id:
           description: Universally unique identifier.
@@ -10888,6 +10888,13 @@ components:
           minLength: 1
           title: entityKey
           type: string
+        entityVersion:
+          description: Immutable business version of the entity represented in the
+            external viewer.
+          example: 2
+          minimum: 1
+          title: entityVersion
+          type: integer
         projectedVersionId:
           allOf:
           - $ref: "#/components/schemas/UUID"
@@ -10901,7 +10908,7 @@ components:
           title: viewerType
         externalEntityKey:
           description: |
-            Stable identifier of the projected entity in the external viewer. Publishing a new domain version updates the same external entity instead of creating a new one.
+            Stable identifier of the immutable projected entity in the external viewer. Each entity version is synchronized independently.
           example: TEST-123
           maxLength: 255
           minLength: 1
@@ -10946,6 +10953,7 @@ components:
       - createdAt
       - entityKey
       - entityType
+      - entityVersion
       - externalEntityKey
       - id
       - project
