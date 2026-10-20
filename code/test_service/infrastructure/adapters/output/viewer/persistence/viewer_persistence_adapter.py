@@ -79,10 +79,11 @@ class ViewerPersistenceAdapter(ViewerPersistencePort):
         project_key: str,
         entity_type: ViewerEntityType,
         entity_key: str,
+        entity_version: int,
         viewer_type: ViewerType,
     ) -> ViewerSyncRecord | None:
         record = await self._repository.find_sync_record(
-            project_key, entity_type, entity_key, viewer_type
+            project_key, entity_type, entity_key, entity_version, viewer_type
         )
         return ViewerPersistenceMapper.sync_record_to_domain(record) if record is not None else None
 

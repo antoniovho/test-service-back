@@ -142,18 +142,26 @@ class ViewerProjectionService:
         for entity_type, snapshot in snapshots:
             operation = await self._heartbeat(operation)
             entity_key = snapshot.logical_key
+            entity_version = snapshot.version
             existing = await self._viewer_repository.find_sync_record(
-                operation.project_key, entity_type, entity_key, operation.viewer_type
+                operation.project_key,
+                entity_type,
+                entity_key,
+                entity_version,
+                operation.viewer_type,
             )
             record = ViewerSyncRecord(
                 identifier=existing.identifier if existing is not None else uuid4(),
                 project_key=operation.project_key,
                 entity_type=entity_type,
                 entity_key=entity_key,
+                entity_version=entity_version,
                 projected_version_id=snapshot.identifier,
                 viewer_type=operation.viewer_type,
                 external_entity_key=(
-                    existing.external_entity_key if existing is not None else entity_key
+                    existing.external_entity_key
+                    if existing is not None
+                    else self._external_entity_key(entity_key, entity_version)
                 ),
                 sync_status=SyncStatus.PENDING,
                 created_at=existing.created_at if existing is not None else datetime.now(UTC),
@@ -205,6 +213,11 @@ class ViewerProjectionService:
                 error="Some Viewer projections could not be published." if failed else None,
             )
         )
+
+    @staticmethod
+    def _external_entity_key(entity_key: str, entity_version: int) -> str:
+        """Return the deterministic external identity for an immutable snapshot."""
+        return f"{entity_key}-v{entity_version}"
 
     async def _check_drift(self, operation: ViewerOperation) -> ViewerOperation:
         """Check the selected external Viewer for drift in its project projections."""

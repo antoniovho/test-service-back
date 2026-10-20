@@ -121,6 +121,7 @@ class ViewerMapper:
             project=ProjectReference(key=record.project_key, name=project_name),
             entityType=record.entity_type.value,
             entityKey=record.entity_key,
+            entityVersion=record.entity_version,
             projectedVersionId=record.projected_version_id,
             viewerType=ApiViewerType(record.viewer_type.value),
             externalEntityKey=record.external_entity_key,
