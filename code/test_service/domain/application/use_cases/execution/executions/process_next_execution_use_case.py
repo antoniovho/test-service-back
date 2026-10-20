@@ -330,9 +330,9 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
         )
 
         result_id = uuid4()
-        actions = self._result_mapper.to_action_results(
-            result_id, (*precondition_evidence, *outcome.actions)
-        )
+        evidence = (*precondition_evidence, *outcome.actions)
+        actions = self._result_mapper.to_action_results(result_id, evidence)
+        artifacts = self._result_mapper.to_trace_artifacts(result_id, evidence, actions)
 
         await self._results.save_results(
             TestResult(
@@ -347,7 +347,8 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
                 error_code=outcome.error_code,
                 error_message=outcome.error_message,
             ),
-            actions,  # artifacts ?
+            actions,
+            artifacts,
         )
 
         return outcome.status
@@ -505,6 +506,8 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
         """
         finished_at = datetime.now(UTC)
         result_id = uuid4()
+        actions = self._result_mapper.to_action_results(result_id, evidence)
+        artifacts = self._result_mapper.to_trace_artifacts(result_id, evidence, actions)
 
         await self._results.save_results(
             TestResult(
@@ -519,7 +522,8 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
                 error_code,
                 error_message,
             ),
-            self._result_mapper.to_action_results(result_id, evidence),
+            actions,
+            artifacts,
         )
 
         return status

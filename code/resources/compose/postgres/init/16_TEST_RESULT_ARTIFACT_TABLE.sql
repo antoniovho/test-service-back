@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS test_service_v1.test_result_artifact (
     content_hash     TEXT            NULL,
     size_bytes       INTEGER         NULL,
     mime_type        TEXT            NULL,
+    content          TEXT            NULL,
     created_at       timestamptz(6)  DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT test_result_artifact_pkey PRIMARY KEY (id)
 );
@@ -23,6 +24,7 @@ COMMENT ON COLUMN test_service_v1.test_result_artifact.storage_uri      IS 'URI 
 COMMENT ON COLUMN test_service_v1.test_result_artifact.content_hash     IS 'Hash of the artifact content; nullable';
 COMMENT ON COLUMN test_service_v1.test_result_artifact.size_bytes       IS 'Artifact size in bytes; nullable';
 COMMENT ON COLUMN test_service_v1.test_result_artifact.mime_type        IS 'Artifact media type; nullable';
+COMMENT ON COLUMN test_service_v1.test_result_artifact.content          IS 'Payload for DB-backed artifacts; nullable for object storage';
 COMMENT ON COLUMN test_service_v1.test_result_artifact.created_at       IS 'Timestamp when the artifact record was created';
 
 CREATE INDEX IF NOT EXISTS idx_test_result_artifact_test_result_id   ON test_service_v1.test_result_artifact (test_result_id);

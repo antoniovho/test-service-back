@@ -43,6 +43,7 @@ class TavernResultMapper:
                         stage.actual,
                         error_code=error_code,
                         error_message=stage.error_message,
+                        diagnostic_trace=stage.diagnostic_trace,
                     )
                 )
                 failed = failed or status is not ResultStatus.PASSED

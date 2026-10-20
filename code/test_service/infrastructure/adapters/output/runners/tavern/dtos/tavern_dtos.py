@@ -17,6 +17,7 @@ class TavernStageResult:
     actual: Mapping[str, object] | None = None
     error_code: str | None = None
     error_message: str | None = None
+    diagnostic_trace: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

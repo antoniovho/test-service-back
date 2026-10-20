@@ -42,6 +42,7 @@ def _redact_action(action: RunnerActionOutcome, secrets: list[str]) -> RunnerAct
         actual=_redact(action.actual, secrets),
         output=_redact(action.output, secrets),
         error_message=_redact(action.error_message, secrets),
+        diagnostic_trace=_redact(action.diagnostic_trace, secrets),
     )
 
 

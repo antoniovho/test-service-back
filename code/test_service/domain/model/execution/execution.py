@@ -345,6 +345,7 @@ class TestResultArtifact:
     content_hash: str | None = None
     size_bytes: int | None = None
     mime_type: str | None = None
+    content: str | None = None
 
     def __post_init__(self) -> None:
         """Validate artifact storage metadata.
@@ -356,6 +357,8 @@ class TestResultArtifact:
             raise InvalidArtifactStorageException("artifact size must not be negative")
         if self.storage_type is StorageType.DB and self.storage_uri is not None:
             raise InvalidArtifactStorageException("database artifacts cannot define a storage URI")
+        if self.storage_type is StorageType.OBJECT_STORAGE and self.content is not None:
+            raise InvalidArtifactStorageException("object storage artifacts cannot define content")
         if self.storage_type is StorageType.OBJECT_STORAGE and self.storage_uri is None:
             raise InvalidArtifactStorageException("object storage artifacts require a storage URI")
 
