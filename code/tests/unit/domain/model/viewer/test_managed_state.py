@@ -25,6 +25,7 @@ def _projection(
             project_key="SHOP",
             entity_type=entity_type,
             entity_key="checkout",
+            entity_version=1,
             projected_version_id=uuid4(),
             viewer_type=ViewerType.XRAY,
             external_entity_key="checkout",

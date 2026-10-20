@@ -88,6 +88,7 @@ class TestViewerRest:
             project_key="IAG",
             entity_type=ViewerEntityType.TEST_CASE,
             entity_key="LOGIN",
+            entity_version=1,
             projected_version_id=uuid4(),
             viewer_type=ViewerType.XRAY,
             external_entity_key="LOGIN",
@@ -140,6 +141,7 @@ class TestViewerRest:
             project_key="IAG",
             entity_type=ViewerEntityType.TEST_CASE,
             entity_key="LOGIN",
+            entity_version=1,
             projected_version_id=uuid4(),
             viewer_type=ViewerType.XRAY,
             external_entity_key="LOGIN",
@@ -151,6 +153,7 @@ class TestViewerRest:
 
         assert api_record.project.key == "IAG"
         assert api_record.project.name == "AI Gateway"
+        assert api_record.entity_version == 1
 
     def test_when_mapping_viewer_operation_request_expect_viewer_type_in_commands(self) -> None:
         request = ViewerOperationRequest(viewerType="XRAY")

@@ -24,6 +24,7 @@ def _sync_record() -> ViewerSyncRecord:
         project_key="IAG",
         entity_type=ViewerEntityType.TEST_CASE,
         entity_key="LOGIN",
+        entity_version=1,
         projected_version_id=uuid4(),
         viewer_type=ViewerType.XRAY,
         external_entity_key="LOGIN",

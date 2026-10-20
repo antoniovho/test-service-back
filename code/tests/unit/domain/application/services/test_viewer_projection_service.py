@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 from uuid import uuid4
@@ -55,6 +56,7 @@ def _record(sync_status: SyncStatus = SyncStatus.SYNCED) -> ViewerSyncRecord:
         project_key="SHOP",
         entity_type=ViewerEntityType.TEST_CASE,
         entity_key="CHECKOUT",
+        entity_version=1,
         projected_version_id=uuid4(),
         viewer_type=ViewerType.XRAY,
         external_entity_key="SHOP-101",
@@ -120,6 +122,7 @@ class TestViewerProjectionService:
             ),
             status=VersionStatus.ACTIVE,
         )
+        test_case_v2 = replace(test_case, identifier=uuid4(), version=2)
         operation = ViewerOperation(
             identifier=uuid4(),
             project_key="SHOP",
@@ -137,11 +140,12 @@ class TestViewerProjectionService:
         publisher.publish.side_effect = [
             ViewerExternalIdentity("10001", "SHOP-11"),
             ViewerExternalIdentity("10002", "SHOP-12"),
+            ViewerExternalIdentity("10003", "SHOP-13"),
         ]
         precondition_repository = AsyncMock()
         precondition_repository.find_page.return_value = Page((precondition,), 1)
         test_case_repository = AsyncMock()
-        test_case_repository.find_page.return_value = Page((test_case,), 1)
+        test_case_repository.find_page.return_value = Page((test_case, test_case_v2), 2)
         test_set_repository = AsyncMock()
         test_set_repository.find_page.return_value = Page((), 0)
         test_plan_repository = AsyncMock()
@@ -165,16 +169,33 @@ class TestViewerProjectionService:
             for call in repository.save_sync_record.await_args_list
             if call.args[0].sync_status is SyncStatus.SYNCED
         ]
+        pending_records = [
+            call.args[0]
+            for call in repository.save_sync_record.await_args_list
+            if call.args[0].sync_status is SyncStatus.PENDING
+        ]
         assert result is not None
         assert result.status is ViewerOperationStatus.SUCCEEDED
         assert [projection.record.entity_type for projection in published] == [
             ViewerEntityType.PRECONDITION,
             ViewerEntityType.TEST_CASE,
+            ViewerEntityType.TEST_CASE,
         ]
         assert published[1].precondition_external_ids == ("10001",)
         assert published[1].steps[0].action == "submit: HTTP"
         assert published[1].steps[0].result == "The order is accepted."
-        assert [record.external_entity_id for record in saved_records] == ["10001", "10002"]
+        assert [record.external_entity_id for record in saved_records] == [
+            "10001",
+            "10002",
+            "10003",
+        ]
+        assert [record.entity_version for record in saved_records] == [1, 1, 2]
+        assert [record.external_entity_key for record in pending_records] == [
+            "authenticated-customer-v1",
+            "checkout-v1",
+            "checkout-v2",
+        ]
+        assert [call.args[3] for call in repository.find_sync_record.await_args_list] == [1, 1, 2]
         assert [record.projection_hash for record in saved_records] == [
             ViewerManagedState.from_projection(projection).projection_hash
             for projection in published
