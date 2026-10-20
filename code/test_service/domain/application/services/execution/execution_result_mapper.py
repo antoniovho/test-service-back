@@ -1,9 +1,16 @@
 """Map runner outcomes to execution result evidence."""
 
+import hashlib
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from test_service.domain.model.authoring.precondition import Precondition
-from test_service.domain.model.execution.execution import ActionResult
+from test_service.domain.model.execution.execution import (
+    ActionResult,
+    ArtifactType,
+    StorageType,
+    TestResultArtifact,
+)
 from test_service.domain.ports.output.runners.runner_dtos import (
     RunnerActionOutcome,
     RunnerTestCaseOutcome,
@@ -46,6 +53,7 @@ class ExecutionResultMapper:
                 output=action.output,
                 error_code=action.error_code,
                 error_message=action.error_message,
+                diagnostic_trace=action.diagnostic_trace,
             )
             for action in outcome.actions
         )
@@ -75,3 +83,34 @@ class ExecutionResultMapper:
             )
             for item in outcomes
         )
+
+    @staticmethod
+    def to_trace_artifacts(
+        test_result_id: UUID,
+        outcomes: tuple[RunnerActionOutcome, ...],
+        actions: tuple[ActionResult, ...],
+    ) -> tuple[TestResultArtifact, ...]:
+        """Create database-backed, sanitized trace artifacts for failed actions."""
+        action_ids = {action.action_id: action.identifier for action in actions}
+        artifacts: list[TestResultArtifact] = []
+        for outcome in outcomes:
+            trace = outcome.diagnostic_trace
+            action_result_id = action_ids.get(outcome.action_id)
+            if not trace or action_result_id is None:
+                continue
+            content = trace.encode("utf-8")
+            artifacts.append(
+                TestResultArtifact(
+                    identifier=uuid4(),
+                    test_result_id=test_result_id,
+                    action_result_id=action_result_id,
+                    artifact_type=ArtifactType.LOG,
+                    storage_type=StorageType.DB,
+                    content_hash=f"sha256:{hashlib.sha256(content).hexdigest()}",
+                    size_bytes=len(content),
+                    mime_type="text/plain; charset=utf-8",
+                    content=trace,
+                    created_at=datetime.now(UTC),
+                )
+            )
+        return tuple(artifacts)

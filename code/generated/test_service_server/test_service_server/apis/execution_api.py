@@ -34,10 +34,12 @@ from test_service_server.models.create_execution_request import CreateExecutionR
 from test_service_server.models.environment import Environment
 from test_service_server.models.environment_list_response import EnvironmentListResponse
 from test_service_server.models.environment_sort_by import EnvironmentSortBy
+from test_service_server.models.environment_status import EnvironmentStatus
 from test_service_server.models.error_details import ErrorDetails
 from test_service_server.models.execution import Execution
 from test_service_server.models.execution_list_response import ExecutionListResponse
 from test_service_server.models.execution_outcome_sort_by import ExecutionOutcomeSortBy
+from test_service_server.models.execution_status import ExecutionStatus
 from test_service_server.models.sort_order import SortOrder
 from test_service_server.models.test_result import TestResult
 from test_service_server.models.test_result_artifact_list_response import TestResultArtifactListResponse
@@ -74,6 +76,8 @@ async def list_environments(
 ,
     limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
 ,
+    status: Annotated[Optional[EnvironmentStatus], Field(description="Filter environments by lifecycle status. When omitted, environments in all states are returned.")] = Query(None, description="Filter environments by lifecycle status. When omitted, environments in all states are returned.", alias="status")
+,
     sort_by: Annotated[Optional[EnvironmentSortBy], Field(description="Field used to sort the result set.")] = Query('name', description="Field used to sort the result set.", alias="sortBy")
 ,
     order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
@@ -85,7 +89,7 @@ async def list_environments(
     """Returns a paginated list of configured execution environments without secret values."""
     if not BaseExecutionApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseExecutionApi.subclasses[0]().list_environments(offset, limit, sort_by, order)
+    return await BaseExecutionApi.subclasses[0]().list_environments(offset, limit, status, sort_by, order)
 
 
 @router.post(
@@ -236,6 +240,8 @@ async def list_executions(
 ,
     limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
 ,
+    status: Annotated[Optional[ExecutionStatus], Field(description="Filter executions by current status. When omitted, executions in all states are returned.")] = Query(None, description="Filter executions by current status. When omitted, executions in all states are returned.", alias="status")
+,
     sort_by: Annotated[Optional[ExecutionOutcomeSortBy], Field(description="Field used to sort the result set. Shared by executions, test results, and action results, which expose the same sortable fields.")] = Query('createdAt', description="Field used to sort the result set. Shared by executions, test results, and action results, which expose the same sortable fields.", alias="sortBy")
 ,
     order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
@@ -247,7 +253,7 @@ async def list_executions(
     """Returns a paginated list of historical and active plan executions."""
     if not BaseExecutionApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseExecutionApi.subclasses[0]().list_executions(projectKey, offset, limit, sort_by, order)
+    return await BaseExecutionApi.subclasses[0]().list_executions(projectKey, offset, limit, status, sort_by, order)
 
 
 @router.post(

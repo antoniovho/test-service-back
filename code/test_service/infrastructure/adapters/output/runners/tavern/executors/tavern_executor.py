@@ -236,6 +236,7 @@ def _read_result(result_file: Path, exit_code: int) -> TavernExecutionResult:
                     actual=item.get("actual"),
                     error_code=item.get("errorCode"),
                     error_message=item.get("errorMessage"),
+                    diagnostic_trace=item.get("diagnosticTrace"),
                 )
             )
         stages = tuple(stages_list)
@@ -289,11 +290,15 @@ SENSITIVE_FIELDS = frozenset({{
     "access_token", "api_key", "authorization", "key", "password",
     "forbiddentext", "refresh_token", "secret", "token",
 }})
+NORMALIZED_SENSITIVE_HEADERS = frozenset(
+    re.sub(r"[^a-z0-9]", "", header.lower()) for header in SENSITIVE_HEADERS
+)
 NORMALIZED_SENSITIVE_FIELDS = frozenset(
     re.sub(r"[^a-z0-9]", "", field.lower()) for field in SENSITIVE_FIELDS
 )
 MAX_RESPONSE_BODY_CHARS = 4096
 MAX_ERROR_MESSAGE_CHARS = 1024
+MAX_TRACE_CHARS = 32768
 
 def now():
     """Return the current UTC instant in JSON-compatible form."""
@@ -307,9 +312,17 @@ def safe(value):
     except (TypeError, ValueError):
         return repr(value)
 
+def is_sensitive_header(key):
+    """Match sensitive HTTP header names, including upstream-prefixed variants."""
+    normalized = re.sub(r"[^a-z0-9]", "", str(key).lower())
+    return any(
+        normalized == header or normalized.endswith(header)
+        for header in NORMALIZED_SENSITIVE_HEADERS
+    )
+
 def redact_headers(headers):
     """Remove credentials from HTTP headers before recording execution evidence."""
-    return {{key: "[REDACTED]" if key.lower() in SENSITIVE_HEADERS else value
+    return {{key: "[REDACTED]" if is_sensitive_header(key) else value
             for key, value in headers.items()}}
 
 def is_sensitive_field(key):
@@ -373,6 +386,28 @@ def redact_error_message(message):
         )
         text = pattern.sub(r'\\1"[REDACTED]"', text)
     return text[:MAX_ERROR_MESSAGE_CHARS]
+
+def redact_trace(error, excinfo):
+    """Persist bounded diagnostic context after removing credential material."""
+    try:
+        text = str(excinfo.getrepr(style="long"))
+    except (AttributeError, TypeError, ValueError):
+        text = f"{{type(error).__name__}}: {{error}}"
+    text = re.sub(r' at 0x[0-9a-fA-F]+', '', text)
+    text = re.sub(
+        r'(?i)(authorization\\s*[:=]\\s*(?:bearer|basic)\\s+)[^\\s,\\\"]+',
+        r'\\1[REDACTED]',
+        text,
+    )
+    text = re.sub(r'(?i)(key hash \\(token\\)\\s*=\\s*)[a-f0-9]+', r'\\1[REDACTED]', text)
+    for field in SENSITIVE_FIELDS:
+        pattern = re.compile(
+            r'((?:"|\\\')?' + re.escape(field) + r'(?:(?:"|\\\'))?\\s*[:=]\\s*)'
+            r'(?:(?:"(?:\\\\.|[^"\\\\])*"|\\\'(?:\\\\.|[^\\\'\\\\])*\\\')|[^,\\s]+)',
+            re.IGNORECASE,
+        )
+        text = pattern.sub(r'\\1"[REDACTED]"', text)
+    return text[:MAX_TRACE_CHARS]
 
 def _safe_exception_context(error, excinfo):
     """Inspect exception metadata without retaining it in the execution report."""
@@ -440,7 +475,7 @@ def transport_error(error, excinfo):
         )
     return "TAVERN_EXECUTION_ERROR", redact_error_message(error)
 
-def complete(status, code=None, message=None):
+def complete(status, code=None, message=None, trace=None):
     """Persist the pending stage with its terminal structured status."""
     global pending
     if pending is None:
@@ -451,6 +486,8 @@ def complete(status, code=None, message=None):
         pending["errorCode"] = code
     if message:
         pending["errorMessage"] = message
+    if trace:
+        pending["diagnosticTrace"] = trace
     result["stages"].append(pending)
     pending = None
 
@@ -509,7 +546,7 @@ def pytest_runtest_makereport(item, call):
             else transport_error(error, call.excinfo)
         )
         status = "FAILED" if assertion_failed else "ERROR"
-        complete(status, code, message)
+        complete(status, code, message, redact_trace(error, call.excinfo))
 
 def pytest_sessionfinish(session, exitstatus):
     """Write the final structured result for the parent Tavern executor."""

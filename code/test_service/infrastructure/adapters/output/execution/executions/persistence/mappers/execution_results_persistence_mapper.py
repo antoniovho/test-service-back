@@ -65,6 +65,7 @@ class ExecutionResultsPersistenceMapper:
             content_hash=value.content_hash,
             size_bytes=value.size_bytes,
             mime_type=value.mime_type,
+            content=value.content,
             created_at=value.created_at,
         )
 
@@ -114,5 +115,6 @@ class ExecutionResultsPersistenceMapper:
             content_hash=dto.content_hash,
             size_bytes=dto.size_bytes,
             mime_type=dto.mime_type,
+            content=dto.content,
             created_at=dto.created_at,
         )

@@ -43,10 +43,12 @@ test_service_server/models/drift_event_sort_by.py
 test_service_server/models/environment.py
 test_service_server/models/environment_list_response.py
 test_service_server/models/environment_sort_by.py
+test_service_server/models/environment_status.py
 test_service_server/models/error_details.py
 test_service_server/models/execution.py
 test_service_server/models/execution_list_response.py
 test_service_server/models/execution_outcome_sort_by.py
+test_service_server/models/execution_status.py
 test_service_server/models/extra_models.py
 test_service_server/models/pagination.py
 test_service_server/models/precondition.py

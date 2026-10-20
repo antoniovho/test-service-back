@@ -6,7 +6,11 @@ from uuid import uuid4
 import pytest
 
 from test_service.domain.application.queries.pagination import Page, PaginationParams, SortOrder
-from test_service.domain.model.execution.environment import Environment, SecretReference
+from test_service.domain.model.execution.environment import (
+    Environment,
+    EnvironmentStatus,
+    SecretReference,
+)
 from test_service.infrastructure.adapters.output.execution.environments.environment_persistence_adapter import (  # noqa: E501
     EnvironmentPersistenceAdapter,
 )
@@ -51,7 +55,8 @@ class _Repository:
     async def find_by_key(self, environment_key: str):
         return self.dto
 
-    async def find_page(self, pagination):
+    async def find_page(self, pagination, status=None):
+        self.requested_status = status
         return Page((self.dto,), 1)
 
 
@@ -89,6 +94,16 @@ class TestEnvironmentPersistence:
         assert by_id == by_key
         assert page.total == 1
 
+    async def test_when_adapter_filters_by_status_expect_domain_value_forwarded(self):
+        dto = _dto()
+        repository = _Repository(dto)
+
+        await EnvironmentPersistenceAdapter(repository).find_page(
+            PaginationParams(), EnvironmentStatus.INACTIVE
+        )
+
+        assert repository.requested_status == "INACTIVE"
+
     async def test_when_repository_is_called_expect_persistence_operations(self):
         dto = _dto()
         total_result = MagicMock()
@@ -115,3 +130,18 @@ class TestEnvironmentPersistence:
 
         with pytest.raises(ValueError, match="unsupported environment sort field"):
             await repository.find_page(pagination)
+
+    async def test_when_repository_filters_by_status_expect_filter_in_count_and_page_queries(self):
+        total_result = MagicMock()
+        total_result.scalar_one.return_value = 0
+        page_result = MagicMock()
+        page_result.scalars.return_value.all.return_value = []
+        session = MagicMock()
+        session.execute = AsyncMock(side_effect=[total_result, page_result])
+        repository = EnvironmentRepository(_SessionProvider(session))
+
+        await repository.find_page(PaginationParams(), "INACTIVE")
+
+        compiled = [call.args[0].compile() for call in session.execute.await_args_list]
+        assert all("environment.status" in str(statement) for statement in compiled)
+        assert all("INACTIVE" in statement.params.values() for statement in compiled)

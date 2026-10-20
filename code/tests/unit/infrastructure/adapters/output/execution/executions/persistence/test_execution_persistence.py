@@ -55,7 +55,7 @@ class _Repository:
     async def mark_stale_running_as_error(self):
         return 0
 
-    async def find_page(self, project_key, pagination):
+    async def find_page(self, project_key, pagination, status=None):
         return Page((self.dto,), 1)
 
 
@@ -174,6 +174,21 @@ class TestExecutionPersistence:
 
         assert page == Page((dto,), 1)
         assert session.execute.await_count == 2
+
+    async def test_when_status_filter_is_requested_expect_it_in_count_and_page_queries(self):
+        total_result = MagicMock()
+        total_result.scalar_one.return_value = 0
+        page_result = MagicMock()
+        page_result.scalars.return_value.all.return_value = []
+        session = MagicMock()
+        session.execute = AsyncMock(side_effect=[total_result, page_result])
+        repository = ExecutionRepository(_SessionProvider(session), ExecutionSettings())
+
+        await repository.find_page("IAG", PaginationParams(), "ERROR")
+
+        compiled = [call.args[0].compile() for call in session.execute.await_args_list]
+        assert all("execution.status" in str(statement) for statement in compiled)
+        assert all("ERROR" in statement.params.values() for statement in compiled)
 
     async def test_when_execution_transition_matches_expected_status_expect_atomic_update(self):
         dto = ExecutionPersistenceMapper.to_dto(

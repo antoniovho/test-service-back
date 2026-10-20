@@ -10,6 +10,7 @@ from test_service.domain.model.exceptions.domain_exception import DomainExceptio
 from test_service.infrastructure.adapters.input.rest.exceptions.exception_mapper import (
     ExceptionMapper,
     build_problem_response,
+    problem_instance,
 )
 
 logger = logging.getLogger(__name__)
@@ -37,7 +38,8 @@ class ExceptionHandler:
         """Translate an expected domain exception into a client-safe problem response."""
         assert isinstance(exc, DomainException)
         logger.info(
-            "[%s][%s] %s | raised at %s",
+            "[%s][%s][%s] %s | raised at %s",
+            problem_instance(request),
             exc.code,
             exc.origin.value,
             exc.error_description,

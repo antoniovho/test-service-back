@@ -223,7 +223,10 @@ class Execution:
             InvalidExecutionTransitionException: If the execution is already terminal.
         """
         if self.status in TERMINAL_EXECUTION_STATUSES:
-            raise InvalidExecutionTransitionException("terminal executions cannot be cancelled")
+            raise InvalidExecutionTransitionException(
+                f"Execution '{self.identifier}' is already in terminal status "
+                f"'{self.status.value}' and cannot be cancelled."
+            )
         duration_ms = _elapsed_ms(self.started_at, finished_at) if finished_at else None
         return replace(
             self,
@@ -345,6 +348,7 @@ class TestResultArtifact:
     content_hash: str | None = None
     size_bytes: int | None = None
     mime_type: str | None = None
+    content: str | None = None
 
     def __post_init__(self) -> None:
         """Validate artifact storage metadata.
@@ -356,6 +360,8 @@ class TestResultArtifact:
             raise InvalidArtifactStorageException("artifact size must not be negative")
         if self.storage_type is StorageType.DB and self.storage_uri is not None:
             raise InvalidArtifactStorageException("database artifacts cannot define a storage URI")
+        if self.storage_type is StorageType.OBJECT_STORAGE and self.content is not None:
+            raise InvalidArtifactStorageException("object storage artifacts cannot define content")
         if self.storage_type is StorageType.OBJECT_STORAGE and self.storage_uri is None:
             raise InvalidArtifactStorageException("object storage artifacts require a storage URI")
 

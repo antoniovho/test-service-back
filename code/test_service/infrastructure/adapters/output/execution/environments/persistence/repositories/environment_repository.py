@@ -45,15 +45,21 @@ class EnvironmentRepository:
             )
             return result.scalar_one_or_none()
 
-    async def find_page(self, pagination: PaginationParams) -> Page[EnvironmentDTO]:
+    async def find_page(
+        self, pagination: PaginationParams, status: str | None = None
+    ) -> Page[EnvironmentDTO]:
         """Return a deterministically ordered page of Environment DTOs."""
         sort_column = self._get_sort_column(pagination.sort_by)
         order_by = desc(sort_column) if pagination.order is SortOrder.DESC else asc(sort_column)
 
+        filters = [EnvironmentDTO.status == status] if status is not None else []
         async with self._session_provider.session() as session:
-            total_result = await session.execute(select(func.count()).select_from(EnvironmentDTO))
+            total_result = await session.execute(
+                select(func.count()).select_from(EnvironmentDTO).where(*filters)
+            )
             page_result = await session.execute(
                 select(EnvironmentDTO)
+                .where(*filters)
                 .order_by(order_by, asc(EnvironmentDTO.environment_key))
                 .offset(pagination.offset)
                 .limit(pagination.limit)

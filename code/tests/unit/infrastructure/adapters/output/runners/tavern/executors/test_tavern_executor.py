@@ -29,6 +29,8 @@ class _Response:
         self.headers = {
             "Authorization": "Bearer response-secret",
             "Set-Cookie": "session=response-secret",
+            "llm_provider-set-cookie": "session=response-secret",
+            "upstream-authorization": "Bearer response-secret",
             "X-Trace": "trace-value",
         }
         self.text = "response-body"
@@ -632,7 +634,29 @@ class TestTavernExecutor:
         assert stage["errorCode"] == expected_code
         assert stage["errorMessage"] == expected_message
         assert "transport-secret" not in str(stage)
-        assert "Traceback" not in str(stage)
+        assert "diagnosticTrace" in stage
+        assert "Traceback containing" in stage["diagnosticTrace"]
+
+    def test_when_trace_contains_token_hash_expect_hash_redacted(self) -> None:
+        namespace: dict[str, object] = {}
+        exec(_reporter_source(("request-account",)), namespace)
+        namespace["pytest_tavern_beta_before_every_request"]({})
+        error = RuntimeError(
+            "Key Hash (Token) =6b9c111bd578697f9aa5eff59014567da19a193b0f022a08c65b1470bec16903"
+        )
+        call = SimpleNamespace(
+            when="call",
+            excinfo=SimpleNamespace(
+                value=error,
+                getrepr=lambda **_: f"Traceback containing {error}",
+            ),
+        )
+
+        namespace["pytest_runtest_makereport"](None, call)
+
+        trace = namespace["result"]["stages"][0]["diagnosticTrace"]
+        assert "6b9c111bd578697f9aa5eff59014567da19a193b0f022a08c65b1470bec16903" not in trace
+        assert "Key Hash (Token) =[REDACTED]" in trace
 
     def test_when_reporter_error_includes_traceback_expect_only_actionable_summary(
         self,
@@ -693,6 +717,8 @@ class TestTavernExecutor:
 
         assert response["headers"]["Authorization"] == "[REDACTED]"
         assert response["headers"]["Set-Cookie"] == "[REDACTED]"
+        assert response["headers"]["llm_provider-set-cookie"] == "[REDACTED]"
+        assert response["headers"]["upstream-authorization"] == "[REDACTED]"
         assert response["body"] == {"token": "[REDACTED]", "key": "[REDACTED]"}
         assert stage["expected"]["verify_response_with"]["forbiddenText"] == "[REDACTED]"
         assert "response-secret" not in serialized

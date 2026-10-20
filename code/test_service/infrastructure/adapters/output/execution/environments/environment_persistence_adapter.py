@@ -3,7 +3,7 @@
 from uuid import UUID
 
 from test_service.domain.application.queries.pagination import Page, PaginationParams
-from test_service.domain.model.execution.environment import Environment
+from test_service.domain.model.execution.environment import Environment, EnvironmentStatus
 from test_service.domain.ports.output.persistence.environments.environment_persistence_port import (  # noqa: E501
     EnvironmentPersistencePort,
 )
@@ -38,8 +38,12 @@ class EnvironmentPersistenceAdapter(EnvironmentPersistencePort):
             EnvironmentPersistenceMapper.to_domain(environment) if environment is not None else None
         )
 
-    async def find_page(self, pagination: PaginationParams) -> Page[Environment]:
-        page = await self._repository.find_page(pagination)
+    async def find_page(
+        self, pagination: PaginationParams, status: EnvironmentStatus | None = None
+    ) -> Page[Environment]:
+        page = await self._repository.find_page(
+            pagination, status.value if status is not None else None
+        )
         return Page(
             items=tuple(
                 EnvironmentPersistenceMapper.to_domain(environment) for environment in page.items

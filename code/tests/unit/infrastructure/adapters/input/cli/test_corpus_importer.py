@@ -13,6 +13,7 @@ from test_service.domain.model.exceptions.precondition_already_exists_exception 
 )
 from test_service.infrastructure.adapters.input.cli.corpus_importer import (
     CorpusImporter,
+    _corpus_validator,
     load_document,
 )
 from test_service.infrastructure.adapters.input.cli.dtos.corpus_dtos import (
@@ -55,6 +56,13 @@ def _valid_precondition() -> dict[str, object]:
 
 def _reference(key: str) -> list[dict[str, object]]:
     return [{"preconditionKey": key, "version": 1}]
+
+
+def _validation_errors(error):
+    """Yield one JSON Schema error and every nested cause."""
+    yield error
+    for nested_error in error.context:
+        yield from _validation_errors(nested_error)
 
 
 class TestLoadDocument:
@@ -108,6 +116,56 @@ class TestLoadDocument:
             "secret-key",
             "Traceback",
         ]
+
+    def test_when_json_response_uses_raw_text_expect_document_rejected(self, tmp_path) -> None:
+        document = _valid_document()
+        action = document["definition"]["actions"][0]
+        action["configuration"].update(
+            {
+                "expectedText": "healthy",
+                "expectedHeaders": {"Content-Type": "application/json"},
+            }
+        )
+        path = tmp_path / "json-as-text.json"
+        path.write_text(json.dumps(document), encoding="utf-8")
+
+        with pytest.raises(ValueError, match="expectedText cannot be used"):
+            load_document(path)
+
+    def test_when_raw_text_and_json_schema_are_combined_expect_document_rejected(
+        self, tmp_path
+    ) -> None:
+        document = _valid_document()
+        action = document["definition"]["actions"][0]
+        action["configuration"].update(
+            {
+                "expectedText": "healthy",
+                "expectedJsonSchema": {"type": "string"},
+            }
+        )
+        path = tmp_path / "mixed-body-assertion.json"
+        path.write_text(json.dumps(document), encoding="utf-8")
+
+        with pytest.raises(ValueError, match="does not satisfy corpus contract"):
+            load_document(path)
+
+    def test_when_raw_text_and_json_schema_are_combined_expect_contract_rejected(self) -> None:
+        document = _valid_document()
+        action = document["definition"]["actions"][0]
+        action["configuration"].update(
+            {
+                "expectedText": "healthy",
+                "expectedJsonSchema": {"type": "string"},
+            }
+        )
+
+        errors = list(_corpus_validator().iter_errors(document))
+
+        assert any(
+            "should not be valid" in nested_error.message
+            for error in errors
+            for nested_error in _validation_errors(error)
+        )
 
     def test_when_document_violates_contract_expect_document_rejected(self, tmp_path) -> None:
         document = _valid_document()

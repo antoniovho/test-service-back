@@ -26,4 +26,6 @@ class ListExecutionsUseCaseImpl(ListExecutionsUseCase):
     async def execute(self, request: ListExecutionsQuery) -> Page[Execution]:
         """Return the requested page after validating project existence."""
         await self._project_resolver.resolve(request.project_key)
-        return await self._execution_repository.find_page(request.project_key, request.pagination)
+        return await self._execution_repository.find_page(
+            request.project_key, request.pagination, request.status
+        )

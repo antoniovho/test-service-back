@@ -43,6 +43,28 @@ class HttpConfiguration(_CorpusModel):
     max_response_time_ms: int | None = Field(default=None, alias="maxResponseTimeMs", ge=1)
     capture: dict[str, str] | None = None
 
+    @model_validator(mode="after")
+    def validate_body_assertion_format(self) -> "HttpConfiguration":
+        """Prevent contradictory JSON and raw-text response expectations."""
+        if self.expected_text is not None and self.expected_json_schema is not None:
+            raise ValueError("expectedText and expectedJsonSchema cannot be used together")
+
+        content_type = next(
+            (
+                value
+                for name, value in (self.expected_headers or {}).items()
+                if name.lower() == "content-type"
+            ),
+            None,
+        )
+        if (
+            self.expected_text is not None
+            and content_type is not None
+            and "json" in content_type.lower()
+        ):
+            raise ValueError("expectedText cannot be used with an application/json response")
+        return self
+
 
 class SseConfiguration(_CorpusModel):
     url: str = Field(min_length=1, max_length=4096)

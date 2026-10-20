@@ -70,7 +70,14 @@
         "expectedJsonSchema": {"type": "object"},
         "maxResponseTimeMs": {"type": "integer", "minimum": 1, "maximum": 300000},
         "capture": {"$ref": "#/$defs/capture"}
-      }
+      },
+      "allOf": [
+        {
+          "not": {
+            "required": ["expectedText", "expectedJsonSchema"]
+          }
+        }
+      ]
     },
     "sseConfiguration": {
       "type": "object",

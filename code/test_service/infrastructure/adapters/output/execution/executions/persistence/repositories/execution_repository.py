@@ -124,19 +124,23 @@ class ExecutionRepository:
                 await session.commit()
             return len(executions)
 
-    async def find_page(self, project_key: str, pagination: PaginationParams) -> Page[ExecutionDTO]:
+    async def find_page(
+        self, project_key: str, pagination: PaginationParams, status: str | None = None
+    ) -> Page[ExecutionDTO]:
         """Return a deterministically ordered page for one project."""
         sort_column = self._get_sort_column(pagination.sort_by)
         order_by = desc(sort_column) if pagination.order is SortOrder.DESC else asc(sort_column)
-        filter_by_project = ExecutionDTO.project_key == project_key
+        filters = [ExecutionDTO.project_key == project_key]
+        if status is not None:
+            filters.append(ExecutionDTO.status == status)
 
         async with self._session_provider.session() as session:
             total_result = await session.execute(
-                select(func.count()).select_from(ExecutionDTO).where(filter_by_project)
+                select(func.count()).select_from(ExecutionDTO).where(*filters)
             )
             page_result = await session.execute(
                 select(ExecutionDTO)
-                .where(filter_by_project)
+                .where(*filters)
                 .order_by(order_by, asc(ExecutionDTO.id))
                 .offset(pagination.offset)
                 .limit(pagination.limit)

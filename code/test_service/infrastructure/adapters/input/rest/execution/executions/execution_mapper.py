@@ -7,6 +7,7 @@ from uuid import UUID
 from test_service_server.models.create_execution_request import CreateExecutionRequest
 from test_service_server.models.execution import Execution as ApiExecution
 from test_service_server.models.execution_list_response import ExecutionListResponse
+from test_service_server.models.execution_status import ExecutionStatus as ApiExecutionStatus
 from test_service_server.models.pagination import Pagination as ApiPagination
 from test_service_server.models.project_reference import ProjectReference
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
@@ -18,7 +19,7 @@ from test_service.domain.application.commands.execution import (
 from test_service.domain.application.queries.execution import ExecutionQuery, ListExecutionsQuery
 from test_service.domain.application.queries.pagination import Page, PaginationParams
 from test_service.domain.application.queries.pagination import SortOrder as DomainSortOrder
-from test_service.domain.model.execution.execution import Execution, TriggerType
+from test_service.domain.model.execution.execution import Execution, ExecutionStatus, TriggerType
 from test_service.infrastructure.adapters.input.rest.common.api_value import enum_value
 
 
@@ -53,6 +54,7 @@ class ExecutionMapper:
         limit: int | None,
         sort_by: str | Enum | None,
         order: ApiSortOrder | None,
+        status: ApiExecutionStatus | None = None,
     ) -> ListExecutionsQuery:
         sort_fields = {
             "createdAt": "created_at",
@@ -63,6 +65,7 @@ class ExecutionMapper:
         }
         return ListExecutionsQuery(
             project_key=project_key,
+            status=ExecutionStatus(status.value) if status is not None else None,
             pagination=PaginationParams(
                 offset=offset if offset is not None else 0,
                 limit=limit if limit is not None else 20,
