@@ -80,7 +80,7 @@ class EnvironmentMapper:
                 limit=limit if limit is not None else 20,
                 sort_by=sort_fields.get(enum_value(sort_by) or "name", "name"),
                 order=DomainSortOrder(order.value) if order is not None else DomainSortOrder.ASC,
-            )
+            ),
         )
 
     @staticmethod
@@ -90,7 +90,7 @@ class EnvironmentMapper:
             environmentKey=environment.environment_key,
             name=environment.name,
             description=environment.description,
-            status=environment.status.value,
+            status=ApiEnvironmentStatus(environment.status.value),
             configuration=EnvironmentMapper._to_api_configuration(environment.configuration),
             createdAt=environment.created_at,
             createdBy=environment.created_by,
