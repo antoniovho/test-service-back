@@ -290,6 +290,9 @@ SENSITIVE_FIELDS = frozenset({{
     "access_token", "api_key", "authorization", "key", "password",
     "forbiddentext", "refresh_token", "secret", "token",
 }})
+NORMALIZED_SENSITIVE_HEADERS = frozenset(
+    re.sub(r"[^a-z0-9]", "", header.lower()) for header in SENSITIVE_HEADERS
+)
 NORMALIZED_SENSITIVE_FIELDS = frozenset(
     re.sub(r"[^a-z0-9]", "", field.lower()) for field in SENSITIVE_FIELDS
 )
@@ -309,9 +312,17 @@ def safe(value):
     except (TypeError, ValueError):
         return repr(value)
 
+def is_sensitive_header(key):
+    """Match sensitive HTTP header names, including upstream-prefixed variants."""
+    normalized = re.sub(r"[^a-z0-9]", "", str(key).lower())
+    return any(
+        normalized == header or normalized.endswith(header)
+        for header in NORMALIZED_SENSITIVE_HEADERS
+    )
+
 def redact_headers(headers):
     """Remove credentials from HTTP headers before recording execution evidence."""
-    return {{key: "[REDACTED]" if key.lower() in SENSITIVE_HEADERS else value
+    return {{key: "[REDACTED]" if is_sensitive_header(key) else value
             for key, value in headers.items()}}
 
 def is_sensitive_field(key):

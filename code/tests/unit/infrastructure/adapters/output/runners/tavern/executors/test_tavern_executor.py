@@ -29,6 +29,8 @@ class _Response:
         self.headers = {
             "Authorization": "Bearer response-secret",
             "Set-Cookie": "session=response-secret",
+            "llm_provider-set-cookie": "session=response-secret",
+            "upstream-authorization": "Bearer response-secret",
             "X-Trace": "trace-value",
         }
         self.text = "response-body"
@@ -715,6 +717,8 @@ class TestTavernExecutor:
 
         assert response["headers"]["Authorization"] == "[REDACTED]"
         assert response["headers"]["Set-Cookie"] == "[REDACTED]"
+        assert response["headers"]["llm_provider-set-cookie"] == "[REDACTED]"
+        assert response["headers"]["upstream-authorization"] == "[REDACTED]"
         assert response["body"] == {"token": "[REDACTED]", "key": "[REDACTED]"}
         assert stage["expected"]["verify_response_with"]["forbiddenText"] == "[REDACTED]"
         assert "response-secret" not in serialized
