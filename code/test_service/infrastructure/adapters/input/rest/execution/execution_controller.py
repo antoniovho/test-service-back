@@ -7,7 +7,9 @@ from test_service_server.models.action_request import ActionRequest
 from test_service_server.models.create_environment_request import CreateEnvironmentRequest
 from test_service_server.models.create_execution_request import CreateExecutionRequest
 from test_service_server.models.environment_sort_by import EnvironmentSortBy
+from test_service_server.models.environment_status import EnvironmentStatus as ApiEnvironmentStatus
 from test_service_server.models.execution_outcome_sort_by import ExecutionOutcomeSortBy
+from test_service_server.models.execution_status import ExecutionStatus as ApiExecutionStatus
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 from test_service_server.models.test_result_artifact_sort_by import TestResultArtifactSortBy
 
@@ -36,8 +38,9 @@ class ExecutionController(BaseExecutionApi):
         limit: int | None,
         sort_by: EnvironmentSortBy | None,
         order: ApiSortOrder | None,
+        status: ApiEnvironmentStatus | None = None,
     ):
-        return await self._environments.list(offset, limit, sort_by, order)
+        return await self._environments.list(offset, limit, sort_by, order, status)
 
     async def create_environment(self, create_environment_request: CreateEnvironmentRequest):
         return await self._environments.create(create_environment_request)
@@ -62,8 +65,9 @@ class ExecutionController(BaseExecutionApi):
         limit: int | None,
         sort_by: ExecutionOutcomeSortBy | None,
         order: ApiSortOrder | None,
+        status: ApiExecutionStatus | None = None,
     ):
-        return await self._executions.list(project_key, offset, limit, sort_by, order)
+        return await self._executions.list(project_key, offset, limit, sort_by, order, status)
 
     async def create_execution(self, project_key, create_execution_request: CreateExecutionRequest):
         return await self._executions.create(project_key, create_execution_request)

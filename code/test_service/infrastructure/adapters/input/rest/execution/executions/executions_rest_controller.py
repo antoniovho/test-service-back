@@ -7,6 +7,7 @@ from test_service_server.models.create_execution_request import CreateExecutionR
 from test_service_server.models.execution import Execution as ApiExecution
 from test_service_server.models.execution_list_response import ExecutionListResponse
 from test_service_server.models.execution_outcome_sort_by import ExecutionOutcomeSortBy
+from test_service_server.models.execution_status import ExecutionStatus as ApiExecutionStatus
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 
 from test_service.bootstrap.container import get_injector
@@ -68,9 +69,10 @@ class ExecutionsRestController:
         limit: int | None,
         sort_by: ExecutionOutcomeSortBy | None,
         order: ApiSortOrder | None,
+        status: ApiExecutionStatus | None = None,
     ) -> ExecutionListResponse:
         project = await self._get_project.execute(GetProjectQuery(project_key))
-        query = ExecutionMapper.to_list_query(project_key, offset, limit, sort_by, order)
+        query = ExecutionMapper.to_list_query(project_key, offset, limit, sort_by, order, status)
         return ExecutionMapper.to_list_response(
             await self._list.execute(query), project.name, query.pagination
         )

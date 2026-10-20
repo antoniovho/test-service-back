@@ -19,4 +19,4 @@ class ListEnvironmentsUseCaseImpl(ListEnvironmentsUseCase):
 
     async def execute(self, request: ListEnvironmentsQuery) -> Page[Environment]:
         """Return environments for the requested page."""
-        return await self._environment_repository.find_page(request.pagination)
+        return await self._environment_repository.find_page(request.pagination, request.status)

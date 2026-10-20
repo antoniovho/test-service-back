@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from test_service.domain.application.queries.pagination import PaginationParams
+from test_service.domain.model.execution.environment import EnvironmentStatus
+from test_service.domain.model.execution.execution import ExecutionStatus
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,9 +38,11 @@ class ListEnvironmentsQuery:
 
     Args:
         pagination: Page and ordering parameters.
+        status: Optional environment status to filter by. When omitted, all states are returned.
     """
 
     pagination: PaginationParams
+    status: EnvironmentStatus | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,6 +56,7 @@ class ListExecutionsQuery:
 
     project_key: str
     pagination: PaginationParams
+    status: ExecutionStatus | None = None
 
 
 @dataclass(frozen=True, slots=True)

@@ -8,6 +8,7 @@ from uuid import UUID
 from test_service_server.models.create_environment_request import CreateEnvironmentRequest
 from test_service_server.models.environment import Environment as ApiEnvironment
 from test_service_server.models.environment_list_response import EnvironmentListResponse
+from test_service_server.models.environment_status import EnvironmentStatus as ApiEnvironmentStatus
 from test_service_server.models.pagination import Pagination as ApiPagination
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 
@@ -22,7 +23,11 @@ from test_service.domain.application.queries.execution import (
 )
 from test_service.domain.application.queries.pagination import Page, PaginationParams
 from test_service.domain.application.queries.pagination import SortOrder as DomainSortOrder
-from test_service.domain.model.execution.environment import Environment, SecretReference
+from test_service.domain.model.execution.environment import (
+    Environment,
+    EnvironmentStatus,
+    SecretReference,
+)
 from test_service.infrastructure.adapters.input.rest.common.api_value import enum_value
 
 
@@ -60,6 +65,7 @@ class EnvironmentMapper:
         limit: int | None,
         sort_by: str | Enum | None,
         order: ApiSortOrder | None,
+        status: ApiEnvironmentStatus | None = None,
     ) -> ListEnvironmentsQuery:
         sort_fields = {
             "environmentKey": "environment_key",
@@ -68,6 +74,7 @@ class EnvironmentMapper:
             "status": "status",
         }
         return ListEnvironmentsQuery(
+            status=EnvironmentStatus(status.value) if status is not None else None,
             pagination=PaginationParams(
                 offset=offset if offset is not None else 0,
                 limit=limit if limit is not None else 20,

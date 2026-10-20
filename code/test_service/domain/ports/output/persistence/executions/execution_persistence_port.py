@@ -36,6 +36,11 @@ class ExecutionPersistencePort(Protocol):
         """Mark RUNNING executions abandoned by a worker as ERROR and return their count."""
         ...
 
-    async def find_page(self, project_key: str, pagination: PaginationParams) -> Page[Execution]:
-        """Find executions owned by one project."""
+    async def find_page(
+        self,
+        project_key: str,
+        pagination: PaginationParams,
+        status: ExecutionStatus | None = None,
+    ) -> Page[Execution]:
+        """Find executions owned by one project, optionally filtered by status."""
         ...

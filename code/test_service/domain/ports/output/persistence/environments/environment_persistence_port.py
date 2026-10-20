@@ -4,7 +4,7 @@ from typing import Protocol
 from uuid import UUID
 
 from test_service.domain.application.queries.pagination import Page, PaginationParams
-from test_service.domain.model.execution.environment import Environment
+from test_service.domain.model.execution.environment import Environment, EnvironmentStatus
 
 
 class EnvironmentPersistencePort(Protocol):
@@ -22,6 +22,8 @@ class EnvironmentPersistencePort(Protocol):
         """Find an environment by its globally unique business key."""
         ...
 
-    async def find_page(self, pagination: PaginationParams) -> Page[Environment]:
-        """Find execution environments matching a page query."""
+    async def find_page(
+        self, pagination: PaginationParams, status: EnvironmentStatus | None = None
+    ) -> Page[Environment]:
+        """Find execution environments matching a page query and optional status."""
         ...

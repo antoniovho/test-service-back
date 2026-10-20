@@ -8,6 +8,7 @@ from test_service_server.models.create_environment_request import CreateEnvironm
 from test_service_server.models.environment import Environment as ApiEnvironment
 from test_service_server.models.environment_list_response import EnvironmentListResponse
 from test_service_server.models.environment_sort_by import EnvironmentSortBy
+from test_service_server.models.environment_status import EnvironmentStatus as ApiEnvironmentStatus
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 
 from test_service.bootstrap.container import get_injector
@@ -83,7 +84,8 @@ class EnvironmentsRestController:
         limit: int | None,
         sort_by: EnvironmentSortBy | None,
         order: ApiSortOrder | None,
+        status: ApiEnvironmentStatus | None = None,
     ) -> EnvironmentListResponse:
-        query = EnvironmentMapper.to_list_query(offset, limit, sort_by, order)
+        query = EnvironmentMapper.to_list_query(offset, limit, sort_by, order, status)
         environments = await self._list.execute(query)
         return EnvironmentMapper.to_list_response(environments, query.pagination)

@@ -46,8 +46,15 @@ class ExecutionPersistenceAdapter(ExecutionPersistencePort):
     async def mark_stale_running_as_error(self) -> int:
         return await self._repository.mark_stale_running_as_error()
 
-    async def find_page(self, project_key: str, pagination: PaginationParams) -> Page[Execution]:
-        page = await self._repository.find_page(project_key, pagination)
+    async def find_page(
+        self,
+        project_key: str,
+        pagination: PaginationParams,
+        status: ExecutionStatus | None = None,
+    ) -> Page[Execution]:
+        page = await self._repository.find_page(
+            project_key, pagination, status.value if status is not None else None
+        )
         return Page(
             items=tuple(
                 ExecutionPersistenceMapper.to_domain(execution) for execution in page.items
