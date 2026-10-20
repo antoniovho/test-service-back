@@ -28,7 +28,7 @@ class BaseViewerIntegrationApi:
     async def publish_viewer_projection(
         self,
         projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
-        viewer_operation_request: Annotated[ViewerOperationRequest, Field(description="External viewer that receives the project projection.")],
+        viewer_type: Annotated[ViewerType, Field(description="External viewer integration that receives the requested operation.")],
     ) -> ViewerOperation:
         """Publishes the current ACTIVE version of every test case, precondition, test set, and test plan in the project to the configured external viewer. """
         ...

@@ -67,7 +67,7 @@ for _, name, _ in pkgutil.iter_modules(ns_pkg.__path__, ns_pkg.__name__ + "."):
 async def publish_viewer_projection(
     projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
 ,
-    viewer_operation_request: Annotated[ViewerOperationRequest, Field(description="External viewer that receives the project projection.")] = Body(..., description="External viewer that receives the project projection.")
+    viewer_type: Annotated[ViewerType, Field(description="External viewer integration that receives the requested operation.")] = Query(..., description="External viewer integration that receives the requested operation.", alias="viewerType", examples=["XRAY"])
 ,
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
@@ -76,7 +76,7 @@ async def publish_viewer_projection(
     """Publishes the current ACTIVE version of every test case, precondition, test set, and test plan in the project to the configured external viewer. """
     if not BaseViewerIntegrationApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseViewerIntegrationApi.subclasses[0]().publish_viewer_projection(projectKey, viewer_operation_request)
+    return await BaseViewerIntegrationApi.subclasses[0]().publish_viewer_projection(projectKey, viewer_type)
 
 
 @router.post(
