@@ -13,10 +13,12 @@ from test_service_server.models.create_execution_request import CreateExecutionR
 from test_service_server.models.environment import Environment
 from test_service_server.models.environment_list_response import EnvironmentListResponse
 from test_service_server.models.environment_sort_by import EnvironmentSortBy
+from test_service_server.models.environment_status import EnvironmentStatus
 from test_service_server.models.error_details import ErrorDetails
 from test_service_server.models.execution import Execution
 from test_service_server.models.execution_list_response import ExecutionListResponse
 from test_service_server.models.execution_outcome_sort_by import ExecutionOutcomeSortBy
+from test_service_server.models.execution_status import ExecutionStatus
 from test_service_server.models.sort_order import SortOrder
 from test_service_server.models.test_result import TestResult
 from test_service_server.models.test_result_artifact_list_response import TestResultArtifactListResponse
@@ -34,6 +36,7 @@ class BaseExecutionApi:
         self,
         offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")],
         limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")],
+        status: Annotated[Optional[EnvironmentStatus], Field(description="Filter environments by lifecycle status. When omitted, environments in all states are returned.")],
         sort_by: Annotated[Optional[EnvironmentSortBy], Field(description="Field used to sort the result set.")],
         order: Annotated[Optional[SortOrder], Field(description="Sort direction.")],
     ) -> EnvironmentListResponse:
@@ -80,6 +83,7 @@ class BaseExecutionApi:
         projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
         offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")],
         limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")],
+        status: Annotated[Optional[ExecutionStatus], Field(description="Filter executions by current status. When omitted, executions in all states are returned.")],
         sort_by: Annotated[Optional[ExecutionOutcomeSortBy], Field(description="Field used to sort the result set. Shared by executions, test results, and action results, which expose the same sortable fields.")],
         order: Annotated[Optional[SortOrder], Field(description="Sort direction.")],
     ) -> ExecutionListResponse:

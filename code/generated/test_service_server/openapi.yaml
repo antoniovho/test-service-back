@@ -7,7 +7,7 @@ info:
     \ executing validated plans, and publishing read-only projections to an external\
     \ testing viewer."
   title: Test Service
-  version: 0.4.3
+  version: 0.4.4
 servers:
 - description: Local development server
   url: http://localhost:8080
@@ -4878,6 +4878,15 @@ paths:
         schema:
           $ref: "#/components/schemas/Limit"
         style: form
+      - description: "Filter environments by lifecycle status. When omitted, environments\
+          \ in all states are returned."
+        explode: true
+        in: query
+        name: status
+        required: false
+        schema:
+          $ref: "#/components/schemas/EnvironmentStatus"
+        style: form
       - description: Field used to sort the result set.
         explode: true
         in: query
@@ -5482,6 +5491,15 @@ paths:
         required: false
         schema:
           $ref: "#/components/schemas/Limit"
+        style: form
+      - description: "Filter executions by current status. When omitted, executions\
+          \ in all states are returned."
+        explode: true
+        in: query
+        name: status
+        required: false
+        schema:
+          $ref: "#/components/schemas/ExecutionStatus"
         style: form
       - description: "Field used to sort the result set. Shared by executions, test\
           \ results, and action results, which expose the same sortable fields."
@@ -7889,6 +7907,16 @@ components:
         minLength: 1
         type: string
       style: simple
+    EnvironmentStatusFilter:
+      description: "Filter environments by lifecycle status. When omitted, environments\
+        \ in all states are returned."
+      explode: true
+      in: query
+      name: status
+      required: false
+      schema:
+        $ref: "#/components/schemas/EnvironmentStatus"
+      style: form
     EnvironmentSortBy:
       description: Field used to sort the result set.
       explode: true
@@ -7907,6 +7935,16 @@ components:
       schema:
         $ref: "#/components/schemas/UUID"
       style: simple
+    ExecutionStatusFilter:
+      description: "Filter executions by current status. When omitted, executions\
+        \ in all states are returned."
+      explode: true
+      in: query
+      name: status
+      required: false
+      schema:
+        $ref: "#/components/schemas/ExecutionStatus"
+      style: form
     ExecutionOutcomeSortBy:
       description: "Field used to sort the result set. Shared by executions, test\
         \ results, and action results, which expose the same sortable fields."
@@ -9999,6 +10037,14 @@ components:
           limit: 60
           total: 125
       title: TestPlanVersionListResponse
+    EnvironmentStatus:
+      description: Lifecycle status of an environment.
+      enum:
+      - ACTIVE
+      - INACTIVE
+      example: ACTIVE
+      title: EnvironmentStatus
+      type: string
     EnvironmentSortBy:
       default: name
       description: Field used to sort the result set.
@@ -10049,14 +10095,7 @@ components:
           title: description
           type: string
         status:
-          description: Lifecycle status of the environment.
-          enum:
-          - ACTIVE
-          - INACTIVE
-          - DEPRECATED
-          example: ACTIVE
-          title: status
-          type: string
+          $ref: "#/components/schemas/EnvironmentStatus"
         configuration:
           additionalProperties: true
           description: Environment-specific runtime configuration.
@@ -10150,6 +10189,19 @@ components:
       - name
       title: CreateEnvironmentRequest
       type: object
+    ExecutionStatus:
+      description: Current execution status.
+      enum:
+      - CREATED
+      - RUNNING
+      - PASSED
+      - FAILED
+      - PARTIALLY_FAILED
+      - CANCELLED
+      - ERROR
+      example: RUNNING
+      title: ExecutionStatus
+      type: string
     ExecutionOutcomeSortBy:
       default: createdAt
       description: "Field used to sort the result set. Shared by executions, test\
@@ -10219,18 +10271,7 @@ components:
           title: triggeredBy
           type: string
         status:
-          description: Current execution status.
-          enum:
-          - CREATED
-          - RUNNING
-          - PASSED
-          - FAILED
-          - PARTIALLY_FAILED
-          - CANCELLED
-          - ERROR
-          example: RUNNING
-          title: status
-          type: string
+          $ref: "#/components/schemas/ExecutionStatus"
         runnerIdentifier:
           description: Stable identifier of the runner accepted when the execution
             was scheduled.

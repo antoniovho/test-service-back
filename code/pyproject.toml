@@ -35,11 +35,11 @@ generator-command = "npx --yes @openapitools/openapi-generator-cli@2.41.0"
 generator-version = "7.25.0"
 
 [tool.openapi-contracts.contracts.test-service]
-version = "0.4.3"
+version = "0.4.4"
 repository = "antoniovho/app-devtools"
 tag = "test-service-api-v{version}"
 artifact = "test-service-api-{version}.yml"
-sha256 = "17c4903076f669a7eb51625c4c2eb3b3eb075dc8df1be26e56b7414b0363d8bb"
+sha256 = "a7ca4b4b53ceb3bfa77a43bd95bc6bc5025e663e51d0a4d332e4c5ec499e3170"
 output = "contracts/open_api/test-service-api.yml"
 
 [tool.openapi-contracts.generators.rest.server.test-service-server]
