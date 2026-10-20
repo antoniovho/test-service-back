@@ -20,8 +20,10 @@ from test_service.domain.model.viewer.records import (
 )
 from test_service.infrastructure.adapters.output.viewer.xray_exceptions import (
     XrayAuthenticationError,
+    XrayAuthorizationError,
     XrayProtocolError,
     XrayTransportError,
+    XrayValidationError,
 )
 from test_service.infrastructure.adapters.output.viewer.xray_viewer_adapter import (
     XrayViewerAdapter,
@@ -306,7 +308,7 @@ class TestXrayViewerAdapter:
         assert identity.external_id == "10002"
         assert graphql_attempts == 2
 
-    async def test_when_graphql_returns_errors_expect_protocol_error(
+    async def test_when_graphql_returns_errors_expect_validation_error(
         self, settings: XraySettings, projection: ViewerProjection
     ) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
@@ -317,7 +319,7 @@ class TestXrayViewerAdapter:
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
             adapter = XrayViewerAdapter(settings, client)
 
-            with pytest.raises(XrayProtocolError, match="contains errors"):
+            with pytest.raises(XrayValidationError, match="CreateTest returned GraphQL errors"):
                 await adapter.publish(projection)
 
     async def test_when_authentication_has_no_token_expect_authentication_error(
@@ -399,18 +401,33 @@ class TestXrayViewerAdapter:
             with pytest.raises(XrayProtocolError, match="does not contain steps"):
                 await adapter.check_drift(published_projection)
 
-    async def test_when_xray_returns_non_transient_http_error_expect_transport_error(
+    @pytest.mark.parametrize("status_code", (400, 422))
+    async def test_when_xray_rejects_graphql_request_expect_validation_error(
+        self, settings: XraySettings, projection: ViewerProjection, status_code: int
+    ) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/auth":
+                return httpx.Response(200, json="xray-token")
+            return httpx.Response(status_code)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            adapter = XrayViewerAdapter(settings, client)
+
+            with pytest.raises(XrayValidationError, match=f"CreateTest.*HTTP {status_code}"):
+                await adapter.publish(projection)
+
+    async def test_when_xray_forbids_graphql_request_expect_authorization_error(
         self, settings: XraySettings, projection: ViewerProjection
     ) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
             if request.url.path == "/auth":
                 return httpx.Response(200, json="xray-token")
-            return httpx.Response(422)
+            return httpx.Response(403)
 
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
             adapter = XrayViewerAdapter(settings, client)
 
-            with pytest.raises(XrayTransportError, match="request failed"):
+            with pytest.raises(XrayAuthorizationError, match="CreateTest.*HTTP 403"):
                 await adapter.publish(projection)
 
     async def test_when_remote_managed_state_matches_expect_no_drift(
@@ -611,7 +628,7 @@ class TestXrayViewerAdapter:
         response = httpx.Response(200, json=payload, request=request)
 
         with pytest.raises(XrayProtocolError, match=message):
-            XrayViewerAdapter._graphql_data(response)
+            XrayViewerAdapter._graphql_data(response, "CreateTest")
 
     def test_when_step_response_has_invalid_fields_expect_protocol_error(self) -> None:
         step = {"action": "submit", "data": 1, "result": None}

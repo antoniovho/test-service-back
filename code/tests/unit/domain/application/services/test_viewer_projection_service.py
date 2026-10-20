@@ -206,6 +206,9 @@ class TestViewerProjectionService:
             "10003",
         ]
         assert [record.entity_version for record in saved_records] == [1, 1, 2]
+        saved_items = [call.args[0] for call in repository.save_operation_item.await_args_list]
+        assert [item.entity_version for item in saved_items] == [1, 1, 2]
+        assert all(item.operation_id == operation.identifier for item in saved_items)
         assert [record.external_entity_key for record in pending_records] == [
             "authenticated-customer-v1",
             "checkout-v1",
