@@ -1,6 +1,7 @@
 """Queries for Viewer integration use cases."""
 
 from dataclasses import dataclass
+from uuid import UUID
 
 from test_service.domain.application.queries.pagination import PaginationParams
 from test_service.domain.model.viewer.records import ViewerType
@@ -77,3 +78,12 @@ class ListProjectViewerOperationsQuery:
     project_key: str
     pagination: PaginationParams
     viewer_type: ViewerType | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ListProjectViewerOperationItemsQuery:
+    """Request the immutable entity outcomes of one Viewer operation."""
+
+    project_key: str
+    operation_id: UUID
+    pagination: PaginationParams

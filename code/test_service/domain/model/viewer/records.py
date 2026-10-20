@@ -171,6 +171,26 @@ class ViewerOperation:
 
 
 @dataclass(frozen=True, slots=True)
+class ViewerOperationItem:
+    """Immutable outcome of projecting one entity during a Viewer operation."""
+
+    identifier: UUID
+    operation_id: UUID
+    sync_record_id: UUID
+    project_key: str
+    entity_type: ViewerEntityType
+    entity_key: str
+    entity_version: int
+    projected_version_id: UUID
+    viewer_type: ViewerType
+    external_entity_key: str
+    external_entity_id: str | None
+    sync_status: SyncStatus
+    error: str | None
+    created_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
 class DriftEvent:
     """Immutable observation of Viewer divergence.
 

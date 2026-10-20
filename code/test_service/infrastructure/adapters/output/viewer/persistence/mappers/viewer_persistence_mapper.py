@@ -1,14 +1,64 @@
 """Mapping between Viewer domain values and persistence DTOs."""
 
-from test_service.domain.model.viewer.records import DriftEvent, ViewerOperation, ViewerSyncRecord
+from test_service.domain.model.viewer.records import (
+    DriftEvent,
+    ViewerOperation,
+    ViewerOperationItem,
+    ViewerSyncRecord,
+)
 from test_service.infrastructure.adapters.output.viewer.persistence.dtos.viewer_dtos import (
     DriftEventDTO,
     ViewerOperationDTO,
+    ViewerOperationItemDTO,
     ViewerSyncRecordDTO,
 )
 
 
 class ViewerPersistenceMapper:
+    @staticmethod
+    def operation_item_to_dto(item: ViewerOperationItem) -> ViewerOperationItemDTO:
+        return ViewerOperationItemDTO(
+            id=item.identifier,
+            operation_id=item.operation_id,
+            sync_record_id=item.sync_record_id,
+            project_key=item.project_key,
+            entity_type=item.entity_type.value,
+            entity_key=item.entity_key,
+            entity_version=item.entity_version,
+            projected_version_id=item.projected_version_id,
+            viewer_type=item.viewer_type.value,
+            external_entity_key=item.external_entity_key,
+            external_entity_id=item.external_entity_id,
+            sync_status=item.sync_status.value,
+            error=item.error,
+            created_at=item.created_at,
+        )
+
+    @staticmethod
+    def operation_item_to_domain(item: ViewerOperationItemDTO) -> ViewerOperationItem:
+        from test_service.domain.model.viewer.records import (
+            SyncStatus,
+            ViewerEntityType,
+            ViewerType,
+        )
+
+        return ViewerOperationItem(
+            identifier=item.id,
+            operation_id=item.operation_id,
+            sync_record_id=item.sync_record_id,
+            project_key=item.project_key,
+            entity_type=ViewerEntityType(item.entity_type),
+            entity_key=item.entity_key,
+            entity_version=item.entity_version,
+            projected_version_id=item.projected_version_id,
+            viewer_type=ViewerType(item.viewer_type),
+            external_entity_key=item.external_entity_key,
+            external_entity_id=item.external_entity_id,
+            sync_status=SyncStatus(item.sync_status),
+            error=item.error,
+            created_at=item.created_at,
+        )
+
     @staticmethod
     def sync_record_to_dto(record: ViewerSyncRecord) -> ViewerSyncRecordDTO:
         return ViewerSyncRecordDTO(

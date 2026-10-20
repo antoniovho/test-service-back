@@ -8,6 +8,7 @@ from test_service.domain.model.viewer.records import (
     DriftEvent,
     ViewerEntityType,
     ViewerOperation,
+    ViewerOperationItem,
     ViewerSyncRecord,
     ViewerType,
 )
@@ -45,6 +46,20 @@ class ViewerPersistencePort(Protocol):
 
     async def save_sync_record(self, record: ViewerSyncRecord) -> ViewerSyncRecord:
         """Persist a synchronization record."""
+        ...
+
+    async def get_sync_record(self, sync_record_id: UUID) -> ViewerSyncRecord | None:
+        """Find the current synchronization state by its technical identifier."""
+        ...
+
+    async def save_operation_item(self, item: ViewerOperationItem) -> ViewerOperationItem:
+        """Append an immutable per-entity outcome to a Viewer operation."""
+        ...
+
+    async def find_operation_items_page(
+        self, project_key: str, operation_id: UUID, pagination: PaginationParams
+    ) -> Page[ViewerOperationItem]:
+        """Find the immutable per-entity outcomes of a project operation."""
         ...
 
     async def find_sync_record(
