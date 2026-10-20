@@ -319,7 +319,10 @@ class TestXrayViewerAdapter:
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
             adapter = XrayViewerAdapter(settings, client)
 
-            with pytest.raises(XrayValidationError, match="CreateTest returned GraphQL errors"):
+            with pytest.raises(
+                XrayValidationError,
+                match="CreateTest returned GraphQL errors: invalid field",
+            ):
                 await adapter.publish(projection)
 
     async def test_when_authentication_has_no_token_expect_authentication_error(
@@ -415,6 +418,30 @@ class TestXrayViewerAdapter:
 
             with pytest.raises(XrayValidationError, match=f"CreateTest.*HTTP {status_code}"):
                 await adapter.publish(projection)
+
+    async def test_when_xray_returns_graphql_errors_expect_safe_diagnostics(
+        self, settings: XraySettings, projection: ViewerProjection
+    ) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/auth":
+                return httpx.Response(200, json="xray-token")
+            return httpx.Response(
+                400,
+                json={
+                    "errors": [
+                        {"message": "project key is invalid"},
+                        {"message": "token: xray-secret-value"},
+                    ]
+                },
+            )
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            with pytest.raises(XrayValidationError) as raised:
+                await XrayViewerAdapter(settings, client).publish(projection)
+
+        assert "project key is invalid" in str(raised.value)
+        assert "xray-secret-value" not in str(raised.value)
+        assert "[REDACTED]" in str(raised.value)
 
     async def test_when_xray_forbids_graphql_request_expect_authorization_error(
         self, settings: XraySettings, projection: ViewerProjection

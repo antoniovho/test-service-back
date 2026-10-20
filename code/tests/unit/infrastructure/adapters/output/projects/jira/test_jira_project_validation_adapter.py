@@ -98,6 +98,23 @@ class TestJiraProjectValidationAdapter:
 
         assert exc_info.value.provider_name == "JIRA"
 
+    async def test_when_jira_returns_temporary_not_found_expect_provider_exception(
+        self, settings: JiraSettings
+    ) -> None:
+        response = httpx.Response(
+            httpx.codes.NOT_FOUND,
+            json={"errorMessage": "Site temporarily unavailable", "errorCode": "OTHER"},
+        )
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(lambda request: response)
+        ) as client:
+            adapter = JiraProjectValidationAdapter(settings, client)
+
+            with pytest.raises(ExternalProjectProviderException) as exc_info:
+                await adapter.validate("SHOP")
+
+        assert exc_info.value.provider_name == "JIRA"
+
     async def test_when_jira_forbids_project_access_expect_permission_exception(
         self, settings: JiraSettings
     ) -> None:

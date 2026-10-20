@@ -82,6 +82,29 @@ class TestViewerProjectionService:
             "XrayAuthenticationError: Xray authentication request failed"
         )
 
+    async def test_when_unhandled_operation_error_expect_safe_cause_persisted(self) -> None:
+        operation = _operation()
+        repository = AsyncMock()
+        repository.claim_next_operation.return_value = operation
+        repository.save_operation.side_effect = lambda value: value
+        service = ViewerProjectionService(
+            AsyncMock(),
+            AsyncMock(),
+            AsyncMock(),
+            AsyncMock(),
+            AsyncMock(),
+            repository,
+            AsyncMock(),
+            AsyncMock(),
+        )
+        service._check_drift = AsyncMock(side_effect=RuntimeError("database constraint failed"))
+
+        result = await service.process_next_operation()
+
+        assert result is not None
+        assert result.status is ViewerOperationStatus.FAILED
+        assert result.error == "RuntimeError: database constraint failed"
+
     async def test_when_published_snapshot_is_unavailable_expect_integrity_exception(self) -> None:
         record = _record()
         test_case_repository = AsyncMock()
