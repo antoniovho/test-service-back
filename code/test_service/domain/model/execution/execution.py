@@ -223,7 +223,10 @@ class Execution:
             InvalidExecutionTransitionException: If the execution is already terminal.
         """
         if self.status in TERMINAL_EXECUTION_STATUSES:
-            raise InvalidExecutionTransitionException("terminal executions cannot be cancelled")
+            raise InvalidExecutionTransitionException(
+                f"Execution '{self.identifier}' is already in terminal status "
+                f"'{self.status.value}' and cannot be cancelled."
+            )
         duration_ms = _elapsed_ms(self.started_at, finished_at) if finished_at else None
         return replace(
             self,

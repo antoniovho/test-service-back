@@ -1,6 +1,7 @@
 """Map domain exceptions to RFC 7807 responses."""
 
 from http import HTTPStatus
+from uuid import uuid4
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
@@ -133,7 +134,7 @@ _EXCEPTION_STATUS_MAP: dict[type[DomainException], HTTPStatus] = {
     InvalidActionException: HTTPStatus.UNPROCESSABLE_ENTITY,
     InvalidDefinitionException: HTTPStatus.UNPROCESSABLE_ENTITY,
     InvalidEnvironmentTransitionException: HTTPStatus.CONFLICT,
-    InvalidExecutionTransitionException: HTTPStatus.UNPROCESSABLE_ENTITY,
+    InvalidExecutionTransitionException: HTTPStatus.CONFLICT,
     InvalidLifecycleTransitionException: HTTPStatus.UNPROCESSABLE_ENTITY,
     InvalidPreconditionException: HTTPStatus.UNPROCESSABLE_ENTITY,
     InvalidProjectKeyException: HTTPStatus.UNPROCESSABLE_ENTITY,
@@ -159,15 +160,34 @@ _ORIGIN_STATUS_MAP: dict[ErrorOrigin, HTTPStatus] = {
 }
 
 
+def problem_instance(request: Request) -> str:
+    """Return an opaque identifier for this problem occurrence.
+
+    The request URL identifies a resource the caller already knows, rather
+    than the failure itself. A generated URN is safe to expose and correlates
+    the response with the server log entry.
+    """
+    instance = getattr(request.state, "problem_instance", None)
+    if instance is None:
+        instance = f"urn:uuid:{uuid4()}"
+        request.state.problem_instance = instance
+    return instance
+
+
 def build_problem_response(
-    request: Request, http_status: int, title: str, detail: str
+    request: Request,
+    http_status: int,
+    title: str,
+    detail: str,
+    problem_type: str = "about:blank",
 ) -> JSONResponse:
     """Build an RFC 7807 `ErrorDetails` response."""
     error_details = ErrorDetails(
+        type=problem_type,
         status=http_status,
         title=title,
         detail=detail,
-        instance=str(request.url),
+        instance=problem_instance(request),
     )
     return JSONResponse(status_code=http_status, content=error_details.model_dump(by_alias=True))
 
@@ -188,6 +208,7 @@ class ExceptionMapper:
             http_status,
             http_status.phrase,
             ExceptionMapper._safe_detail(exc),
+            problem_type=f"/problems/{exc.code.lower().replace('_', '-')}",
         )
 
     @staticmethod

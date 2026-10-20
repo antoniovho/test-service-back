@@ -117,6 +117,10 @@ class TestExecutionCancel:
             execution.cancel()
 
         assert exc.value.code == "INVALID_EXECUTION_TRANSITION"
+        assert str(exc.value) == (
+            f"Execution '{execution.identifier}' is already in terminal status "
+            f"'{execution.status.value}' and cannot be cancelled."
+        )
 
 
 class TestExecutionTemporalValidation:

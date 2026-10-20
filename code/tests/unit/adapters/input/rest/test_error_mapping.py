@@ -132,6 +132,13 @@ def _build_app() -> FastAPI:
     async def _raise_user_origin():
         raise InvalidActionException("action type is not allowed")
 
+    @app.get("/execution-conflict")
+    async def _raise_execution_conflict():
+        raise InvalidExecutionTransitionException(
+            "Execution '70e1ad5d-9082-4997-8aff-6973f72ee9dc' is already in terminal "
+            "status 'FAILED' and cannot be cancelled."
+        )
+
     @app.get("/provider-origin")
     async def _raise_provider_origin():
         raise InvalidArtifactStorageException("provider storage detail")
@@ -165,7 +172,8 @@ class TestRegisterExceptionHandlers:
         assert body["status"] == 404
         assert body["title"] == "Not Found"
         assert "IAG" in body["detail"]
-        assert body["instance"].endswith("/not-found")
+        assert body["type"] == "/problems/entity-not-found"
+        assert body["instance"].startswith("urn:uuid:")
 
     def test_when_conflict_expect_409_problem_details(self, client: TestClient):
         response = client.get("/conflict")
@@ -180,6 +188,21 @@ class TestRegisterExceptionHandlers:
         body = response.json()
         assert body["title"] == "Unprocessable Entity"
         assert body["detail"] == "action type is not allowed"
+
+    def test_when_execution_cancellation_conflicts_with_terminal_state_expect_409_problem(
+        self, client: TestClient
+    ):
+        response = client.get("/execution-conflict")
+
+        assert response.status_code == 409
+        body = response.json()
+        assert body["type"] == "/problems/invalid-execution-transition"
+        assert body["title"] == "Conflict"
+        assert body["detail"] == (
+            "Execution '70e1ad5d-9082-4997-8aff-6973f72ee9dc' is already in terminal "
+            "status 'FAILED' and cannot be cancelled."
+        )
+        assert body["instance"].startswith("urn:uuid:")
 
     def test_when_provider_origin_exception_expect_502_generic_problem_details(
         self, client: TestClient
@@ -242,7 +265,7 @@ class TestExceptionStatusMap:
             InvalidActionException: HTTPStatus.UNPROCESSABLE_ENTITY,
             InvalidDefinitionException: HTTPStatus.UNPROCESSABLE_ENTITY,
             InvalidEnvironmentTransitionException: HTTPStatus.CONFLICT,
-            InvalidExecutionTransitionException: HTTPStatus.UNPROCESSABLE_ENTITY,
+            InvalidExecutionTransitionException: HTTPStatus.CONFLICT,
             InvalidLifecycleTransitionException: HTTPStatus.UNPROCESSABLE_ENTITY,
             InvalidPreconditionException: HTTPStatus.UNPROCESSABLE_ENTITY,
             InvalidProjectKeyException: HTTPStatus.UNPROCESSABLE_ENTITY,
