@@ -210,7 +210,7 @@ class ViewerProjectionService:
                 total_items=len(records),
                 succeeded_items=succeeded,
                 failed_items=failed,
-                error="Some Viewer projections could not be published." if failed else None,
+                error=self._publication_error(records) if failed else None,
             )
         )
 
@@ -218,6 +218,18 @@ class ViewerProjectionService:
     def _external_entity_key(entity_key: str, entity_version: int) -> str:
         """Return the deterministic external identity for an immutable snapshot."""
         return f"{entity_key}-v{entity_version}"
+
+    @staticmethod
+    def _publication_error(records: list[ViewerSyncRecord]) -> str:
+        """Build an actionable, safe aggregate error without provider payloads."""
+        failures = [record for record in records if record.sync_status is SyncStatus.ERROR]
+        first = failures[0]
+        detail = first.error or "The external viewer rejected the projection."
+        return (
+            f"{len(failures)} of {len(records)} Viewer projections failed. "
+            f"First failure: {first.entity_type.value} '{first.entity_key}' "
+            f"v{first.entity_version}: {detail}"
+        )[:1000]
 
     async def _check_drift(self, operation: ViewerOperation) -> ViewerOperation:
         """Check the selected external Viewer for drift in its project projections."""

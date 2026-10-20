@@ -64,10 +64,10 @@ class ViewerIntegrationController(BaseViewerIntegrationApi):
     async def publish_viewer_projection(
         self,
         projectKey: str,  # NOSONAR
-        viewer_operation_request: ViewerOperationRequest,
+        viewer_type: ApiViewerType,
     ) -> ViewerOperation:  # NOSONAR
         project = await self._get_project.execute(GetProjectQuery(projectKey))
-        command = ViewerMapper.to_publish_command(projectKey, viewer_operation_request)
+        command = ViewerMapper.to_publish_command(projectKey, viewer_type)
         operation = await self._publish.execute(command)
         return ViewerMapper.operation_to_api(operation, project.name)
 

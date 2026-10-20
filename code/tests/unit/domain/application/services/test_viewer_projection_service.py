@@ -66,6 +66,22 @@ def _record(sync_status: SyncStatus = SyncStatus.SYNCED) -> ViewerSyncRecord:
 
 
 class TestViewerProjectionService:
+    def test_when_publication_contains_failed_records_expect_safe_aggregate_error(self) -> None:
+        failed = _record(SyncStatus.ERROR)
+        failed = replace(
+            failed,
+            entity_key="LOGIN",
+            entity_version=2,
+            error="XrayAuthenticationError: Xray authentication request failed",
+        )
+
+        error = ViewerProjectionService._publication_error([failed])
+
+        assert error == (
+            "1 of 1 Viewer projections failed. First failure: TEST_CASE 'LOGIN' v2: "
+            "XrayAuthenticationError: Xray authentication request failed"
+        )
+
     async def test_when_published_snapshot_is_unavailable_expect_integrity_exception(self) -> None:
         record = _record()
         test_case_repository = AsyncMock()
