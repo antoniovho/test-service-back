@@ -26,9 +26,11 @@ from test_service.domain.ports.output.viewer.viewer_drift_detector_port import (
 from test_service.domain.ports.output.viewer.viewer_publisher_port import ViewerPublisherPort
 from test_service.infrastructure.adapters.output.viewer.xray_exceptions import (
     XrayAuthenticationError,
+    XrayAuthorizationError,
     XrayProtocolError,
     XrayProviderError,
     XrayTransportError,
+    XrayValidationError,
 )
 
 _TRANSIENT_STATUS_CODES = frozenset({429, 502, 503, 504})
@@ -316,7 +318,7 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort):
                     raise retry_error
                 await self._backoff(attempt)
                 continue
-            return self._graphql_data(response)
+            return self._graphql_data(response, self._graphql_operation(query))
         raise XrayTransportError("Xray request has no configured attempts")
 
     def _retry_error(self, response: httpx.Response) -> XrayProviderError | None:
@@ -328,16 +330,22 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort):
         return None
 
     @staticmethod
-    def _graphql_data(response: httpx.Response) -> Mapping[str, object]:
+    def _graphql_data(response: httpx.Response, operation: str) -> Mapping[str, object]:
+        if response.status_code in {400, 422}:
+            raise XrayValidationError(f"Xray rejected {operation} (HTTP {response.status_code})")
+        if response.status_code == 403:
+            raise XrayAuthorizationError(f"Xray denied {operation} (HTTP 403)")
         try:
             response.raise_for_status()
         except httpx.HTTPStatusError as error:
-            raise XrayTransportError("Xray request failed") from error
+            raise XrayProtocolError(
+                f"Xray {operation} failed (HTTP {response.status_code})"
+            ) from error
         payload = XrayViewerAdapter._json_payload(response, "GraphQL")
         if not isinstance(payload, Mapping):
             raise XrayProtocolError("Xray GraphQL response must be an object")
         if payload.get("errors"):
-            raise XrayProtocolError("Xray GraphQL response contains errors")
+            raise XrayValidationError(f"Xray {operation} returned GraphQL errors")
         data = payload.get("data")
         if not isinstance(data, Mapping):
             raise XrayProtocolError("Xray GraphQL response does not contain data")
@@ -378,6 +386,10 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort):
             try:
                 response.raise_for_status()
             except httpx.HTTPStatusError as error:
+                if response.status_code == 403:
+                    raise XrayAuthorizationError(
+                        "Xray authentication request was forbidden"
+                    ) from error
                 raise XrayAuthenticationError("Xray authentication request failed") from error
             payload = self._json_payload(response, "authentication")
             token = self._token_from_payload(payload)
@@ -408,6 +420,12 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort):
     def _clear_access_token(self) -> None:
         self._access_token = None
         self._access_token_expires_at = None
+
+    @staticmethod
+    def _graphql_operation(query: str) -> str:
+        """Return the declared GraphQL operation name without retaining request data."""
+        declaration = query.strip().split("(", 1)[0].split()
+        return declaration[-1] if len(declaration) > 1 else "GraphQL operation"
 
     @staticmethod
     def _token_from_payload(payload: object) -> str:

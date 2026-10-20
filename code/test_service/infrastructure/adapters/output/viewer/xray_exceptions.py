@@ -13,5 +13,13 @@ class XrayProtocolError(XrayProviderError):
     """Xray returned a response outside the supported provider contract."""
 
 
+class XrayValidationError(XrayProtocolError):
+    """Xray rejected a syntactically valid request or GraphQL operation."""
+
+
+class XrayAuthorizationError(XrayProviderError):
+    """Authenticated Xray credentials are not authorized for the requested operation."""
+
+
 class XrayTransportError(XrayProviderError):
-    """Xray could not be reached or returned an unsuccessful HTTP response."""
+    """Xray could not be reached or returned a transient HTTP response."""
