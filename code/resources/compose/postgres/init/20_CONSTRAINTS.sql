@@ -1,4 +1,4 @@
--- Foreign keys and check constraints (idempotent guards)
+-- Creates foreign keys and check constraints with idempotent guards.
 
 DO $$
 DECLARE

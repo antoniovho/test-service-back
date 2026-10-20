@@ -23,14 +23,29 @@ CREATE TABLE IF NOT EXISTS test_service_v1.viewer_operation_item (
 CREATE INDEX IF NOT EXISTS idx_viewer_operation_item_operation
     ON test_service_v1.viewer_operation_item (operation_id, created_at);
 
-ALTER TABLE test_service_v1.viewer_operation_item
-    ADD CONSTRAINT fk_viewer_operation_item_operation
-    FOREIGN KEY (operation_id)
-    REFERENCES test_service_v1.viewer_operation(id)
-    ON DELETE CASCADE;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'fk_viewer_operation_item_operation'
+          AND table_schema = 'test_service_v1'
+    ) THEN
+        ALTER TABLE test_service_v1.viewer_operation_item
+            ADD CONSTRAINT fk_viewer_operation_item_operation
+            FOREIGN KEY (operation_id)
+            REFERENCES test_service_v1.viewer_operation(id)
+            ON DELETE CASCADE;
+    END IF;
 
-ALTER TABLE test_service_v1.viewer_operation_item
-    ADD CONSTRAINT fk_viewer_operation_item_sync_record
-    FOREIGN KEY (sync_record_id)
-    REFERENCES test_service_v1.viewer_sync_record(id)
-    ON DELETE RESTRICT;
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'fk_viewer_operation_item_sync_record'
+          AND table_schema = 'test_service_v1'
+    ) THEN
+        ALTER TABLE test_service_v1.viewer_operation_item
+            ADD CONSTRAINT fk_viewer_operation_item_sync_record
+            FOREIGN KEY (sync_record_id)
+            REFERENCES test_service_v1.viewer_sync_record(id)
+            ON DELETE RESTRICT;
+    END IF;
+END $$;

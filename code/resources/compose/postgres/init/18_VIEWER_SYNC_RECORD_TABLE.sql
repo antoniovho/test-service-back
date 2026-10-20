@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS test_service_v1.viewer_sync_record (
     viewer_type           TEXT            NOT NULL,
     external_entity_key   TEXT            NOT NULL,
     external_entity_id    TEXT            NULL,
+    operation_id          uuid            NULL,
     sync_status           TEXT            NOT NULL DEFAULT 'PENDING',
     error                 TEXT            NULL,
     last_synced_at        timestamptz(6)  NULL,
@@ -17,7 +18,9 @@ CREATE TABLE IF NOT EXISTS test_service_v1.viewer_sync_record (
     created_at            timestamptz(6)  DEFAULT CURRENT_TIMESTAMP NOT NULL,
     projection_hash       TEXT            NULL,
     CONSTRAINT viewer_sync_record_pkey PRIMARY KEY (id),
-    CONSTRAINT viewer_sync_record_entity_viewer_uq UNIQUE (project_key, entity_type, entity_key, entity_version, viewer_type)
+    CONSTRAINT viewer_sync_record_entity_viewer_uq UNIQUE (project_key, entity_type, entity_key, entity_version, viewer_type),
+    CONSTRAINT fk_viewer_sync_record_operation FOREIGN KEY (operation_id)
+        REFERENCES test_service_v1.viewer_operation(id) ON DELETE SET NULL
 );
 
 COMMENT ON COLUMN test_service_v1.viewer_sync_record.id                   IS 'Unique synchronization record identifier';
@@ -29,6 +32,7 @@ COMMENT ON COLUMN test_service_v1.viewer_sync_record.projected_version_id IS 'UU
 COMMENT ON COLUMN test_service_v1.viewer_sync_record.viewer_type          IS 'Type of external viewer containing the projection, e.g. XRAY';
 COMMENT ON COLUMN test_service_v1.viewer_sync_record.external_entity_key  IS 'Stable identifier of the projected entity in the external viewer';
 COMMENT ON COLUMN test_service_v1.viewer_sync_record.external_entity_id   IS 'Optional technical identifier assigned by the external viewer; nullable';
+COMMENT ON COLUMN test_service_v1.viewer_sync_record.operation_id         IS 'Viewer operation that last attempted this projection; nullable for legacy records';
 COMMENT ON COLUMN test_service_v1.viewer_sync_record.sync_status          IS 'Current synchronization status: PENDING, SYNCED, ERROR, or DRIFT_DETECTED';
 COMMENT ON COLUMN test_service_v1.viewer_sync_record.error                IS 'Technical failure description for the latest synchronization attempt; nullable';
 COMMENT ON COLUMN test_service_v1.viewer_sync_record.last_synced_at       IS 'Last successful synchronization timestamp; nullable';

@@ -1,4 +1,4 @@
--- Creates the drift_event table (immutable record of a difference detected in the external viewer)
+-- Creates the drift_event table (immutable record of detected external-viewer differences).
 
 CREATE TABLE IF NOT EXISTS test_service_v1.drift_event (
     id                    uuid            DEFAULT gen_random_uuid() NOT NULL,
