@@ -737,6 +737,39 @@ class TestProcessNextExecutionUseCase:
         assert actions == ()
         assert artifacts == ()
 
+    async def test_when_terminal_evidence_has_diagnostic_trace_expect_database_artifact(self):
+        test_case = _test_case()
+        execution = _execution(test_case.identifier)
+        results = _Results()
+        use_case = _use_case(execution, test_case, _Runner(), results)
+        evidence = (
+            RunnerActionOutcome(
+                "health",
+                "HTTP",
+                ResultStatus.ERROR,
+                _STARTED_AT,
+                _FINISHED_AT,
+                diagnostic_trace="sanitized diagnostic traceback",
+            ),
+        )
+
+        await use_case._save_terminal_result(
+            execution,
+            test_case.identifier,
+            _STARTED_AT,
+            ResultStatus.BLOCKED,
+            "PRECONDITION_FAILED",
+            "precondition did not pass",
+            evidence,
+        )
+
+        result, actions, artifacts = results.saved[0]
+        assert len(artifacts) == 1
+        assert artifacts[0].test_result_id == result.identifier
+        assert artifacts[0].action_result_id == actions[0].identifier
+        assert artifacts[0].content == "sanitized diagnostic traceback"
+        assert artifacts[0].mime_type == "text/plain; charset=utf-8"
+
     async def test_when_cancel_wins_during_runner_expect_worker_preserves_cancelled_state(self):
         test_case = _test_case()
         execution = _execution(test_case.identifier)

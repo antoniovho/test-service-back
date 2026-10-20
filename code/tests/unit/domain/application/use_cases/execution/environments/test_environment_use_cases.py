@@ -67,7 +67,8 @@ class _Repository:
     async def find_by_key(self, environment_key: str):
         return self.environment
 
-    async def find_page(self, pagination):
+    async def find_page(self, pagination, status=None):
+        self.requested_status = status
         return Page((), 0) if self.environment is None else Page((self.environment,), 1)
 
 
@@ -185,3 +186,13 @@ class TestEnvironmentUseCases:
         )
 
         assert page.items == (environment,)
+
+    async def test_when_environment_status_is_requested_expect_repository_filter(self):
+        environment = _environment()
+        repository = _Repository(environment)
+
+        await ListEnvironmentsUseCaseImpl(repository).execute(
+            ListEnvironmentsQuery(PaginationParams(limit=10), EnvironmentStatus.ACTIVE)
+        )
+
+        assert repository.requested_status is EnvironmentStatus.ACTIVE

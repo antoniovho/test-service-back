@@ -52,6 +52,7 @@ def _dtos():
         content_hash=None,
         size_bytes=1,
         mime_type="text/plain",
+        content="diagnostic trace",
         created_at=datetime(2026, 1, 1, tzinfo=UTC),
     )
     return result, action, artifact
@@ -107,6 +108,7 @@ class TestExecutionResultsPersistence:
         assert actions.items[0].expected["code"] == 200
         assert artifacts.items[0].artifact_type is ArtifactType.LOG
         assert artifacts.items[0].storage_type is StorageType.DB
+        assert artifacts.items[0].content == "diagnostic trace"
         saved_result, saved_actions, saved_artifacts = repository.saved
         assert saved_result.id == result.id
         assert saved_actions[0].id == action.id
@@ -128,6 +130,7 @@ class TestExecutionResultsPersistence:
         assert result_dto.id == result.id
         assert action_dto.id == action.id
         assert artifact_dto.id == artifact.id
+        assert artifact_dto.content == "diagnostic trace"
 
     def test_when_sort_field_is_unknown_expect_value_error(self):
         with pytest.raises(ValueError, match="unsupported artifact sort field"):

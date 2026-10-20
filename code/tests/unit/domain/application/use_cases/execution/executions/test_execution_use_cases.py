@@ -134,7 +134,8 @@ class _ExecutionRepository:
         self.find_requested_ids.append(identifier)
         return self.execution
 
-    async def find_page(self, project_key: str, pagination):
+    async def find_page(self, project_key: str, pagination, status=None):
+        self.requested_status = status
         return Page((), 0) if self.execution is None else Page((self.execution,), 1)
 
 
@@ -313,6 +314,15 @@ class TestExecutionUseCases:
         page = await use_case.execute(query)
 
         assert page.items == (execution,)
+
+    async def test_when_execution_status_is_requested_expect_repository_filter(self):
+        execution = _execution()
+        repository = _ExecutionRepository(execution)
+        query = ListExecutionsQuery("IAG", PaginationParams(), ExecutionStatus.ERROR)
+
+        await ListExecutionsUseCaseImpl(repository, _project_resolver(_project())).execute(query)
+
+        assert repository.requested_status is ExecutionStatus.ERROR
 
     async def test_when_project_is_missing_expect_execution_list_not_found(self):
         query = ListExecutionsQuery("IAG", PaginationParams())

@@ -5,10 +5,11 @@ from uuid import uuid4
 
 from test_service_server.models.create_execution_request import CreateExecutionRequest
 from test_service_server.models.execution_outcome_sort_by import ExecutionOutcomeSortBy
+from test_service_server.models.execution_status import ExecutionStatus as ApiExecutionStatus
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 
 from test_service.domain.application.queries.pagination import Page
-from test_service.domain.model.execution.execution import Execution, TriggerType
+from test_service.domain.model.execution.execution import Execution, ExecutionStatus, TriggerType
 from test_service.domain.ports.input.use_cases.execution.executions.cancel_execution_use_case import (  # noqa: E501
     CancelExecutionUseCase,
 )
@@ -78,7 +79,12 @@ class TestExecutionRest:
             "IAG", _request(execution), datetime(2026, 1, 1, tzinfo=UTC)
         )
         listed = ExecutionMapper.to_list_query(
-            "IAG", 0, 10, ExecutionOutcomeSortBy.STARTEDAT, ApiSortOrder.DESC
+            "IAG",
+            0,
+            10,
+            ExecutionOutcomeSortBy.STARTEDAT,
+            ApiSortOrder.DESC,
+            ApiExecutionStatus.ERROR,
         )
 
         assert schedule.project_key == "IAG"
@@ -89,6 +95,7 @@ class TestExecutionRest:
             == execution.identifier
         )
         assert listed.pagination.sort_by == "started_at"
+        assert listed.status is ExecutionStatus.ERROR
 
     def test_when_mapping_execution_expect_api_resource_and_page(self):
         execution = _execution()
@@ -148,5 +155,8 @@ class TestExecutionRest:
         assert await controller.get_execution("IAG", identifier) == "get"
         assert await controller.cancel_execution("IAG", identifier) == "cancel"
         assert (
-            await controller.list_executions("IAG", 0, 10, "createdAt", ApiSortOrder.ASC) == "list"
+            await controller.list_executions(
+                "IAG", 0, 10, "createdAt", ApiSortOrder.ASC, ApiExecutionStatus.ERROR
+            )
+            == "list"
         )

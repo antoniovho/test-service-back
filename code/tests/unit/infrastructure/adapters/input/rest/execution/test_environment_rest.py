@@ -6,6 +6,7 @@ from uuid import uuid4
 from test_service_server.models.action_request import ActionRequest
 from test_service_server.models.create_environment_request import CreateEnvironmentRequest
 from test_service_server.models.environment_sort_by import EnvironmentSortBy
+from test_service_server.models.environment_status import EnvironmentStatus as ApiEnvironmentStatus
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 
 from test_service.domain.application.queries.pagination import Page
@@ -86,11 +87,12 @@ class TestEnvironmentRest:
 
     def test_when_mapping_list_query_expect_allowed_sort_field(self):
         query = EnvironmentMapper.to_list_query(
-            0, 10, EnvironmentSortBy.CREATEDAT, ApiSortOrder.DESC
+            0, 10, EnvironmentSortBy.CREATEDAT, ApiSortOrder.DESC, ApiEnvironmentStatus.INACTIVE
         )
 
         assert query.pagination.sort_by == "created_at"
         assert query.pagination.order.value == "DESC"
+        assert query.status is EnvironmentStatus.INACTIVE
 
     def test_when_mapping_empty_configuration_expect_none_preserved(self):
         request = CreateEnvironmentRequest(environmentKey="staging-eu", name="Staging Europe")
@@ -143,13 +145,14 @@ class TestEnvironmentRest:
         found = await controller.get(environment.identifier)
         activated = await controller.activate(environment.identifier, ActionRequest(reason="ready"))
         deactivated = await controller.deactivate(environment.identifier, None)
-        listed = await controller.list(0, 10, "name", ApiSortOrder.ASC)
+        listed = await controller.list(0, 10, "name", ApiSortOrder.ASC, ApiEnvironmentStatus.ACTIVE)
 
         assert created.id == environment.identifier
         assert found.environment_key == environment.environment_key
         assert activated.status == "ACTIVE"
         assert deactivated.status == "ACTIVE"
         assert listed.pagination.total == 1
+        assert controller._list.execute.await_args.args[0].status is EnvironmentStatus.ACTIVE
 
     async def test_when_execution_environment_endpoints_are_called_expect_delegation(self):
         feature = MagicMock()
@@ -163,7 +166,12 @@ class TestEnvironmentRest:
         assert await controller.get_environment(identifier) == "get"
         assert await controller.activate_environment(identifier, None) == "activate"
         assert await controller.deactivate_environment(identifier, None) == "deactivate"
-        assert await controller.list_environments(0, 10, "name", ApiSortOrder.ASC) == "list"
+        assert (
+            await controller.list_environments(
+                0, 10, "name", ApiSortOrder.ASC, ApiEnvironmentStatus.ACTIVE
+            )
+            == "list"
+        )
 
     def test_when_execution_controller_is_constructed_expect_feature_controllers(self, monkeypatch):
         environment_feature = MagicMock()
