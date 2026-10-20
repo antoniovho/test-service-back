@@ -36,11 +36,11 @@ class ExecutionController(BaseExecutionApi):
         self,
         offset: int | None,
         limit: int | None,
+        status: ApiEnvironmentStatus | None,
         sort_by: EnvironmentSortBy | None,
         order: ApiSortOrder | None,
-        status: ApiEnvironmentStatus | None = None,
     ):
-        return await self._environments.list(offset, limit, sort_by, order, status)
+        return await self._environments.list(offset, limit, status, sort_by, order)
 
     async def create_environment(self, create_environment_request: CreateEnvironmentRequest):
         return await self._environments.create(create_environment_request)

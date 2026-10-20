@@ -82,9 +82,9 @@ class EnvironmentsRestController:
         self,
         offset: int | None,
         limit: int | None,
+        status: ApiEnvironmentStatus | None,
         sort_by: EnvironmentSortBy | None,
         order: ApiSortOrder | None,
-        status: ApiEnvironmentStatus | None = None,
     ) -> EnvironmentListResponse:
         query = EnvironmentMapper.to_list_query(offset, limit, sort_by, order, status)
         environments = await self._list.execute(query)
