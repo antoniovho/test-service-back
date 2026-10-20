@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS test_service_v1.viewer_sync_record (
     project_key           TEXT            NOT NULL,
     entity_type           TEXT            NOT NULL,
     entity_key            TEXT            NOT NULL,
+    entity_version        INTEGER         NOT NULL,
     projected_version_id  uuid            NOT NULL,
     viewer_type           TEXT            NOT NULL,
     external_entity_key   TEXT            NOT NULL,
@@ -16,13 +17,14 @@ CREATE TABLE IF NOT EXISTS test_service_v1.viewer_sync_record (
     created_at            timestamptz(6)  DEFAULT CURRENT_TIMESTAMP NOT NULL,
     projection_hash       TEXT            NULL,
     CONSTRAINT viewer_sync_record_pkey PRIMARY KEY (id),
-    CONSTRAINT viewer_sync_record_entity_viewer_uq UNIQUE (project_key, entity_type, entity_key, viewer_type)
+    CONSTRAINT viewer_sync_record_entity_viewer_uq UNIQUE (project_key, entity_type, entity_key, entity_version, viewer_type)
 );
 
 COMMENT ON COLUMN test_service_v1.viewer_sync_record.id                   IS 'Unique synchronization record identifier';
 COMMENT ON COLUMN test_service_v1.viewer_sync_record.project_key          IS 'Project that owns the projected entity; entity_key is only unique per project';
 COMMENT ON COLUMN test_service_v1.viewer_sync_record.entity_type          IS 'Type of domain entity represented in the external viewer: TEST_CASE, PRECONDITION, TEST_SET, or TEST_PLAN';
 COMMENT ON COLUMN test_service_v1.viewer_sync_record.entity_key           IS 'Stable business key of the logical domain entity, unchanged across versions';
+COMMENT ON COLUMN test_service_v1.viewer_sync_record.entity_version       IS 'Immutable business version number of the projected entity';
 COMMENT ON COLUMN test_service_v1.viewer_sync_record.projected_version_id IS 'UUID of the immutable domain version currently projected to the external viewer';
 COMMENT ON COLUMN test_service_v1.viewer_sync_record.viewer_type          IS 'Type of external viewer containing the projection, e.g. XRAY';
 COMMENT ON COLUMN test_service_v1.viewer_sync_record.external_entity_key  IS 'Stable identifier of the projected entity in the external viewer';

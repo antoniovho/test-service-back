@@ -19,6 +19,7 @@ class ViewerSyncRecordDTO(Base):
     project_key: Mapped[str] = mapped_column(Text, nullable=False)
     entity_type: Mapped[str] = mapped_column(String, nullable=False)
     entity_key: Mapped[str] = mapped_column(Text, nullable=False)
+    entity_version: Mapped[int] = mapped_column(nullable=False)
     projected_version_id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), nullable=False)
     viewer_type: Mapped[str] = mapped_column(String, nullable=False)
     external_entity_key: Mapped[str] = mapped_column(Text, nullable=False)

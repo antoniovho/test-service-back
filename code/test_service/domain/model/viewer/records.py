@@ -117,6 +117,7 @@ class ViewerSyncRecord:
         project_key: Owning project key.
         entity_type: Type of projected immutable snapshot.
         entity_key: Stable logical key of the entity.
+        entity_version: Immutable version number of the projected snapshot.
         projected_version_id: UUID of the projected snapshot.
         viewer_type: External Viewer platform.
         external_entity_key: Stable external viewer key.
@@ -133,6 +134,7 @@ class ViewerSyncRecord:
     project_key: str
     entity_type: ViewerEntityType
     entity_key: str
+    entity_version: int
     projected_version_id: UUID
     viewer_type: ViewerType
     external_entity_key: str

@@ -88,6 +88,7 @@ class TestViewerRest:
             project_key="IAG",
             entity_type=ViewerEntityType.TEST_CASE,
             entity_key="LOGIN",
+            entity_version=1,
             projected_version_id=uuid4(),
             viewer_type=ViewerType.XRAY,
             external_entity_key="LOGIN",
@@ -127,9 +128,7 @@ class TestViewerRest:
         controller = _controller()
         controller._publish.execute = AsyncMock(return_value=_operation())
 
-        response = await controller.publish_viewer_projection(
-            "IAG", ViewerOperationRequest(viewerType="XRAY")
-        )
+        response = await controller.publish_viewer_projection("IAG", ApiViewerType.XRAY)
 
         assert response.project.key == "IAG"
         assert response.project.name == "AI Gateway"
@@ -140,6 +139,7 @@ class TestViewerRest:
             project_key="IAG",
             entity_type=ViewerEntityType.TEST_CASE,
             entity_key="LOGIN",
+            entity_version=1,
             projected_version_id=uuid4(),
             viewer_type=ViewerType.XRAY,
             external_entity_key="LOGIN",
@@ -151,11 +151,13 @@ class TestViewerRest:
 
         assert api_record.project.key == "IAG"
         assert api_record.project.name == "AI Gateway"
+        assert api_record.entity_version == 1
+        assert api_record.error is None
 
-    def test_when_mapping_viewer_operation_request_expect_viewer_type_in_commands(self) -> None:
+    def test_when_mapping_viewer_inputs_expect_viewer_type_in_commands(self) -> None:
         request = ViewerOperationRequest(viewerType="XRAY")
 
-        publish = ViewerMapper.to_publish_command("IAG", request)
+        publish = ViewerMapper.to_publish_command("IAG", ApiViewerType.XRAY)
         drift = ViewerMapper.to_check_drift_command("IAG", request)
 
         assert publish.project_key == "IAG"
@@ -178,9 +180,8 @@ class TestViewerRest:
         self,
     ) -> None:
         controller = _controller()
-        request = ViewerOperationRequest(viewerType="XRAY")
 
-        publication = await controller.publish_viewer_projection("IAG", request)
+        publication = await controller.publish_viewer_projection("IAG", ApiViewerType.XRAY)
         records = await controller.list_viewer_sync_records(
             ApiViewerType.XRAY, 0, 10, "createdAt", ApiSortOrder.ASC
         )

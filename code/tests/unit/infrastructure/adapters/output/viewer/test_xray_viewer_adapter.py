@@ -48,6 +48,7 @@ class TestXrayViewerAdapter:
             project_key="SHOP",
             entity_type=ViewerEntityType.TEST_CASE,
             entity_key="checkout",
+            entity_version=1,
             projected_version_id=uuid4(),
             viewer_type=ViewerType.XRAY,
             external_entity_key="checkout",

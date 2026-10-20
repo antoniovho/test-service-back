@@ -36,9 +36,9 @@ from test_service.infrastructure.adapters.input.rest.common.api_value import enu
 class ViewerMapper:
     @staticmethod
     def to_publish_command(
-        project_key: str, request: ViewerOperationRequest
+        project_key: str, viewer_type: ApiViewerType
     ) -> PublishViewerProjectionCommand:
-        return PublishViewerProjectionCommand(project_key, ViewerType(request.viewer_type.value))
+        return PublishViewerProjectionCommand(project_key, ViewerType(viewer_type.value))
 
     @staticmethod
     def to_check_drift_command(
@@ -121,10 +121,12 @@ class ViewerMapper:
             project=ProjectReference(key=record.project_key, name=project_name),
             entityType=record.entity_type.value,
             entityKey=record.entity_key,
+            entityVersion=record.entity_version,
             projectedVersionId=record.projected_version_id,
             viewerType=ApiViewerType(record.viewer_type.value),
             externalEntityKey=record.external_entity_key,
             externalEntityId=record.external_entity_id,
+            error=record.error,
             syncStatus=record.sync_status.value,
             lastSyncedAt=record.last_synced_at,
             lastCheckedAt=record.last_checked_at,

@@ -101,6 +101,7 @@ class ViewerRepository:
                     ViewerSyncRecordDTO.project_key == record.project_key,
                     ViewerSyncRecordDTO.entity_type == record.entity_type,
                     ViewerSyncRecordDTO.entity_key == record.entity_key,
+                    ViewerSyncRecordDTO.entity_version == record.entity_version,
                     ViewerSyncRecordDTO.viewer_type == record.viewer_type,
                 )
             )
@@ -117,6 +118,7 @@ class ViewerRepository:
         project_key: str,
         entity_type: ViewerEntityType,
         entity_key: str,
+        entity_version: int,
         viewer_type: ViewerType,
     ) -> ViewerSyncRecordDTO | None:
         async with self._session_provider.session() as session:
@@ -125,6 +127,7 @@ class ViewerRepository:
                     ViewerSyncRecordDTO.project_key == project_key,
                     ViewerSyncRecordDTO.entity_type == entity_type.value,
                     ViewerSyncRecordDTO.entity_key == entity_key,
+                    ViewerSyncRecordDTO.entity_version == entity_version,
                     ViewerSyncRecordDTO.viewer_type == viewer_type.value,
                 )
             )

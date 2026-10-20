@@ -52,6 +52,7 @@ class ViewerPersistencePort(Protocol):
         project_key: str,
         entity_type: ViewerEntityType,
         entity_key: str,
+        entity_version: int,
         viewer_type: ViewerType,
     ) -> ViewerSyncRecord | None:
         """Find the durable identity for one projected entity."""
