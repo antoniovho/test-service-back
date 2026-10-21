@@ -1,0 +1,66 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-ERR-020",
+  "summary": "Database unavailable returns no_db_connection",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-valid-test-key"
+    },
+    "actions": [
+      {
+        "id": "databaseUnavailable",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/key/info",
+          "method": "GET",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Accept": "application/json"
+          },
+          "expectedStatus": 503,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "const": "no_db_connection"
+                  },
+                  "code": {
+                    "const": "503"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "In a dedicated isolated environment, verify a database-dependent key-info operation returns no_db_connection and HTTP 503 while the gateway cannot reach its configured database. This case does not alter database connectivity; the outage must be established and restored by controlled test-environment orchestration. Internal exception details are not asserted.",
+    "labels": [
+      "litellm",
+      "error-handling",
+      "database",
+      "availability"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/virtual_keys"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

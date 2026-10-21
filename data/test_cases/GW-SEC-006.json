@@ -1,0 +1,107 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-SEC-006",
+  "summary": "Redact virtual and provider keys from observability records",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-disposable-litellm-test-key",
+      "provider_api_key": "replace-with-provider-api-key",
+      "model_name": "replace-with-configured-chat-model",
+      "test_run_id": "replace-with-unique-correlation-id",
+      "observability_query_endpoint": "replace-with-http-query-endpoint-for-observability-sink",
+      "observability_sink_authorization": "replace-with-sink-authorization-value"
+    },
+    "actions": [
+      {
+        "id": "emitCorrelatedChatRequest",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Sensitive-data-redaction security test."
+              }
+            ],
+            "metadata": {
+              "security_test_id": "{{test_run_id}}",
+              "integration_test_id": "{{test_run_id}}"
+            },
+            "stream": false
+          },
+          "expectedStatus": 200,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "object",
+              "choices"
+            ],
+            "properties": {
+              "object": {
+                "const": "chat.completion"
+              },
+              "choices": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "searchCorrelatedObservabilityRecord",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{observability_query_endpoint}}",
+          "method": "GET",
+          "headers": {
+            "Authorization": "{{observability_sink_authorization}}",
+            "Accept": "application/json"
+          },
+          "query": {
+            "security_test_id": "{{test_run_id}}",
+            "test_run_id": "{{test_run_id}}"
+          },
+          "expectedStatus": 200,
+          "expectedTextContains": "{{test_run_id}}",
+          "forbiddenText": [
+            "{{litellm_virtual_key}}",
+            "{{provider_api_key}}"
+          ]
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Also covers GW-INT-005's callback-delivery and correlation checks. Verify a successful chat request with correlation metadata creates a searchable observability record and that the record does not contain the virtual key or provider API key in plaintext. Requires a configured LiteLLM callback and an HTTP-queryable sink endpoint with a sink-specific authorization header. The runner expects immediate record visibility and does not poll for asynchronous callback delivery. The model request can incur provider costs; use disposable credentials and an isolated sink.",
+    "labels": [
+      "litellm",
+      "security",
+      "observability",
+      "secret-redaction",
+      "GW-INT-005"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/logging"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    },
+    {
+      "preconditionKey": "LITELLM_CHAT_MODEL_READY",
+      "version": 1
+    }
+  ]
+}

@@ -1,0 +1,167 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-INT-011",
+  "summary": "Preserve tool-call structure through LiteLLM",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-valid-tool-calling-api-key",
+      "model_name": "replace-with-tool-capable-model"
+    },
+    "actions": [
+      {
+        "id": "requestWeatherToolCall",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Use the weather tool for Madrid."
+              }
+            ],
+            "tools": [
+              {
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "description": "Get the weather for a city.",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "city": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "city"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            ],
+            "tool_choice": {
+              "type": "function",
+              "function": {
+                "name": "get_weather"
+              }
+            },
+            "stream": false
+          },
+          "expectedStatus": 200,
+          "expectedHeaders": {
+            "Content-Type": "application/json"
+          },
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "object",
+              "choices"
+            ],
+            "properties": {
+              "object": {
+                "const": "chat.completion"
+              },
+              "choices": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "finish_reason",
+                    "message"
+                  ],
+                  "properties": {
+                    "finish_reason": {
+                      "const": "tool_calls"
+                    },
+                    "message": {
+                      "type": "object",
+                      "required": [
+                        "role",
+                        "tool_calls"
+                      ],
+                      "properties": {
+                        "role": {
+                          "const": "assistant"
+                        },
+                        "tool_calls": {
+                          "type": "array",
+                          "minItems": 1,
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "id",
+                              "type",
+                              "function"
+                            ],
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "type": {
+                                "const": "function"
+                              },
+                              "function": {
+                                "type": "object",
+                                "required": [
+                                  "name",
+                                  "arguments"
+                                ],
+                                "properties": {
+                                  "name": {
+                                    "const": "get_weather"
+                                  },
+                                  "arguments": {
+                                    "type": "string",
+                                    "pattern": ".*\\\"city\\\"\\s*:\\s*\\\"Madrid\\\".*"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify LiteLLM preserves the OpenAI-compatible tool-call response shape, selected function name, and JSON arguments for a tool-capable model. tool_choice forces the get_weather function to avoid relying on a natural-language model decision. The source's local tool execution and second round-trip are not expressible in the current HTTP/SSE action model, so this case validates only the provider-to-proxy tool-call response. The model request can incur provider costs.",
+    "labels": [
+      "litellm",
+      "integration",
+      "tool-calling",
+      "chat-completions"
+    ],
+    "source": "https://docs.litellm.ai/docs/completion/input"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    },
+    {
+      "preconditionKey": "LITELLM_CHAT_MODEL_READY",
+      "version": 1
+    }
+  ]
+}

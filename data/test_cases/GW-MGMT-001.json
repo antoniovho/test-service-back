@@ -1,0 +1,67 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-MGMT-001",
+  "summary": "Block and unblock a dedicated model deployment",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "master_key": "replace-with-proxy-master-key",
+      "managed_model_id": "replace-with-dedicated-test-model-deployment-id"
+    },
+    "actions": [
+      {
+        "id": "blockTestModelDeployment",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/model/block",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{master_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model_id": "{{managed_model_id}}"
+          },
+          "expectedStatus": 200
+        }
+      },
+      {
+        "id": "unblockTestModelDeployment",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/model/unblock",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{master_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model_id": "{{managed_model_id}}"
+          },
+          "expectedStatus": 200
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify the administrative block and unblock endpoints accept operations for a persisted model deployment. Requires PostgreSQL-backed model persistence, model persistence enabled, and an administrative credential. Both actions mutate deployment state; use only a dedicated isolated test deployment and confirm it is unblocked if execution is interrupted. This conversion performs no block/unblock operations and asserts only HTTP status.",
+    "labels": [
+      "litellm",
+      "management",
+      "model-deployment",
+      "admin",
+      "state-change"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/model_management"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

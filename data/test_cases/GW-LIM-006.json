@@ -1,0 +1,83 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-LIM-006",
+  "summary": "Reject a request that exceeds a dedicated key's TPM limit",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "rate_limited_api_key": "replace-with-dedicated-key-tpm-64-rpm-at-least-2",
+      "model_name": "replace-with-configured-chat-model"
+    },
+    "actions": [
+      {
+        "id": "shortRequestWithinTokenLimit",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{rate_limited_api_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Reply OK."
+              }
+            ],
+            "max_tokens": 1,
+            "stream": false
+          },
+          "expectedStatus": 200
+        }
+      },
+      {
+        "id": "largeRequestExceedsTokenLimit",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{rate_limited_api_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "amber birch copper delta elm forest granite harbor island jade kernel lemon meadow nickel olive pebble quartz river silver timber unity valley willow xenon yellow zephyr apricot blossom canyon desert ember feather garden horizon ivory jasmine kingdom lantern mountain nectar orchard prairie quiet rainbow summit tulip umbrella velvet winter xylophone yogurt zipper anchor beacon crystal dawn evergreen fountain galaxy harvest indigo journey kindling lagoon marble nebula ocean pepper quiver rosewood sunrise thistle umber voyage walnut xenial yearling zenith atlas breeze compass daylight evergreen firelight goldfinch hillside ironwood juniper kestrel lighthouse moonbeam northern opal pinecone quicksilver redwood starlight tidewater upland vineyard wildflower xanthic yesterday zodiac."
+              }
+            ],
+            "max_tokens": 1,
+            "stream": false
+          },
+          "expectedStatus": 429
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "With a dedicated non-admin key configured for tpm_limit=64, token_rate_limit_type=total, and an rpm_limit of at least 2, verify a short request succeeds and a subsequent request whose prompt is well over 64 words is rejected with HTTP 429. Requires a clean TPM bucket and a model whose tokenizer counts the longer prompt above the limit. Tokenization and threshold enforcement are provider/model-dependent; the case does not assert exact token accounting. The accepted request can incur provider cost.",
+    "labels": [
+      "litellm",
+      "rate-limiting",
+      "tpm",
+      "token-limit",
+      "api-key"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/users"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

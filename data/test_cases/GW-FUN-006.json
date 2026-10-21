@@ -1,0 +1,119 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-FUN-006",
+  "summary": "Accept valid and reject negative max_tokens values",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-valid-chat-api-key",
+      "model_name": "replace-with-configured-chat-model-supporting-max-tokens"
+    },
+    "actions": [
+      {
+        "id": "validMaxTokensAccepted",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Write a short poem about the ocean."
+              }
+            ],
+            "max_tokens": 16,
+            "stream": false
+          },
+          "expectedStatus": 200,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "choices",
+              "usage"
+            ],
+            "properties": {
+              "choices": {
+                "type": "array",
+                "minItems": 1
+              },
+              "usage": {
+                "type": "object",
+                "required": [
+                  "completion_tokens"
+                ],
+                "properties": {
+                  "completion_tokens": {
+                    "type": "integer",
+                    "maximum": 16
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "negativeMaxTokensRejected",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Write a short poem about the ocean."
+              }
+            ],
+            "max_tokens": -5,
+            "stream": false
+          },
+          "expectedStatus": 400,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify max_tokens=16 is accepted and completion_tokens is at most 16, and max_tokens=-5 is rejected with HTTP 400 for a model that supports max_tokens. Exact invalid-parameter text is not asserted because provider responses vary. The valid completion request can incur provider token costs.",
+    "labels": [
+      "litellm",
+      "functional",
+      "chat-completions",
+      "parameters",
+      "token-limit"
+    ],
+    "source": "https://docs.litellm.ai/docs/completion"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_CHAT_MODEL_READY",
+      "version": 1
+    }
+  ]
+}

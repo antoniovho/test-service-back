@@ -1,0 +1,77 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-ERR-018",
+  "summary": "Generic gateway bad request",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-valid-test-key",
+      "model_name": "replace-with-configured-chat-model",
+      "gateway_rejection_trigger": "replace-with-input-that-triggers-a-configured-gateway-side-bad-request"
+    },
+    "actions": [
+      {
+        "id": "gatewayBadRequest",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "{{gateway_rejection_trigger}}"
+              }
+            ]
+          },
+          "expectedStatus": 400,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "const": "bad_request_error"
+                  },
+                  "code": {
+                    "const": "400"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify a deployment-specific deterministic gateway-side rejection returns bad_request_error with HTTP 400. The source does not specify the gateway condition that triggers the rejection, so gateway_rejection_trigger must be supplied for the target deployment. Gateway availability after the error is not checked by this case.",
+    "labels": [
+      "litellm",
+      "error-handling",
+      "bad-request"
+    ],
+    "source": "https://docs.litellm.ai/docs/completion"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

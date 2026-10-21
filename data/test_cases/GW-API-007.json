@@ -1,0 +1,58 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-API-007",
+  "summary": "Retrieve LiteLLM model information",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "master_key": "replace-with-authorized-litellm-admin-key"
+    },
+    "actions": [
+      {
+        "id": "getModelInformation",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/model/info",
+          "method": "GET",
+          "headers": {
+            "Authorization": "Bearer {{master_key}}",
+            "Accept": "application/json"
+          },
+          "expectedStatus": 200,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify configured model information through LiteLLM's admin management endpoint. The official Model Management documentation specifies GET /model/info (not /v1/model/info) and notes that API keys are masked in the returned model list.",
+    "labels": [
+      "litellm",
+      "models",
+      "management"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/model_management"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

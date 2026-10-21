@@ -1,0 +1,58 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-OCR-004",
+  "summary": "Submit a page selection with an OCR PDF request",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-valid-ocr-api-key",
+      "ocr_model_name": "replace-with-configured-ocr-model-alias"
+    },
+    "actions": [
+      {
+        "id": "ocrSelectedPdfPages",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/ocr",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{ocr_model_name}}",
+            "document": {
+              "type": "document_url",
+              "document_url": "https://arxiv.org/pdf/2201.04234"
+            },
+            "pages": [
+              0,
+              1,
+              2
+            ]
+          },
+          "expectedStatus": 200
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify the configured OCR model accepts a PDF document_url request with pages=[0,1,2] and returns HTTP 200. Requires a reachable PDF with at least three pages and a configured OCR deployment. The runner cannot assert that the returned pages correspond exactly to the requested indices; OCR can incur provider costs.",
+    "labels": [
+      "litellm",
+      "ocr",
+      "pdf",
+      "page-selection"
+    ],
+    "source": "https://docs.litellm.ai/docs/providers/mistral"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

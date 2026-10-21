@@ -1,0 +1,139 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-OCR-006",
+  "summary": "Process a base64-encoded PDF data URI through LiteLLM OCR",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-valid-ocr-api-key",
+      "ocr_model_name": "replace-with-configured-mistral-ocr-model-alias",
+      "pdf_data_uri": "data:application/pdf;base64,replace-with-base64-pdf-fixture"
+    },
+    "actions": [
+      {
+        "id": "ocrBase64PdfDataUri",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/ocr",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{ocr_model_name}}",
+            "document": {
+              "type": "document_url",
+              "document_url": "{{pdf_data_uri}}"
+            }
+          },
+          "expectedStatus": 200,
+          "expectedHeaders": {
+            "Content-Type": "application/json"
+          },
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "pages",
+              "model",
+              "usage_info",
+              "object"
+            ],
+            "properties": {
+              "object": {
+                "const": "ocr"
+              },
+              "model": {
+                "type": "string",
+                "minLength": 1
+              },
+              "pages": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "index",
+                    "markdown",
+                    "dimensions"
+                  ],
+                  "properties": {
+                    "index": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "markdown": {
+                      "type": "string"
+                    },
+                    "dimensions": {
+                      "type": "object",
+                      "required": [
+                        "dpi",
+                        "height",
+                        "width"
+                      ],
+                      "properties": {
+                        "dpi": {
+                          "type": "number"
+                        },
+                        "height": {
+                          "type": "number"
+                        },
+                        "width": {
+                          "type": "number"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "usage_info": {
+                "type": "object",
+                "required": [
+                  "pages_processed",
+                  "doc_size_bytes"
+                ],
+                "properties": {
+                  "pages_processed": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "doc_size_bytes": {
+                    "type": "number",
+                    "minimum": 0
+                  }
+                }
+              },
+              "document_annotation": {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify the OCR endpoint accepts a PDF data URI and returns the documented Mistral-compatible OCR response. Supply a valid base64-encoded PDF data URI through pdf_data_uri; the runner does not read local files or perform base64 encoding. OCR inference can incur provider costs, so use a small disposable fixture and never execute this case against a billable provider without approval.",
+    "labels": [
+      "litellm",
+      "ocr",
+      "data-uri",
+      "base64",
+      "pdf"
+    ],
+    "source": "https://docs.litellm.ai/docs/ocr"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

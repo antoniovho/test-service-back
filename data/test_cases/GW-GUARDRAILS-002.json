@@ -1,0 +1,56 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-GUARDRAILS-002",
+  "summary": "Apply a default-on guardrail without client selection",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-valid-litellm-api-key",
+      "model_name": "replace-with-configured-model-alias"
+    },
+    "actions": [
+      {
+        "id": "defaultOnGuardrailBlocksPii",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "hi my email is ishaan@berri.ai"
+              }
+            ]
+          },
+          "expectedStatus": 400
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify a pre-call Aporia guardrail configured with default_on=true blocks the documented PII example even when the request omits the guardrails field. The environment must have aporia-pre-guard configured with guardrail=aporia, mode=pre_call, and default_on=true. The source also expects the response to identify the applied guardrail in a header, but does not specify the header name and the corpus case cannot assert an unspecified header; that assertion is omitted.",
+    "labels": [
+      "litellm",
+      "guardrails",
+      "aporia",
+      "default-on",
+      "pii"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/guardrail"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

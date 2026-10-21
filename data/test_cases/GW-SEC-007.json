@@ -1,0 +1,90 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-SEC-007",
+  "summary": "Block guarded input and accept a benign positive control",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-valid-chat-api-key",
+      "model_name": "replace-with-configured-chat-model",
+      "guardrail_name": "replace-with-configured-pre-call-guardrail",
+      "guardrail_blocked_test_input": "replace-with-deterministic-input-configured-for-blocking",
+      "guardrail_allowed_test_input": "replace-with-deterministic-benign-input"
+    },
+    "actions": [
+      {
+        "id": "preCallGuardrailBlocksConfiguredInput",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "{{guardrail_blocked_test_input}}"
+              }
+            ],
+            "guardrails": [
+              "{{guardrail_name}}"
+            ],
+            "stream": false
+          },
+          "expectedStatus": 400
+        }
+      },
+      {
+        "id": "preCallGuardrailAllowsBenignInput",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "{{guardrail_allowed_test_input}}"
+              }
+            ],
+            "guardrails": [
+              "{{guardrail_name}}"
+            ],
+            "stream": false
+          },
+          "expectedStatus": 200
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify an explicitly selected pre_call guardrail rejects its configured deterministic blocking input with HTTP 400 and allows a benign positive-control input with HTTP 200. The environment must define inputs with those exact outcomes and configure the guardrail in pre_call mode. Status checks do not establish provider non-dispatch for blocked content or inspect provider-specific error bodies; the benign completion can incur provider costs.",
+    "labels": [
+      "litellm",
+      "security",
+      "guardrails",
+      "pre-call",
+      "positive-control"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/guardrail"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_CHAT_MODEL_READY",
+      "version": 1
+    }
+  ]
+}

@@ -1,0 +1,78 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-MGMT-006",
+  "summary": "Delete a disposable virtual key and reject its reuse",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "master_key": "replace-with-proxy-admin-key",
+      "api_key_to_delete": "replace-with-dedicated-disposable-virtual-key",
+      "model_name": "replace-with-configured-chat-model"
+    },
+    "actions": [
+      {
+        "id": "deleteDisposableVirtualKey",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/key/delete",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{master_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "keys": [
+              "{{api_key_to_delete}}"
+            ]
+          },
+          "expectedStatus": 200
+        }
+      },
+      {
+        "id": "deletedKeyRejected",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{api_key_to_delete}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Return a short confirmation."
+              }
+            ],
+            "stream": false
+          },
+          "expectedStatus": 401
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify an administrator can delete a disposable virtual key and that a subsequent chat request using it is rejected with HTTP 401. Requires PostgreSQL-backed key management, an admin credential, and a key created solely for this test. Deletion is permanent; never use a shared, production, or otherwise needed key. The second request should fail authentication before provider inference. This conversion performs no key deletion or cleanup and asserts only status codes.",
+    "labels": [
+      "litellm",
+      "management",
+      "virtual-keys",
+      "admin",
+      "deletion",
+      "authentication"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/virtual_keys"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

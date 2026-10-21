@@ -1,0 +1,81 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-ERR-006",
+  "summary": "Team model access denied",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-key-belonging-to-restricted-team",
+      "team_id": "replace-with-team-id",
+      "restricted_model_name": "replace-with-configured-model-excluded-from-team"
+    },
+    "actions": [
+      {
+        "id": "teamModelAccessDenied",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{restricted_model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Return the word OK."
+              }
+            ]
+          },
+          "expectedStatus": 403,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "const": "team_model_access_denied"
+                  },
+                  "param": {
+                    "const": "model"
+                  },
+                  "code": {
+                    "const": "403"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify a configured model excluded from a team's access policy is denied with team_model_access_denied and HTTP 403. The API key must belong to the referenced team, and the requested model must exist but remain unavailable to that team.",
+    "labels": [
+      "litellm",
+      "error-handling",
+      "team",
+      "model-access"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/virtual_keys"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

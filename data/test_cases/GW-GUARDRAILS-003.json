@@ -1,0 +1,115 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-GUARDRAILS-003",
+  "summary": "List configured guardrails and their declared information",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-valid-litellm-api-key",
+      "guardrail_name": "aporia-post-guard"
+    },
+    "actions": [
+      {
+        "id": "listConfiguredGuardrails",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/guardrails/list",
+          "method": "GET",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Accept": "application/json"
+          },
+          "expectedStatus": 200,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "guardrails"
+            ],
+            "properties": {
+              "guardrails": {
+                "type": "array",
+                "contains": {
+                  "type": "object",
+                  "required": [
+                    "guardrail_name",
+                    "guardrail_info"
+                  ],
+                  "properties": {
+                    "guardrail_name": {
+                      "const": "{{guardrail_name}}"
+                    },
+                    "guardrail_info": {
+                      "type": "object",
+                      "required": [
+                        "params"
+                      ],
+                      "properties": {
+                        "params": {
+                          "type": "array",
+                          "minItems": 2,
+                          "contains": {
+                            "type": "object",
+                            "required": [
+                              "name",
+                              "type"
+                            ],
+                            "properties": {
+                              "name": {
+                                "const": "toxicity_score"
+                              },
+                              "type": {
+                                "const": "float"
+                              }
+                            }
+                          },
+                          "allOf": [
+                            {
+                              "contains": {
+                                "type": "object",
+                                "required": [
+                                  "name",
+                                  "type"
+                                ],
+                                "properties": {
+                                  "name": {
+                                    "const": "pii_detection"
+                                  },
+                                  "type": {
+                                    "const": "boolean"
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify GET /guardrails/list returns the configured aporia-post-guard and its documented toxicity_score (float) and pii_detection (boolean) parameter metadata. The environment must enable Enterprise guardrail management and configure the named guardrail with this guardrail_info metadata.",
+    "labels": [
+      "litellm",
+      "guardrails",
+      "enterprise",
+      "configuration",
+      "metadata"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/guardrail"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

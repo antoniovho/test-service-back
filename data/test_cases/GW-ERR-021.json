@@ -1,0 +1,81 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-ERR-021",
+  "summary": "Unhandled gateway exception returns internal_server_error",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-valid-test-key",
+      "model_name": "replace-with-configured-chat-model",
+      "internal_error_test_trigger": "replace-with-isolated-test-only-exception-trigger"
+    },
+    "actions": [
+      {
+        "id": "unhandledExceptionSanitized",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "{{internal_error_test_trigger}}"
+              }
+            ]
+          },
+          "expectedStatus": 500,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "error"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "error": {
+                "type": "object",
+                "required": [
+                  "message",
+                  "type"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "message": {
+                    "const": "Internal server error"
+                  },
+                  "type": {
+                    "const": "internal_server_error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "In an isolated test environment, use a non-production test-only mechanism to trigger an unhandled gateway exception and verify HTTP 500 returns only the minimal error object with message=Internal server error and type=internal_server_error. The schema rejects additional response fields, but the mechanism that triggers the exception must never expose secrets or internal details.",
+    "labels": [
+      "litellm",
+      "error-handling",
+      "internal-error",
+      "security"
+    ],
+    "source": "https://docs.litellm.ai/docs/completion"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

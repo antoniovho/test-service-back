@@ -1,0 +1,84 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-AUTH-004",
+  "summary": "Expired virtual key rejected",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "expired_api_key": "replace-with-dedicated-expired-test-key",
+      "model_name": "replace-with-configured-chat-model"
+    },
+    "actions": [
+      {
+        "id": "rejectExpiredVirtualKey",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{expired_api_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Return a short confirmation."
+              }
+            ],
+            "stream": false
+          },
+          "expectedStatus": 401,
+          "expectedHeaders": {
+            "Content-Type": "application/json"
+          },
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "type": "object",
+                "required": [
+                  "message",
+                  "type"
+                ],
+                "properties": {
+                  "message": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "type": {
+                    "const": "auth_error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify LiteLLM rejects a virtual key after its expiry with HTTP 401 and an auth_error. Supply a dedicated key that has already expired. The source's key generation and timed wait cannot be represented by the current action model, so this case does not test expiry scheduling or perform key creation. Never use a production key.",
+    "labels": [
+      "litellm",
+      "auth",
+      "virtual-key",
+      "expired-key",
+      "security"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/virtual_keys"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

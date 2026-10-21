@@ -1,0 +1,64 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-VECTOR-001",
+  "summary": "Create a vector store",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-vector-store-enabled-litellm-key",
+      "vector_store_name": "test-service-disposable-vector-store"
+    },
+    "actions": [
+      {
+        "id": "createDisposableVectorStore",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/vector_stores",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "name": "{{vector_store_name}}"
+          },
+          "expectedStatus": 200,
+          "expectedHeaders": {
+            "Content-Type": "application/json"
+          },
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "id"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify LiteLLM creates a vector store using the configured backend. Requires a vector-store-enabled key and isolated backend. The created resource persists after the case and must be cleaned up manually; this case must not be run against shared or production resources.",
+    "labels": [
+      "litellm",
+      "vector-store",
+      "create",
+      "integration",
+      "isolated"
+    ]
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

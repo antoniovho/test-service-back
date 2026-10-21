@@ -1,0 +1,141 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-INT-009",
+  "summary": "Invoke configured fallback after a controlled primary failure",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-valid-litellm-api-key",
+      "primary_model_group": "replace-with-primary-model-group",
+      "fallback_model_group": "replace-with-configured-fallback-model-group",
+      "primary_deployment_id": "replace-with-disposable-primary-deployment-id",
+      "provider_test_control_endpoint": "replace-with-isolated-provider-fixture-control-endpoint",
+      "provider_test_control_token": "replace-with-provider-fixture-control-token"
+    },
+    "actions": [
+      {
+        "id": "verifyPrimaryBeforeFault",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{primary_model_group}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Primary provider fallback integration control request."
+              }
+            ],
+            "stream": false
+          },
+          "expectedStatus": 200,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "object",
+              "choices"
+            ],
+            "properties": {
+              "object": {
+                "const": "chat.completion"
+              },
+              "choices": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "forcePrimaryProviderFailure",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{provider_test_control_endpoint}}",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{provider_test_control_token}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "mode": "force_failure",
+            "target": "{{primary_deployment_id}}"
+          },
+          "expectedStatus": 200
+        }
+      },
+      {
+        "id": "verifyFallbackServesRequest",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{primary_model_group}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Fallback provider integration test."
+              }
+            ],
+            "stream": false
+          },
+          "expectedStatus": 200,
+          "expectedHeaderNames": [
+            "x-litellm-attempted-fallbacks"
+          ],
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "object",
+              "choices"
+            ],
+            "properties": {
+              "object": {
+                "const": "chat.completion"
+              },
+              "choices": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify a healthy primary request, use an isolated provider-test fixture to force the primary deployment to fail, then verify the gateway still returns a normalized response and exposes LiteLLM's fallback-attempt header. Requires a configured fallback model and a fixture with deterministic failure control. The runner does not assert which fallback deployment served the response or restore provider state after an interrupted run; use only disposable isolated deployments. Chat requests can incur provider costs.",
+    "labels": [
+      "litellm",
+      "integration",
+      "provider-fallback",
+      "fault-injection"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/reliability"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    },
+    {
+      "preconditionKey": "LITELLM_CHAT_MODEL_READY",
+      "version": 1
+    }
+  ]
+}

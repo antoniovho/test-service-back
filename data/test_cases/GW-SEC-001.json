@@ -1,0 +1,79 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-SEC-001",
+  "summary": "Reject unauthenticated and invalidly authenticated requests",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "invalid_api_key": "invalid-corpus-test-credential",
+      "model_name": "replace-with-configured-chat-model"
+    },
+    "actions": [
+      {
+        "id": "unauthenticatedRequestRejected",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Authentication security test."
+              }
+            ],
+            "stream": false
+          },
+          "expectedStatus": 401
+        }
+      },
+      {
+        "id": "invalidCredentialRejected",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{invalid_api_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Authentication security test."
+              }
+            ],
+            "stream": false
+          },
+          "expectedStatus": 401
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify a Proxy with authentication enabled returns HTTP 401 both when Authorization is absent and when the bearer credential is invalid. Status assertions do not inspect response text for secret disclosure and cannot prove provider non-invocation; those require response inspection and upstream request telemetry not available in the current runner.",
+    "labels": [
+      "litellm",
+      "security",
+      "authentication",
+      "unauthorized"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/auth"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

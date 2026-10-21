@@ -1,0 +1,55 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-AUDIO-001",
+  "summary": "Generate speech audio",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-litellm-api-key",
+      "tts_model_name": "replace-with-configured-speech-model",
+      "tts_voice": "replace-with-supported-voice"
+    },
+    "actions": [
+      {
+        "id": "generateSpeech",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/audio/speech",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "audio/mpeg"
+          },
+          "json": {
+            "model": "{{tts_model_name}}",
+            "input": "This is a LiteLLM text to speech integration test.",
+            "voice": "{{tts_voice}}",
+            "response_format": "mp3"
+          },
+          "expectedStatus": 200,
+          "expectedHeaders": {
+            "Content-Type": "audio/mpeg"
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Smoke-test the OpenAI-compatible text-to-speech endpoint for an authorized configured model and voice. The current runner can assert status and response headers but cannot verify that the binary body is non-empty or valid MP3 audio.",
+    "labels": [
+      "litellm",
+      "audio",
+      "text-to-speech"
+    ],
+    "source": "https://docs.litellm.ai/docs/text_to_speech"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

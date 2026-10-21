@@ -1,0 +1,81 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-ERR-007",
+  "summary": "User model access denied",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-key-for-restricted-user",
+      "user_id": "replace-with-user-id",
+      "restricted_model_name": "replace-with-configured-model-excluded-from-user"
+    },
+    "actions": [
+      {
+        "id": "userModelAccessDenied",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{restricted_model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Return the word OK."
+              }
+            ]
+          },
+          "expectedStatus": 403,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "const": "user_model_access_denied"
+                  },
+                  "param": {
+                    "const": "model"
+                  },
+                  "code": {
+                    "const": "403"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify a configured model excluded from a user's access policy is denied with user_model_access_denied and HTTP 403. The API key must authenticate as the specified user, and the model must exist but be unavailable to that user.",
+    "labels": [
+      "litellm",
+      "error-handling",
+      "user",
+      "model-access"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/virtual_keys"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

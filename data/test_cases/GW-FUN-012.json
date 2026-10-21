@@ -1,0 +1,162 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-FUN-012",
+  "summary": "Preserve multiple tool calls in one response",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-valid-chat-api-key",
+      "model_name": "replace-with-configured-model-that-reliably-returns-parallel-tool-calls"
+    },
+    "actions": [
+      {
+        "id": "multipleToolCallsPreserved",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "What's the weather and current time in Paris?"
+              }
+            ],
+            "tools": [
+              {
+                "type": "function",
+                "function": {
+                  "name": "get_current_weather",
+                  "description": "Get the current weather for a location.",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "location": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "location"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "function",
+                "function": {
+                  "name": "get_current_time",
+                  "description": "Get the current time for a location.",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "location": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "location"
+                    ]
+                  }
+                }
+              }
+            ],
+            "tool_choice": "auto",
+            "stream": false
+          },
+          "expectedStatus": 200,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "choices"
+            ],
+            "properties": {
+              "choices": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "message",
+                    "finish_reason"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "object",
+                      "required": [
+                        "tool_calls"
+                      ],
+                      "properties": {
+                        "tool_calls": {
+                          "type": "array",
+                          "minItems": 2,
+                          "contains": {
+                            "type": "object",
+                            "properties": {
+                              "function": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "const": "get_current_weather"
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "allOf": [
+                            {
+                              "contains": {
+                                "type": "object",
+                                "properties": {
+                                  "function": {
+                                    "type": "object",
+                                    "properties": {
+                                      "name": {
+                                        "const": "get_current_time"
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "finish_reason": {
+                      "const": "tool_calls"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify a configured model that reliably emits parallel tool calls returns both get_current_weather and get_current_time in the same response and the Gateway preserves them. The runner cannot assert that tool-call IDs are unique or parse the arguments strings as JSON. This live-model case is inherently model-dependent and can incur provider token costs.",
+    "labels": [
+      "litellm",
+      "functional",
+      "chat-completions",
+      "tools",
+      "parallel-tool-calls"
+    ],
+    "source": "https://docs.litellm.ai/docs/completion/function_call"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_CHAT_MODEL_READY",
+      "version": 1
+    }
+  ]
+}

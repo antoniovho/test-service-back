@@ -1,0 +1,68 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-SKILL-001",
+  "summary": "Create and retrieve a disposable Anthropic Skill",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "master_key": "replace-with-proxy-admin-key",
+      "skill_name": "replace-with-unique-disposable-skill-name",
+      "skill_description": "Disposable corpus integration test skill"
+    },
+    "actions": [
+      {
+        "id": "createSkill",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/skills",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{master_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "name": "{{skill_name}}",
+            "description": "{{skill_description}}"
+          },
+          "expectedStatus": 200,
+          "capture": {
+            "skill_id": "$.id"
+          }
+        }
+      },
+      {
+        "id": "retrieveCreatedSkill",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/skills/{skill_id}",
+          "method": "GET",
+          "headers": {
+            "Authorization": "Bearer {{master_key}}",
+            "Accept": "application/json"
+          },
+          "expectedStatus": 200
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify a LiteLLM version exposing the Anthropic Skills API accepts creation of a uniquely named skill and allows it to be retrieved by the captured ID. Requires an admin credential and a payload valid for the deployed API version. This leaves a persistent skill and does not include deletion; use an isolated environment with a planned manual cleanup. This conversion performs no API operations and asserts only status codes.",
+    "labels": [
+      "litellm",
+      "anthropic",
+      "skills-api",
+      "management",
+      "lifecycle"
+    ],
+    "source": "https://docs.litellm.ai/docs/anthropic_skills"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

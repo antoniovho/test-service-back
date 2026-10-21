@@ -1,0 +1,191 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-INT-004",
+  "summary": "Distinguish authentication and model authorization outcomes",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-valid-non-admin-key",
+      "invalid_api_key": "replace-with-invalid-test-key",
+      "model_name": "replace-with-model-authorized-for-key",
+      "unauthorized_model_name": "replace-with-existing-model-not-authorized-for-key"
+    },
+    "actions": [
+      {
+        "id": "acceptAuthorizedModelRequest",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Authentication integration test."
+              }
+            ],
+            "stream": false
+          },
+          "expectedStatus": 200,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "object",
+              "choices"
+            ],
+            "properties": {
+              "object": {
+                "const": "chat.completion"
+              },
+              "choices": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "rejectInvalidCredential",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{invalid_api_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Authentication negative test."
+              }
+            ],
+            "stream": false
+          },
+          "expectedStatus": 401,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "type": "object",
+                "required": [
+                  "message",
+                  "type",
+                  "code"
+                ],
+                "properties": {
+                  "message": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "type": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "code": {
+                    "type": [
+                      "string",
+                      "integer"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "denyUnauthorizedModelRequest",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{unauthorized_model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Authorization boundary test."
+              }
+            ],
+            "stream": false
+          },
+          "expectedStatus": 401,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "type": "object",
+                "required": [
+                  "message",
+                  "type",
+                  "code"
+                ],
+                "properties": {
+                  "message": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "type": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "code": {
+                    "type": [
+                      "string",
+                      "integer"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify one integrated sequence: an authorized key succeeds for its allowed model, an invalid credential is rejected, and the valid key is denied for an existing model outside its allowlist. The 401 expectation for the denied model follows the source case and may be deployment/version-specific; the official documentation defines the access rule but does not mandate one response code or exact error payload. The first request can incur provider costs.",
+    "labels": [
+      "litellm",
+      "integration",
+      "authentication",
+      "authorization",
+      "model-access"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/model_access"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    },
+    {
+      "preconditionKey": "LITELLM_CHAT_MODEL_READY",
+      "version": 1
+    }
+  ]
+}

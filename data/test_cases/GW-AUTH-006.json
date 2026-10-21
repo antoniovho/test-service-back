@@ -1,0 +1,173 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-AUTH-006",
+  "summary": "Blocked virtual key rejected",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-dedicated-test-virtual-key",
+      "master_key": "replace-with-litellm-master-key",
+      "model_name": "replace-with-model-authorized-for-key"
+    },
+    "actions": [
+      {
+        "id": "verifyKeyBeforeBlock",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Return a short confirmation."
+              }
+            ],
+            "stream": false
+          },
+          "expectedStatus": 200,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "object"
+            ],
+            "properties": {
+              "object": {
+                "const": "chat.completion"
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "blockVirtualKey",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/key/block",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{master_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "key": "{{litellm_virtual_key}}"
+          },
+          "expectedStatus": 200,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "blocked"
+            ],
+            "properties": {
+              "blocked": {
+                "const": true
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "verifyBlockedKeyRejected",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Return a short confirmation."
+              }
+            ],
+            "stream": false
+          },
+          "expectedStatus": 401,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "const": "auth_error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "unblockVirtualKey",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/key/unblock",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{master_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "key": "{{litellm_virtual_key}}"
+          },
+          "expectedStatus": 200,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "blocked"
+            ],
+            "properties": {
+              "blocked": {
+                "const": false
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Also covers GW-API-010's block/unblock operations. Verify a dedicated virtual key works, is blocked by the master-key endpoint, is then rejected, and is restored using LiteLLM's documented blocked=false response. Run only with a disposable test key and valid master credential.",
+    "labels": [
+      "litellm",
+      "auth",
+      "virtual-key",
+      "block-unblock",
+      "management",
+      "GW-API-010"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/virtual_keys"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    },
+    {
+      "preconditionKey": "LITELLM_CHAT_MODEL_READY",
+      "version": 1
+    }
+  ]
+}

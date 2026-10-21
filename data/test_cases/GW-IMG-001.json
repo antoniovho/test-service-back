@@ -1,0 +1,53 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-IMG-001",
+  "summary": "Generate an image through the LiteLLM Proxy",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-valid-image-generation-api-key",
+      "image_model_name": "replace-with-configured-image-generation-model",
+      "image_size": "256x256"
+    },
+    "actions": [
+      {
+        "id": "generateImage",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/images/generations",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{image_model_name}}",
+            "prompt": "A simple blue geometric circle on a white background.",
+            "n": 1,
+            "size": "{{image_size}}"
+          },
+          "expectedStatus": 200
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify the OpenAI-compatible image generation route returns HTTP 200 for one image request. Requires an image-generation deployment, provider credentials, and a key authorized for that model; the provider must support the requested image size. This live request can incur image-generation costs. The case does not assert image bytes, URL validity, or visual content.",
+    "labels": [
+      "litellm",
+      "image-generation",
+      "proxy",
+      "images"
+    ],
+    "source": "https://docs.litellm.ai/docs/image_generation"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

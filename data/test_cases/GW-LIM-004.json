@@ -1,0 +1,96 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-LIM-004",
+  "summary": "Expose remaining model-specific request and token quota metrics",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "rate_limited_api_key": "replace-with-key-with-model-specific-rpm-and-tpm-limits",
+      "model_name": "replace-with-model-with-model-specific-key-limits"
+    },
+    "actions": [
+      {
+        "id": "consumeModelSpecificQuota",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{rate_limited_api_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Reply with OK."
+              }
+            ],
+            "max_tokens": 8,
+            "stream": false
+          },
+          "expectedStatus": 200,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "object",
+              "choices"
+            ],
+            "properties": {
+              "object": {
+                "const": "chat.completion"
+              },
+              "choices": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "readRemainingModelRateLimitMetrics",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/metrics",
+          "method": "GET",
+          "headers": {
+            "Authorization": "Bearer {{rate_limited_api_key}}",
+            "Accept": "text/plain"
+          },
+          "expectedStatus": 200,
+          "expectedTextContains": [
+            "litellm_remaining_api_key_requests_for_model",
+            "litellm_remaining_api_key_tokens_for_model",
+            "model=\"{{model_name}}\""
+          ]
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "After a model request, verify the authenticated /metrics exposition includes LiteLLM's documented per-key, per-model remaining request and token metrics for the configured model. Requires the prometheus callback and model-specific rpm/tpm limits on the disposable key. The Xray source describes remaining-quota response headers; the official LiteLLM docs instead document Prometheus gauges. This case verifies metric presence/model dimension but does not compare gauge values before and after usage. The chat request can incur provider costs.",
+    "labels": [
+      "litellm",
+      "rate-limiting",
+      "model-specific",
+      "prometheus",
+      "quota"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/prometheus"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    },
+    {
+      "preconditionKey": "LITELLM_CHAT_MODEL_READY",
+      "version": 1
+    }
+  ]
+}

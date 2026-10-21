@@ -1,0 +1,54 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-OCR-002",
+  "summary": "Submit an image URL to the LiteLLM OCR endpoint",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-valid-ocr-api-key",
+      "ocr_model_name": "replace-with-configured-ocr-model-alias",
+      "ocr_image_url": "replace-with-publicly-accessible-test-image-url"
+    },
+    "actions": [
+      {
+        "id": "ocrImageUrl",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/ocr",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{ocr_model_name}}",
+            "document": {
+              "type": "image_url",
+              "image_url": "{{ocr_image_url}}"
+            }
+          },
+          "expectedStatus": 200
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify an OCR-capable configured provider accepts an image_url document at /v1/ocr and returns HTTP 200. Requires a publicly reachable image URL and provider support for image OCR. OCR can incur provider costs. The runner asserts status only; it does not validate the OCR response object or extracted pages[].markdown.",
+    "labels": [
+      "litellm",
+      "ocr",
+      "image-url",
+      "image"
+    ],
+    "source": "https://docs.litellm.ai/docs/providers/mistral"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}
