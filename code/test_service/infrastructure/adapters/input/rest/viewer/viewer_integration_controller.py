@@ -1,19 +1,27 @@
 """Inbound REST adapter for Viewer operations."""
 
+from uuid import UUID
+
 from test_service_server.apis.viewer_integration_api_base import BaseViewerIntegrationApi
 from test_service_server.models.drift_event_list_response import DriftEventListResponse
 from test_service_server.models.drift_event_sort_by import DriftEventSortBy
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
 from test_service_server.models.viewer_operation import ViewerOperation
+from test_service_server.models.viewer_operation_item_list_response import (
+    ViewerOperationItemListResponse,
+)
+from test_service_server.models.viewer_operation_item_sort_by import ViewerOperationItemSortBy
 from test_service_server.models.viewer_operation_list_response import ViewerOperationListResponse
 from test_service_server.models.viewer_operation_request import ViewerOperationRequest
 from test_service_server.models.viewer_operation_sort_by import ViewerOperationSortBy
+from test_service_server.models.viewer_sync_record import ViewerSyncRecord
 from test_service_server.models.viewer_sync_record_list_response import ViewerSyncRecordListResponse
 from test_service_server.models.viewer_sync_record_sort_by import ViewerSyncRecordSortBy
 from test_service_server.models.viewer_type import ViewerType as ApiViewerType
 
 from test_service.bootstrap.container import get_injector
 from test_service.domain.application.queries.projects import GetProjectQuery
+from test_service.domain.application.queries.viewer import ListProjectViewerOperationItemsQuery
 from test_service.domain.ports.input.use_cases.projects.get_project_use_case import (
     GetProjectUseCase,
 )
@@ -29,6 +37,9 @@ from test_service.domain.ports.input.use_cases.viewer.drift.list_viewer_drift_ev
 from test_service.domain.ports.input.use_cases.viewer.operations.get_project_viewer_operation_use_case import (  # noqa: E501
     GetProjectViewerOperationUseCase,
 )
+from test_service.domain.ports.input.use_cases.viewer.operations.list_project_viewer_operation_items_use_case import (  # noqa: E501
+    ListProjectViewerOperationItemsUseCase,
+)
 from test_service.domain.ports.input.use_cases.viewer.operations.list_project_viewer_operations_use_case import (  # noqa: E501
     ListProjectViewerOperationsUseCase,
 )
@@ -37,6 +48,9 @@ from test_service.domain.ports.input.use_cases.viewer.operations.list_viewer_ope
 )
 from test_service.domain.ports.input.use_cases.viewer.publish_viewer_projection_use_case import (  # noqa: E501
     PublishViewerProjectionUseCase,
+)
+from test_service.domain.ports.input.use_cases.viewer.sync_records.get_project_viewer_sync_record_use_case import (  # noqa: E501
+    GetProjectViewerSyncRecordUseCase,
 )
 from test_service.domain.ports.input.use_cases.viewer.sync_records.list_project_viewer_sync_records_use_case import (  # noqa: E501
     ListProjectViewerSyncRecordsUseCase,
@@ -55,11 +69,13 @@ class ViewerIntegrationController(BaseViewerIntegrationApi):
         self._check_drift = injector.inject(CheckViewerDriftUseCase)
         self._list_sync = injector.inject(ListViewerSyncRecordsUseCase)
         self._list_project_sync = injector.inject(ListProjectViewerSyncRecordsUseCase)
+        self._get_project_sync = injector.inject(GetProjectViewerSyncRecordUseCase)
         self._list_drift = injector.inject(ListViewerDriftEventsUseCase)
         self._list_project_drift = injector.inject(ListProjectViewerDriftEventsUseCase)
         self._list_operations = injector.inject(ListViewerOperationsUseCase)
         self._list_project_operations = injector.inject(ListProjectViewerOperationsUseCase)
         self._get_operation = injector.inject(GetProjectViewerOperationUseCase)
+        self._list_operation_items = injector.inject(ListProjectViewerOperationItemsUseCase)
 
     async def publish_viewer_projection(
         self,
@@ -122,6 +138,21 @@ class ViewerIntegrationController(BaseViewerIntegrationApi):
         operation = await self._get_operation.execute((projectKey, viewerOperationId))
         return ViewerMapper.operation_to_api(operation, project.name)
 
+    async def list_project_viewer_operation_items(
+        self,
+        projectKey: str,  # NOSONAR
+        viewerOperationId,  # NOSONAR
+        offset: int | None,
+        limit: int | None,
+        sort_by: ViewerOperationItemSortBy | None,
+        order: ApiSortOrder | None,
+    ) -> ViewerOperationItemListResponse:  # NOSONAR
+        pagination = ViewerMapper.to_pagination(offset, limit, sort_by, order)
+        page = await self._list_operation_items.execute(
+            ListProjectViewerOperationItemsQuery(projectKey, viewerOperationId, pagination)
+        )
+        return ViewerMapper.operation_item_response(page, pagination)
+
     async def list_viewer_sync_records(
         self,
         viewer_type: ApiViewerType | None,
@@ -155,6 +186,15 @@ class ViewerIntegrationController(BaseViewerIntegrationApi):
         return ViewerMapper.sync_response(
             page_project_viewer_sync_records, pagination, {project.key: project.name}
         )
+
+    async def get_project_viewer_sync_record(
+        self,
+        projectKey: str,  # NOSONAR
+        syncRecordId: UUID,  # NOSONAR
+    ) -> ViewerSyncRecord:  # NOSONAR
+        project = await self._get_project.execute(GetProjectQuery(projectKey))
+        record = await self._get_project_sync.execute((projectKey, syncRecordId))
+        return ViewerMapper.sync_record_to_api(record, project.name)
 
     async def list_viewer_drift_events(
         self,

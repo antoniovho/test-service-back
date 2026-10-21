@@ -5,6 +5,12 @@ from test_service_server.models.drift_event_list_response import DriftEventListR
 from test_service_server.models.pagination import Pagination as ApiPagination
 from test_service_server.models.project_reference import ProjectReference
 from test_service_server.models.viewer_operation import ViewerOperation as ApiViewerOperation
+from test_service_server.models.viewer_operation_item import (
+    ViewerOperationItem as ApiViewerOperationItem,
+)
+from test_service_server.models.viewer_operation_item_list_response import (
+    ViewerOperationItemListResponse,
+)
 from test_service_server.models.viewer_operation_list_response import ViewerOperationListResponse
 from test_service_server.models.viewer_operation_request import ViewerOperationRequest
 from test_service_server.models.viewer_sync_record import ViewerSyncRecord as ApiViewerSyncRecord
@@ -27,6 +33,7 @@ from test_service.domain.application.queries.viewer import (
 from test_service.domain.model.viewer.records import (
     DriftEvent,
     ViewerOperation,
+    ViewerOperationItem,
     ViewerSyncRecord,
     ViewerType,
 )
@@ -162,6 +169,35 @@ class ViewerMapper:
             succeededItems=operation.succeeded_items,
             failedItems=operation.failed_items,
             error=operation.error,
+        )
+
+    @staticmethod
+    def operation_item_to_api(item: ViewerOperationItem) -> ApiViewerOperationItem:
+        return ApiViewerOperationItem(
+            id=item.identifier,
+            operationId=item.operation_id,
+            syncRecordId=item.sync_record_id,
+            entityType=item.entity_type.value,
+            entityKey=item.entity_key,
+            entityVersion=item.entity_version,
+            projectedVersionId=item.projected_version_id,
+            viewerType=ApiViewerType(item.viewer_type.value),
+            externalEntityKey=item.external_entity_key,
+            externalEntityId=item.external_entity_id,
+            syncStatus=item.sync_status.value,
+            error=item.error,
+            createdAt=item.created_at,
+        )
+
+    @staticmethod
+    def operation_item_response(
+        page, pagination: PaginationParams
+    ) -> ViewerOperationItemListResponse:
+        return ViewerOperationItemListResponse(
+            data=[ViewerMapper.operation_item_to_api(item) for item in page.items],
+            pagination=ApiPagination(
+                offset=pagination.offset, limit=pagination.limit, total=page.total
+            ),
         )
 
     @staticmethod

@@ -33,8 +33,9 @@ class ViewerProjectionBuilder:
         if isinstance(snapshot, TestCase):
             return ViewerProjection(
                 record=record,
-                summary=snapshot.name,
-                description=snapshot.summary,
+                summary=f"{snapshot.test_key} v{snapshot.version} - {snapshot.name}",
+                description=cls._test_case_description(snapshot),
+                labels=cls._labels(snapshot.metadata),
                 steps=tuple(
                     ViewerProjectionStep(
                         action=f"{action.identifier}: {action.action_type}",
@@ -52,10 +53,10 @@ class ViewerProjectionBuilder:
         if isinstance(snapshot, Precondition):
             return ViewerProjection(
                 record=record,
-                summary=snapshot.name,
-                description=cls._definition_text(
-                    snapshot.description, snapshot.validation_definition
-                ),
+                summary=f"{snapshot.precondition_key} v{snapshot.version} - {snapshot.name}",
+                description=cls._precondition_description(snapshot),
+                definition=cls._definition_text(snapshot.validation_definition),
+                labels=cls._labels(snapshot.metadata),
             )
         if isinstance(snapshot, TestSet):
             return ViewerProjection(
@@ -100,10 +101,77 @@ class ViewerProjectionBuilder:
         return tuple(resolved_ids)
 
     @staticmethod
-    def _definition_text(description: str, definition: Definition) -> str:
-        actions = "\n".join(
-            f"{action.identifier}: {action.action_type}\n"
-            f"{json.dumps(dict(action.configuration), sort_keys=True, separators=(',', ':'))}"
-            for action in definition.actions
+    def _definition_text(definition: Definition) -> str:
+        content = json.dumps(
+            [
+                {
+                    "id": action.identifier,
+                    "type": action.action_type,
+                    "configuration": dict(action.configuration),
+                }
+                for action in definition.actions
+            ],
+            sort_keys=True,
+            indent=2,
         )
-        return f"{description}\n\n{actions}"
+        return f"{{code:json}}\n{content}\n{{code}}"
+
+    @staticmethod
+    def _test_case_description(test_case: TestCase) -> str:
+        metadata = dict(test_case.metadata or {})
+        sections = [
+            f"*Summary*\n{test_case.summary}",
+            f"*Objective*\n{test_case.objective}",
+            "\n".join(
+                (
+                    "*Classification*",
+                    f"- *Type*: {test_case.test_type.value}",
+                    f"- *Level*: {test_case.test_level.value}",
+                    f"- *Priority*: {test_case.priority.value}",
+                    f"- *Timeout*: {test_case.timeout_seconds} seconds",
+                )
+            ),
+            ViewerProjectionBuilder._source_section(
+                "Test key", test_case.test_key, test_case.version, metadata.get("source")
+            ),
+        ]
+        metadata_items = (
+            (key, value)
+            for key, value in metadata.items()
+            if key not in {"labels", "objective", "source"}
+        )
+        sections.extend(ViewerProjectionBuilder._metadata_section(metadata_items))
+        return "\n\n".join(sections)
+
+    @staticmethod
+    def _precondition_description(precondition: Precondition) -> str:
+        return "\n\n".join(
+            (
+                precondition.description,
+                ViewerProjectionBuilder._source_section(
+                    "Precondition key",
+                    precondition.precondition_key,
+                    precondition.version,
+                    (precondition.metadata or {}).get("source"),
+                ),
+            )
+        )
+
+    @staticmethod
+    def _source_section(key_label: str, key: str, version: int, source: object) -> str:
+        lines = ["*Source*", f"- *{key_label}*: {key}", f"- *Version*: {version}"]
+        if isinstance(source, str) and source:
+            lines.append(f"- *Documentation*: {source}")
+        return "\n".join(lines)
+
+    @staticmethod
+    def _metadata_section(items: Iterable[tuple[str, object]]) -> tuple[str, ...]:
+        lines = [f"- {key.replace('_', ' ').title()}: {value}" for key, value in items]
+        return ("*Metadata*\n" + "\n".join(lines),) if lines else ()
+
+    @staticmethod
+    def _labels(metadata: Mapping[str, object] | None) -> tuple[str, ...]:
+        labels = metadata.get("labels") if metadata else ()
+        if not isinstance(labels, Iterable) or isinstance(labels, (str, bytes)):
+            return ()
+        return tuple(dict.fromkeys(label for label in labels if isinstance(label, str) and label))

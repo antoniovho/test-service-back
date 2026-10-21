@@ -195,6 +195,9 @@ from test_service.domain.application.use_cases.viewer.drift.list_viewer_drift_ev
 from test_service.domain.application.use_cases.viewer.operations.get_project_viewer_operation_use_case import (  # noqa: E501
     GetProjectViewerOperationUseCaseImpl,
 )
+from test_service.domain.application.use_cases.viewer.operations.list_project_viewer_operation_items_use_case import (  # noqa: E501
+    ListProjectViewerOperationItemsUseCaseImpl,
+)
 from test_service.domain.application.use_cases.viewer.operations.list_project_viewer_operations_use_case import (  # noqa: E501
     ListProjectViewerOperationsUseCaseImpl,
 )
@@ -203,6 +206,9 @@ from test_service.domain.application.use_cases.viewer.operations.list_viewer_ope
 )
 from test_service.domain.application.use_cases.viewer.publish_viewer_projection_use_case import (
     PublishViewerProjectionUseCaseImpl,
+)
+from test_service.domain.application.use_cases.viewer.sync_records.get_project_viewer_sync_record_use_case import (  # noqa: E501
+    GetProjectViewerSyncRecordUseCaseImpl,
 )
 from test_service.domain.application.use_cases.viewer.sync_records.list_project_viewer_sync_records_use_case import (  # noqa: E501
     ListProjectViewerSyncRecordsUseCaseImpl,
@@ -375,6 +381,9 @@ from test_service.domain.ports.input.use_cases.viewer.drift.list_viewer_drift_ev
 from test_service.domain.ports.input.use_cases.viewer.operations.get_project_viewer_operation_use_case import (  # noqa: E501
     GetProjectViewerOperationUseCase,
 )
+from test_service.domain.ports.input.use_cases.viewer.operations.list_project_viewer_operation_items_use_case import (  # noqa: E501
+    ListProjectViewerOperationItemsUseCase,
+)
 from test_service.domain.ports.input.use_cases.viewer.operations.list_project_viewer_operations_use_case import (  # noqa: E501
     ListProjectViewerOperationsUseCase,
 )
@@ -383,6 +392,9 @@ from test_service.domain.ports.input.use_cases.viewer.operations.list_viewer_ope
 )
 from test_service.domain.ports.input.use_cases.viewer.publish_viewer_projection_use_case import (
     PublishViewerProjectionUseCase,
+)
+from test_service.domain.ports.input.use_cases.viewer.sync_records.get_project_viewer_sync_record_use_case import (  # noqa: E501
+    GetProjectViewerSyncRecordUseCase,
 )
 from test_service.domain.ports.input.use_cases.viewer.sync_records.list_project_viewer_sync_records_use_case import (  # noqa: E501
     ListProjectViewerSyncRecordsUseCase,
@@ -502,12 +514,20 @@ class ViewerModule(Module):
         self.bind(CheckViewerDriftUseCase, to_class=CheckViewerDriftUseCaseImpl)
         self.bind(ListViewerSyncRecordsUseCase, to_class=ListViewerSyncRecordsUseCaseImpl)
         self.bind(
+            GetProjectViewerSyncRecordUseCase,
+            to_class=GetProjectViewerSyncRecordUseCaseImpl,
+        )
+        self.bind(
             ListProjectViewerSyncRecordsUseCase, to_class=ListProjectViewerSyncRecordsUseCaseImpl
         )
         self.bind(ListViewerDriftEventsUseCase, to_class=ListViewerDriftEventsUseCaseImpl)
         self.bind(ListViewerOperationsUseCase, to_class=ListViewerOperationsUseCaseImpl)
         self.bind(
             ListProjectViewerOperationsUseCase, to_class=ListProjectViewerOperationsUseCaseImpl
+        )
+        self.bind(
+            ListProjectViewerOperationItemsUseCase,
+            to_class=ListProjectViewerOperationItemsUseCaseImpl,
         )
         self.bind(GetProjectViewerOperationUseCase, to_class=GetProjectViewerOperationUseCaseImpl)
         self.bind(

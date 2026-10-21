@@ -145,7 +145,7 @@ class TestEnvironmentRest:
         found = await controller.get(environment.identifier)
         activated = await controller.activate(environment.identifier, ActionRequest(reason="ready"))
         deactivated = await controller.deactivate(environment.identifier, None)
-        listed = await controller.list(0, 10, "name", ApiSortOrder.ASC, ApiEnvironmentStatus.ACTIVE)
+        listed = await controller.list(0, 10, ApiEnvironmentStatus.ACTIVE, "name", ApiSortOrder.ASC)
 
         assert created.id == environment.identifier
         assert found.environment_key == environment.environment_key
@@ -168,9 +168,12 @@ class TestEnvironmentRest:
         assert await controller.deactivate_environment(identifier, None) == "deactivate"
         assert (
             await controller.list_environments(
-                0, 10, "name", ApiSortOrder.ASC, ApiEnvironmentStatus.ACTIVE
+                0, 10, ApiEnvironmentStatus.ACTIVE, "name", ApiSortOrder.ASC
             )
             == "list"
+        )
+        feature.list.assert_awaited_once_with(
+            0, 10, ApiEnvironmentStatus.ACTIVE, "name", ApiSortOrder.ASC
         )
 
     def test_when_execution_controller_is_constructed_expect_feature_controllers(self, monkeypatch):

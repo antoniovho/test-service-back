@@ -11,9 +11,12 @@ from test_service_server.models.drift_event_sort_by import DriftEventSortBy
 from test_service_server.models.error_details import ErrorDetails
 from test_service_server.models.sort_order import SortOrder
 from test_service_server.models.viewer_operation import ViewerOperation
+from test_service_server.models.viewer_operation_item_list_response import ViewerOperationItemListResponse
+from test_service_server.models.viewer_operation_item_sort_by import ViewerOperationItemSortBy
 from test_service_server.models.viewer_operation_list_response import ViewerOperationListResponse
 from test_service_server.models.viewer_operation_request import ViewerOperationRequest
 from test_service_server.models.viewer_operation_sort_by import ViewerOperationSortBy
+from test_service_server.models.viewer_sync_record import ViewerSyncRecord
 from test_service_server.models.viewer_sync_record_list_response import ViewerSyncRecordListResponse
 from test_service_server.models.viewer_sync_record_sort_by import ViewerSyncRecordSortBy
 from test_service_server.models.viewer_type import ViewerType
@@ -56,6 +59,15 @@ class BaseViewerIntegrationApi:
         ...
 
 
+    async def get_project_viewer_sync_record(
+        self,
+        projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
+        syncRecordId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="")],
+    ) -> ViewerSyncRecord:
+        """Retrieves the current synchronization state of one immutable entity version in the external viewer. For a past attempt, use the operation items endpoint. """
+        ...
+
+
     async def list_project_viewer_drift_events(
         self,
         projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
@@ -88,6 +100,19 @@ class BaseViewerIntegrationApi:
         viewerOperationId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="")],
     ) -> ViewerOperation:
         """Retrieves the details of a specific asynchronous Viewer operation within a project."""
+        ...
+
+
+    async def list_project_viewer_operation_items(
+        self,
+        projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")],
+        viewerOperationId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="")],
+        offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")],
+        limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")],
+        sort_by: Annotated[Optional[ViewerOperationItemSortBy], Field(description="Field used to sort immutable per-entity operation outcomes.")],
+        order: Annotated[Optional[SortOrder], Field(description="Sort direction.")],
+    ) -> ViewerOperationItemListResponse:
+        """Returns the per-entity historical outcomes of one Viewer operation. Results remain available after later publications update the current sync record. """
         ...
 
 

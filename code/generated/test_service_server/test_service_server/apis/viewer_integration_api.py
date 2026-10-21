@@ -32,9 +32,12 @@ from test_service_server.models.drift_event_sort_by import DriftEventSortBy
 from test_service_server.models.error_details import ErrorDetails
 from test_service_server.models.sort_order import SortOrder
 from test_service_server.models.viewer_operation import ViewerOperation
+from test_service_server.models.viewer_operation_item_list_response import ViewerOperationItemListResponse
+from test_service_server.models.viewer_operation_item_sort_by import ViewerOperationItemSortBy
 from test_service_server.models.viewer_operation_list_response import ViewerOperationListResponse
 from test_service_server.models.viewer_operation_request import ViewerOperationRequest
 from test_service_server.models.viewer_operation_sort_by import ViewerOperationSortBy
+from test_service_server.models.viewer_sync_record import ViewerSyncRecord
 from test_service_server.models.viewer_sync_record_list_response import ViewerSyncRecordListResponse
 from test_service_server.models.viewer_sync_record_sort_by import ViewerSyncRecordSortBy
 from test_service_server.models.viewer_type import ViewerType
@@ -152,6 +155,35 @@ async def list_project_viewer_sync_records(
 
 
 @router.get(
+    "/v1/projects/{projectKey}/viewer/sync-records/{syncRecordId}",
+    responses={
+        200: {"model": ViewerSyncRecord, "description": "Current Viewer synchronization record"},
+        400: {"model": ErrorDetails, "description": "The request is invalid."},
+        401: {"model": ErrorDetails, "description": "Authentication is required or failed."},
+        403: {"model": ErrorDetails, "description": "The authenticated principal is not allowed to perform the operation."},
+        404: {"model": ErrorDetails, "description": "The requested resource was not found."},
+        500: {"model": ErrorDetails, "description": "An unexpected server error occurred."},
+    },
+    tags=["Viewer Integration"],
+    summary="Get current Viewer synchronization state",
+    response_model_by_alias=True,
+)
+async def get_project_viewer_sync_record(
+    projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+,
+    syncRecordId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="")] = Path(..., description="")
+,
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth
+    ),
+) -> ViewerSyncRecord:
+    """Retrieves the current synchronization state of one immutable entity version in the external viewer. For a past attempt, use the operation items endpoint. """
+    if not BaseViewerIntegrationApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseViewerIntegrationApi.subclasses[0]().get_project_viewer_sync_record(projectKey, syncRecordId)
+
+
+@router.get(
     "/v1/projects/{projectKey}/viewer/drift-events",
     responses={
         200: {"model": DriftEventListResponse, "description": "Drift events"},
@@ -257,6 +289,43 @@ async def get_project_viewer_operation(
     if not BaseViewerIntegrationApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
     return await BaseViewerIntegrationApi.subclasses[0]().get_project_viewer_operation(projectKey, viewerOperationId)
+
+
+@router.get(
+    "/v1/projects/{projectKey}/viewer/operations/{viewerOperationId}/items",
+    responses={
+        200: {"model": ViewerOperationItemListResponse, "description": "Immutable operation outcomes"},
+        400: {"model": ErrorDetails, "description": "The request is invalid."},
+        401: {"model": ErrorDetails, "description": "Authentication is required or failed."},
+        403: {"model": ErrorDetails, "description": "The authenticated principal is not allowed to perform the operation."},
+        404: {"model": ErrorDetails, "description": "The requested resource was not found."},
+        500: {"model": ErrorDetails, "description": "An unexpected server error occurred."},
+    },
+    tags=["Viewer Integration"],
+    summary="List immutable outcomes of a Viewer operation",
+    response_model_by_alias=True,
+)
+async def list_project_viewer_operation_items(
+    projectKey: Annotated[Annotated[str, Field(strict=True, min_length=2, max_length=20)], Field(description="Stable key of the project in the Project Catalog.")] = Path(..., description="Stable key of the project in the Project Catalog.", min_length=2, max_length=20)
+,
+    viewerOperationId: Annotated[Annotated[UUID, Field(strict=True)], Field(description="")] = Path(..., description="")
+,
+    offset: Annotated[Optional[Annotated[int, Field(ge=0)]], Field(description="Number of records to skip before returning results.")] = Query(0, description="Number of records to skip before returning results.", alias="offset", ge=0)
+,
+    limit: Annotated[Optional[Annotated[int, Field(le=100, ge=1)]], Field(description="Maximum number of records returned in one page.")] = Query(20, description="Maximum number of records returned in one page.", alias="limit", ge=1, le=100)
+,
+    sort_by: Annotated[Optional[ViewerOperationItemSortBy], Field(description="Field used to sort immutable per-entity operation outcomes.")] = Query('createdAt', description="Field used to sort immutable per-entity operation outcomes.", alias="sortBy")
+,
+    order: Annotated[Optional[SortOrder], Field(description="Sort direction.")] = Query('ASC', description="Sort direction.", alias="order")
+,
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth
+    ),
+) -> ViewerOperationItemListResponse:
+    """Returns the per-entity historical outcomes of one Viewer operation. Results remain available after later publications update the current sync record. """
+    if not BaseViewerIntegrationApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseViewerIntegrationApi.subclasses[0]().list_project_viewer_operation_items(projectKey, viewerOperationId, offset, limit, sort_by, order)
 
 
 @router.get(

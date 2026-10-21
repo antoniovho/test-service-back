@@ -8,6 +8,7 @@ from test_service.domain.model.viewer.records import (
     SyncStatus,
     ViewerEntityType,
     ViewerOperation,
+    ViewerOperationItem,
     ViewerOperationStatus,
     ViewerOperationType,
     ViewerSyncRecord,
@@ -68,6 +69,25 @@ def _operation() -> ViewerOperation:
     )
 
 
+def _operation_item(sync_record: ViewerSyncRecord) -> ViewerOperationItem:
+    return ViewerOperationItem(
+        identifier=uuid4(),
+        operation_id=uuid4(),
+        sync_record_id=sync_record.identifier,
+        project_key=sync_record.project_key,
+        entity_type=sync_record.entity_type,
+        entity_key=sync_record.entity_key,
+        entity_version=sync_record.entity_version,
+        projected_version_id=sync_record.projected_version_id,
+        viewer_type=sync_record.viewer_type,
+        external_entity_key=sync_record.external_entity_key,
+        external_entity_id=sync_record.external_entity_id,
+        sync_status=sync_record.sync_status,
+        error="XrayTransportError: request failed",
+        created_at=sync_record.created_at,
+    )
+
+
 class TestViewerPersistenceMapper:
     def test_when_mapping_sync_record_expect_persistence_round_trip(self) -> None:
         record = _sync_record()
@@ -95,3 +115,12 @@ class TestViewerPersistenceMapper:
         )
 
         assert restored == operation
+
+    def test_when_mapping_operation_item_expect_persistence_round_trip(self) -> None:
+        item = _operation_item(_sync_record())
+
+        restored = ViewerPersistenceMapper.operation_item_to_domain(
+            ViewerPersistenceMapper.operation_item_to_dto(item)
+        )
+
+        assert restored == item

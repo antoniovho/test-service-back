@@ -7,7 +7,7 @@ info:
     \ executing validated plans, and publishing read-only projections to an external\
     \ testing viewer."
   title: Test Service
-  version: 0.4.6
+  version: 0.5.0
 servers:
 - description: Local development server
   url: http://localhost:8080
@@ -6962,6 +6962,92 @@ paths:
       summary: List outbound synchronization records for a project
       tags:
       - Viewer Integration
+  /v1/projects/{projectKey}/viewer/sync-records/{syncRecordId}:
+    get:
+      description: |
+        Retrieves the current synchronization state of one immutable entity version in the external viewer. For a past attempt, use the operation items endpoint.
+      operationId: getProjectViewerSyncRecord
+      parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
+      - explode: false
+        in: path
+        name: syncRecordId
+        required: true
+        schema:
+          $ref: "#/components/schemas/UUID"
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ViewerSyncRecord"
+          description: Current Viewer synchronization record
+        "400":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/bad-request
+                status: 400
+                title: Bad Request
+                detail: The request is invalid.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The request is invalid.
+        "401":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/unauthorized
+                status: 401
+                title: Unauthorized
+                detail: Authentication is required or the credentials are invalid.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: Authentication is required or failed.
+        "403":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/forbidden
+                status: 403
+                title: Forbidden
+                detail: The authenticated principal lacks the required permission.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The authenticated principal is not allowed to perform the operation.
+        "404":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/not-found
+                status: 404
+                title: Not Found
+                detail: The requested resource was not found.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The requested resource was not found.
+        "500":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/internal-server-error
+                status: 500
+                title: Internal Server Error
+                detail: An unexpected server error occurred.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: An unexpected server error occurred.
+      summary: Get current Viewer synchronization state
+      tags:
+      - Viewer Integration
   /v1/projects/{projectKey}/viewer/drift-events:
     get:
       description: Returns a paginated list of detected viewer changes and notification
@@ -7343,6 +7429,124 @@ paths:
                 $ref: "#/components/schemas/ErrorDetails"
           description: The service is temporarily unavailable.
       summary: Get an asynchronous Viewer operation
+      tags:
+      - Viewer Integration
+  /v1/projects/{projectKey}/viewer/operations/{viewerOperationId}/items:
+    get:
+      description: |
+        Returns the per-entity historical outcomes of one Viewer operation. Results remain available after later publications update the current sync record.
+      operationId: listProjectViewerOperationItems
+      parameters:
+      - description: Stable key of the project in the Project Catalog.
+        explode: false
+        in: path
+        name: projectKey
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProjectKey"
+        style: simple
+      - explode: false
+        in: path
+        name: viewerOperationId
+        required: true
+        schema:
+          $ref: "#/components/schemas/UUID"
+        style: simple
+      - description: Number of records to skip before returning results.
+        explode: true
+        in: query
+        name: offset
+        required: false
+        schema:
+          $ref: "#/components/schemas/Offset"
+        style: form
+      - description: Maximum number of records returned in one page.
+        explode: true
+        in: query
+        name: limit
+        required: false
+        schema:
+          $ref: "#/components/schemas/Limit"
+        style: form
+      - description: Field used to sort immutable per-entity operation outcomes.
+        explode: true
+        in: query
+        name: sortBy
+        required: false
+        schema:
+          $ref: "#/components/schemas/ViewerOperationItemSortBy"
+        style: form
+      - description: Sort direction.
+        explode: true
+        in: query
+        name: order
+        required: false
+        schema:
+          $ref: "#/components/schemas/SortOrder"
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ViewerOperationItemListResponse"
+          description: Immutable operation outcomes
+        "400":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/bad-request
+                status: 400
+                title: Bad Request
+                detail: The request is invalid.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The request is invalid.
+        "401":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/unauthorized
+                status: 401
+                title: Unauthorized
+                detail: Authentication is required or the credentials are invalid.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: Authentication is required or failed.
+        "403":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/forbidden
+                status: 403
+                title: Forbidden
+                detail: The authenticated principal lacks the required permission.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The authenticated principal is not allowed to perform the operation.
+        "404":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/not-found
+                status: 404
+                title: Not Found
+                detail: The requested resource was not found.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: The requested resource was not found.
+        "500":
+          content:
+            application/problem+json:
+              example:
+                type: /problems/internal-server-error
+                status: 500
+                title: Internal Server Error
+                detail: An unexpected server error occurred.
+              schema:
+                $ref: "#/components/schemas/ErrorDetails"
+          description: An unexpected server error occurred.
+      summary: List immutable outcomes of a Viewer operation
       tags:
       - Viewer Integration
   /v1/viewer/sync-records:
@@ -8031,6 +8235,15 @@ components:
       required: false
       schema:
         $ref: "#/components/schemas/ViewerOperationSortBy"
+      style: form
+    ViewerOperationItemSortBy:
+      description: Field used to sort immutable per-entity operation outcomes.
+      explode: true
+      in: query
+      name: sortBy
+      required: false
+      schema:
+        $ref: "#/components/schemas/ViewerOperationItemSortBy"
       style: form
   responses:
     BadRequest400:
@@ -10873,6 +11086,23 @@ components:
       additionalProperties: false
       description: |
         Read-only synchronization state between a logical domain entity and its stable representation in the external viewer. For versioned entities, entityVersion and projectedVersionId identify the immutable domain version currently projected to the viewer.
+      example:
+        id: 550e8400-e29b-41d4-a716-446655440000
+        project:
+          key: IAG
+          name: AI Gateway
+        entityType: TEST_CASE
+        entityKey: checkout-happy-path
+        entityVersion: 2
+        projectedVersionId: ""
+        viewerType: ""
+        externalEntityKey: TEST-123
+        externalEntityId: "123456"
+        error: error
+        syncStatus: SYNCED
+        lastSyncedAt: 2026-01-15T10:31:00Z
+        lastCheckedAt: 2026-01-15T10:32:00Z
+        createdAt: 2026-01-15T10:30:00Z
       properties:
         id:
           description: Universally unique identifier.
@@ -11215,6 +11445,206 @@ components:
       - data
       - pagination
       title: ViewerOperationListResponse
+      type: object
+    ViewerOperationItemSortBy:
+      default: createdAt
+      description: Field used to sort immutable per-entity operation outcomes.
+      enum:
+      - entityKey
+      - syncStatus
+      - createdAt
+      example: createdAt
+      title: ViewerOperationItemSortBy
+      type: string
+    ViewerOperationItem:
+      additionalProperties: false
+      description: |
+        Immutable outcome for one entity version attempted by an asynchronous Viewer operation. This is historical evidence and is never replaced by a later publication of the same entity.
+      example:
+        id: 550e8400-e29b-41d4-a716-446655440000
+        operationId: 550e8400-e29b-41d4-a716-446655440000
+        syncRecordId: 550e8400-e29b-41d4-a716-446655440000
+        entityType: TEST_CASE
+        entityKey: entityKey
+        entityVersion: 1
+        projectedVersionId: 550e8400-e29b-41d4-a716-446655440000
+        viewerType: XRAY
+        externalEntityKey: externalEntityKey
+        externalEntityId: externalEntityId
+        syncStatus: PENDING
+        error: error
+        createdAt: 2000-01-23T04:56:07.000+00:00
+      properties:
+        id:
+          description: Universally unique identifier.
+          example: 550e8400-e29b-41d4-a716-446655440000
+          format: uuid
+          title: UUID
+          type: string
+        operationId:
+          description: Universally unique identifier.
+          example: 550e8400-e29b-41d4-a716-446655440000
+          format: uuid
+          title: UUID
+          type: string
+        syncRecordId:
+          description: Universally unique identifier.
+          example: 550e8400-e29b-41d4-a716-446655440000
+          format: uuid
+          title: UUID
+          type: string
+        entityType:
+          enum:
+          - TEST_CASE
+          - PRECONDITION
+          - TEST_SET
+          - TEST_PLAN
+          title: entityType
+          type: string
+        entityKey:
+          maxLength: 100
+          minLength: 1
+          title: entityKey
+          type: string
+        entityVersion:
+          minimum: 1
+          title: entityVersion
+          type: integer
+        projectedVersionId:
+          description: Universally unique identifier.
+          example: 550e8400-e29b-41d4-a716-446655440000
+          format: uuid
+          title: UUID
+          type: string
+        viewerType:
+          $ref: "#/components/schemas/ViewerType"
+        externalEntityKey:
+          maxLength: 255
+          minLength: 1
+          title: externalEntityKey
+          type: string
+        externalEntityId:
+          maxLength: 255
+          minLength: 1
+          title: externalEntityId
+          type: string
+        syncStatus:
+          enum:
+          - PENDING
+          - SYNCED
+          - ERROR
+          - DRIFT_DETECTED
+          title: syncStatus
+          type: string
+        error:
+          description: Safe failure summary for this exact operation attempt.
+          maxLength: 1000
+          title: error
+          type: string
+        createdAt:
+          format: date-time
+          title: createdAt
+          type: string
+      required:
+      - createdAt
+      - entityKey
+      - entityType
+      - entityVersion
+      - externalEntityKey
+      - id
+      - operationId
+      - projectedVersionId
+      - syncRecordId
+      - syncStatus
+      - viewerType
+      title: ViewerOperationItem
+      type: object
+    ViewerOperationItemListResponse:
+      additionalProperties: false
+      example:
+        data:
+        - id: 550e8400-e29b-41d4-a716-446655440000
+          operationId: 550e8400-e29b-41d4-a716-446655440000
+          syncRecordId: 550e8400-e29b-41d4-a716-446655440000
+          entityType: TEST_CASE
+          entityKey: entityKey
+          entityVersion: 1
+          projectedVersionId: 550e8400-e29b-41d4-a716-446655440000
+          viewerType: XRAY
+          externalEntityKey: externalEntityKey
+          externalEntityId: externalEntityId
+          syncStatus: PENDING
+          error: error
+          createdAt: 2000-01-23T04:56:07.000+00:00
+        - id: 550e8400-e29b-41d4-a716-446655440000
+          operationId: 550e8400-e29b-41d4-a716-446655440000
+          syncRecordId: 550e8400-e29b-41d4-a716-446655440000
+          entityType: TEST_CASE
+          entityKey: entityKey
+          entityVersion: 1
+          projectedVersionId: 550e8400-e29b-41d4-a716-446655440000
+          viewerType: XRAY
+          externalEntityKey: externalEntityKey
+          externalEntityId: externalEntityId
+          syncStatus: PENDING
+          error: error
+          createdAt: 2000-01-23T04:56:07.000+00:00
+        - id: 550e8400-e29b-41d4-a716-446655440000
+          operationId: 550e8400-e29b-41d4-a716-446655440000
+          syncRecordId: 550e8400-e29b-41d4-a716-446655440000
+          entityType: TEST_CASE
+          entityKey: entityKey
+          entityVersion: 1
+          projectedVersionId: 550e8400-e29b-41d4-a716-446655440000
+          viewerType: XRAY
+          externalEntityKey: externalEntityKey
+          externalEntityId: externalEntityId
+          syncStatus: PENDING
+          error: error
+          createdAt: 2000-01-23T04:56:07.000+00:00
+        - id: 550e8400-e29b-41d4-a716-446655440000
+          operationId: 550e8400-e29b-41d4-a716-446655440000
+          syncRecordId: 550e8400-e29b-41d4-a716-446655440000
+          entityType: TEST_CASE
+          entityKey: entityKey
+          entityVersion: 1
+          projectedVersionId: 550e8400-e29b-41d4-a716-446655440000
+          viewerType: XRAY
+          externalEntityKey: externalEntityKey
+          externalEntityId: externalEntityId
+          syncStatus: PENDING
+          error: error
+          createdAt: 2000-01-23T04:56:07.000+00:00
+        - id: 550e8400-e29b-41d4-a716-446655440000
+          operationId: 550e8400-e29b-41d4-a716-446655440000
+          syncRecordId: 550e8400-e29b-41d4-a716-446655440000
+          entityType: TEST_CASE
+          entityKey: entityKey
+          entityVersion: 1
+          projectedVersionId: 550e8400-e29b-41d4-a716-446655440000
+          viewerType: XRAY
+          externalEntityKey: externalEntityKey
+          externalEntityId: externalEntityId
+          syncStatus: PENDING
+          error: error
+          createdAt: 2000-01-23T04:56:07.000+00:00
+        pagination:
+          offset: 0
+          limit: 60
+          total: 125
+      properties:
+        data:
+          items:
+            $ref: "#/components/schemas/ViewerOperationItem"
+          maxItems: 100
+          title: data
+          type: array
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+      required:
+      - data
+      - pagination
+      title: ViewerOperationItemListResponse
       type: object
   securitySchemes:
     bearerAuth:

@@ -11,13 +11,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from test_service.config import ViewerSettings
 from test_service.domain.application.queries.pagination import PaginationParams, SortOrder
-from test_service.domain.model.viewer.records import ViewerType
+from test_service.domain.model.viewer.records import ViewerEntityType, ViewerType
 from test_service.infrastructure.adapters.output.commons.persistence.postgres.postgres_session_provider import (  # noqa: E501
     PostgresSessionProvider,
 )
 from test_service.infrastructure.adapters.output.viewer.persistence.dtos.viewer_dtos import (
     DriftEventDTO,
     ViewerOperationDTO,
+    ViewerOperationItemDTO,
     ViewerSyncRecordDTO,
 )
 from test_service.infrastructure.adapters.output.viewer.persistence.repositories import (
@@ -85,6 +86,25 @@ def _operation_dto() -> ViewerOperationDTO:
         succeeded_items=None,
         failed_items=None,
         error=None,
+    )
+
+
+def _operation_item_dto(sync_record: ViewerSyncRecordDTO) -> ViewerOperationItemDTO:
+    return ViewerOperationItemDTO(
+        id=uuid4(),
+        operation_id=uuid4(),
+        sync_record_id=sync_record.id,
+        project_key=sync_record.project_key,
+        entity_type=sync_record.entity_type,
+        entity_key=sync_record.entity_key,
+        entity_version=sync_record.entity_version,
+        projected_version_id=sync_record.projected_version_id,
+        viewer_type=sync_record.viewer_type,
+        external_entity_key=sync_record.external_entity_key,
+        external_entity_id=sync_record.external_entity_id,
+        sync_status=sync_record.sync_status,
+        error=None,
+        created_at=sync_record.created_at,
     )
 
 
@@ -181,6 +201,42 @@ class TestViewerRepository:
         assert saved_record is record
         assert saved_event is event
 
+    async def test_when_loading_and_finding_sync_record_expect_persisted_dto(self) -> None:
+        record = _sync_dto()
+        session = MagicMock()
+        session.get = AsyncMock(return_value=record)
+        session.scalar = AsyncMock(return_value=record)
+        repository = ViewerRepository(_SessionProvider(session), ViewerSettings())
+
+        loaded = await repository.get_sync_record(record.id)
+        found = await repository.find_sync_record(
+            record.project_key,
+            ViewerEntityType(record.entity_type),
+            record.entity_key,
+            record.entity_version,
+            ViewerType(record.viewer_type),
+        )
+
+        assert loaded is record
+        assert found is record
+        session.get.assert_awaited_once_with(ViewerSyncRecordDTO, record.id)
+        session.scalar.assert_awaited_once()
+
+    async def test_when_saving_operation_item_expect_persisted_dto(self) -> None:
+        item = _operation_item_dto(_sync_dto())
+        session = MagicMock()
+        session.merge = AsyncMock(return_value=item)
+        session.commit = AsyncMock()
+        session.refresh = AsyncMock()
+        repository = ViewerRepository(_SessionProvider(session), ViewerSettings())
+
+        saved = await repository.save_operation_item(item)
+
+        assert saved is item
+        session.merge.assert_awaited_once_with(item)
+        session.commit.assert_awaited_once()
+        session.refresh.assert_awaited_once_with(item)
+
     async def test_when_listing_operations_expect_global_and_project_pages(self) -> None:
         operation = _operation_dto()
         total = MagicMock()
@@ -218,6 +274,23 @@ class TestViewerRepository:
 
         assert global_page.items == (record,)
         assert project_page.total == 1
+
+    async def test_when_listing_operation_items_expect_filtered_page(self) -> None:
+        item = _operation_item_dto(_sync_dto())
+        total = MagicMock()
+        total.scalar_one.return_value = 1
+        page = MagicMock()
+        page.scalars.return_value.all.return_value = [item]
+        session = MagicMock()
+        session.execute = AsyncMock(side_effect=[total, page])
+        repository = ViewerRepository(_SessionProvider(session), ViewerSettings())
+
+        result = await repository.find_operation_items_page(
+            item.project_key, item.operation_id, PaginationParams()
+        )
+
+        assert result.items == (item,)
+        assert result.total == 1
 
     async def test_when_listing_drift_events_expect_unfiltered_and_viewer_filtered_pages(
         self,

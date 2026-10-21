@@ -7,6 +7,7 @@ from test_service.domain.model.viewer.records import (
     DriftEvent,
     ViewerEntityType,
     ViewerOperation,
+    ViewerOperationItem,
     ViewerSyncRecord,
     ViewerType,
 )
@@ -72,6 +73,28 @@ class ViewerPersistenceAdapter(ViewerPersistencePort):
             await self._repository.save_sync_record(
                 ViewerPersistenceMapper.sync_record_to_dto(record)
             )
+        )
+
+    async def get_sync_record(self, sync_record_id: UUID) -> ViewerSyncRecord | None:
+        record = await self._repository.get_sync_record(sync_record_id)
+        return ViewerPersistenceMapper.sync_record_to_domain(record) if record is not None else None
+
+    async def save_operation_item(self, item: ViewerOperationItem) -> ViewerOperationItem:
+        return ViewerPersistenceMapper.operation_item_to_domain(
+            await self._repository.save_operation_item(
+                ViewerPersistenceMapper.operation_item_to_dto(item)
+            )
+        )
+
+    async def find_operation_items_page(
+        self, project_key: str, operation_id: UUID, pagination: PaginationParams
+    ) -> Page[ViewerOperationItem]:
+        page = await self._repository.find_operation_items_page(
+            project_key, operation_id, pagination
+        )
+        return Page(
+            tuple(ViewerPersistenceMapper.operation_item_to_domain(item) for item in page.items),
+            page.total,
         )
 
     async def find_sync_record(

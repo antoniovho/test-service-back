@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 from test_service_server.models.sort_order import SortOrder as ApiSortOrder
+from test_service_server.models.viewer_operation_item_sort_by import ViewerOperationItemSortBy
 from test_service_server.models.viewer_operation_request import ViewerOperationRequest
 from test_service_server.models.viewer_sync_record_sort_by import ViewerSyncRecordSortBy
 from test_service_server.models.viewer_type import ViewerType as ApiViewerType
@@ -16,6 +17,7 @@ from test_service.domain.model.viewer.records import (
     SyncStatus,
     ViewerEntityType,
     ViewerOperation,
+    ViewerOperationItem,
     ViewerOperationStatus,
     ViewerOperationType,
     ViewerSyncRecord,
@@ -38,11 +40,13 @@ def _controller() -> ViewerIntegrationController:
         _check_drift=SimpleNamespace(execute=AsyncMock(return_value=_operation())),
         _list_sync=SimpleNamespace(execute=AsyncMock(return_value=Page((), 0))),
         _list_project_sync=SimpleNamespace(execute=AsyncMock(return_value=Page((), 0))),
+        _get_project_sync=SimpleNamespace(execute=AsyncMock(return_value=None)),
         _list_drift=SimpleNamespace(execute=AsyncMock(return_value=Page((), 0))),
         _list_project_drift=SimpleNamespace(execute=AsyncMock(return_value=Page((), 0))),
         _list_operations=SimpleNamespace(execute=AsyncMock(return_value=Page((), 0))),
         _list_project_operations=SimpleNamespace(execute=AsyncMock(return_value=Page((), 0))),
         _get_operation=SimpleNamespace(execute=AsyncMock(return_value=_operation())),
+        _list_operation_items=SimpleNamespace(execute=AsyncMock(return_value=Page((), 0))),
     )
     return controller
 
@@ -60,12 +64,12 @@ def _operation() -> ViewerOperation:
 
 class TestViewerRest:
     def test_when_creating_controller_expect_all_use_cases_injected(self, monkeypatch) -> None:
-        injector = SimpleNamespace(inject=MagicMock(side_effect=[object() for _ in range(10)]))
+        injector = SimpleNamespace(inject=MagicMock(side_effect=[object() for _ in range(12)]))
         monkeypatch.setattr(viewer_integration_controller, "get_injector", lambda: injector)
 
         controller = ViewerIntegrationController()
 
-        assert injector.inject.call_count == 10
+        assert injector.inject.call_count == 12
         assert controller._publish is not None
         assert controller._list_project_drift is not None
 
@@ -154,6 +158,28 @@ class TestViewerRest:
         assert api_record.entity_version == 1
         assert api_record.error is None
 
+    async def test_when_getting_project_sync_record_expect_current_state_response(self) -> None:
+        record = ViewerSyncRecord(
+            identifier=uuid4(),
+            project_key="IAG",
+            entity_type=ViewerEntityType.TEST_CASE,
+            entity_key="LOGIN",
+            entity_version=1,
+            projected_version_id=uuid4(),
+            viewer_type=ViewerType.XRAY,
+            external_entity_key="LOGIN-v1",
+            sync_status=SyncStatus.ERROR,
+            error="Xray authentication failed.",
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        )
+        controller = _controller()
+        controller._get_project_sync.execute = AsyncMock(return_value=record)
+
+        response = await controller.get_project_viewer_sync_record("IAG", record.identifier)
+
+        assert response.id == record.identifier
+        assert response.error == "Xray authentication failed."
+
     def test_when_mapping_viewer_inputs_expect_viewer_type_in_commands(self) -> None:
         request = ViewerOperationRequest(viewerType="XRAY")
 
@@ -207,3 +233,40 @@ class TestViewerRest:
         assert global_page.data[0].id == operation.identifier
         assert project_page.data[0].project.key == "IAG"
         assert response.status == "PENDING"
+
+    async def test_when_listing_operation_items_expect_immutable_history_response(self) -> None:
+        operation = _operation()
+        item = ViewerOperationItem(
+            identifier=uuid4(),
+            operation_id=operation.identifier,
+            sync_record_id=uuid4(),
+            project_key="IAG",
+            entity_type=ViewerEntityType.TEST_CASE,
+            entity_key="LOGIN",
+            entity_version=1,
+            projected_version_id=uuid4(),
+            viewer_type=ViewerType.XRAY,
+            external_entity_key="LOGIN-v1",
+            external_entity_id=None,
+            sync_status=SyncStatus.ERROR,
+            error="Xray authentication failed.",
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        )
+        controller = _controller()
+        controller._list_operation_items.execute = AsyncMock(return_value=Page((item,), 1))
+
+        response = await controller.list_project_viewer_operation_items(
+            "IAG",
+            operation.identifier,
+            0,
+            20,
+            ViewerOperationItemSortBy.CREATEDAT,
+            ApiSortOrder.ASC,
+        )
+
+        assert response.data[0].operation_id == operation.identifier
+        assert response.data[0].error == "Xray authentication failed."
+        assert (
+            controller._list_operation_items.execute.await_args.args[0].operation_id
+            == operation.identifier
+        )

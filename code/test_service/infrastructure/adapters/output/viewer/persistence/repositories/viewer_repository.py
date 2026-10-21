@@ -14,6 +14,7 @@ from test_service.infrastructure.adapters.output.commons.persistence.postgres.po
 from test_service.infrastructure.adapters.output.viewer.persistence.dtos.viewer_dtos import (
     DriftEventDTO,
     ViewerOperationDTO,
+    ViewerOperationItemDTO,
     ViewerSyncRecordDTO,
 )
 
@@ -31,6 +32,11 @@ class ViewerRepository:
         "last_checked_at": ViewerSyncRecordDTO.last_checked_at,
         "sync_status": ViewerSyncRecordDTO.sync_status,
         "entity_key": ViewerSyncRecordDTO.entity_key,
+    }
+    _OPERATION_ITEM_SORT_COLUMNS = {
+        "created_at": ViewerOperationItemDTO.created_at,
+        "entity_key": ViewerOperationItemDTO.entity_key,
+        "sync_status": ViewerOperationItemDTO.sync_status,
     }
     _DRIFT_SORT_COLUMNS = {
         "created_at": DriftEventDTO.created_at,
@@ -112,6 +118,30 @@ class ViewerRepository:
             await session.commit()
             await session.refresh(persisted)
             return persisted
+
+    async def get_sync_record(self, sync_record_id: UUID) -> ViewerSyncRecordDTO | None:
+        async with self._session_provider.session() as session:
+            return await session.get(ViewerSyncRecordDTO, sync_record_id)
+
+    async def save_operation_item(self, item: ViewerOperationItemDTO) -> ViewerOperationItemDTO:
+        async with self._session_provider.session() as session:
+            persisted = await session.merge(item)
+            await session.commit()
+            await session.refresh(persisted)
+            return persisted
+
+    async def find_operation_items_page(
+        self, project_key: str, operation_id: UUID, pagination: PaginationParams
+    ) -> Page[ViewerOperationItemDTO]:
+        return await self._find_page(
+            ViewerOperationItemDTO,
+            pagination,
+            self._OPERATION_ITEM_SORT_COLUMNS,
+            [
+                ViewerOperationItemDTO.project_key == project_key,
+                ViewerOperationItemDTO.operation_id == operation_id,
+            ],
+        )
 
     async def find_sync_record(
         self,

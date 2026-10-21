@@ -25,6 +25,7 @@ from test_service.domain.model.viewer.records import (
     SyncStatus,
     ViewerEntityType,
     ViewerOperation,
+    ViewerOperationItem,
     ViewerOperationStatus,
     ViewerOperationType,
     ViewerSyncRecord,
@@ -101,7 +102,7 @@ class ViewerProjectionService:
             if operation.operation_type is ViewerOperationType.PUBLICATION:
                 return await self._publish(operation)
             return await self._check_drift(operation)
-        except Exception:
+        except Exception as error:
             logger.exception(
                 "Viewer operation failed", extra={"operation_id": str(operation.identifier)}
             )
@@ -110,7 +111,7 @@ class ViewerProjectionService:
                     operation,
                     status=ViewerOperationStatus.FAILED,
                     finished_at=datetime.now(UTC),
-                    error="Viewer operation could not be completed.",
+                    error=self._sync_error(error),
                 )
             )
 
@@ -200,6 +201,24 @@ class ViewerProjectionService:
                 )
                 external_ids[snapshot.identifier] = identity.external_id
             records.append(await self._viewer_repository.save_sync_record(persisted_record))
+            await self._viewer_repository.save_operation_item(
+                ViewerOperationItem(
+                    identifier=uuid4(),
+                    operation_id=operation.identifier,
+                    sync_record_id=persisted_record.identifier,
+                    project_key=persisted_record.project_key,
+                    entity_type=persisted_record.entity_type,
+                    entity_key=persisted_record.entity_key,
+                    entity_version=persisted_record.entity_version,
+                    projected_version_id=persisted_record.projected_version_id,
+                    viewer_type=persisted_record.viewer_type,
+                    external_entity_key=persisted_record.external_entity_key,
+                    external_entity_id=persisted_record.external_entity_id,
+                    sync_status=persisted_record.sync_status,
+                    error=persisted_record.error,
+                    created_at=datetime.now(UTC),
+                )
+            )
         succeeded = sum(record.sync_status is SyncStatus.SYNCED for record in records)
         failed = len(records) - succeeded
         return await self._viewer_repository.save_operation(
