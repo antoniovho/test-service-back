@@ -1,0 +1,110 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-MGMT-005",
+  "summary": "Update and retrieve a dedicated virtual API key's configuration",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "master_key": "replace-with-proxy-admin-key",
+      "litellm_virtual_key": "replace-with-dedicated-test-virtual-key",
+      "model_name": "replace-with-configured-model-alias"
+    },
+    "actions": [
+      {
+        "id": "updateVirtualKeyConfiguration",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/key/update",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{master_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "key": "{{litellm_virtual_key}}",
+            "models": [
+              "{{model_name}}"
+            ],
+            "max_budget": 100.0,
+            "rpm_limit": 60,
+            "tpm_limit": 10000,
+            "metadata": {
+              "test_suite": "GW-MGMT-005"
+            }
+          },
+          "expectedStatus": 200,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "info"
+            ],
+            "properties": {
+              "info": {
+                "type": "object",
+                "required": [
+                  "token",
+                  "spend",
+                  "models"
+                ],
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "spend": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "models": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "retrieveUpdatedVirtualKey",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/key/info",
+          "method": "GET",
+          "headers": {
+            "Authorization": "Bearer {{master_key}}",
+            "Accept": "application/json"
+          },
+          "query": {
+            "key": "{{litellm_virtual_key}}"
+          },
+          "expectedStatus": 200
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Also covers GW-API-009's key-info lookup. Verify an administrator can update model authorization, max_budget, rpm_limit, tpm_limit, and metadata for a virtual key and retrieve key information afterward. Requires PostgreSQL-backed key management, an admin credential, and a dedicated disposable virtual key. This mutates persistent key permissions and limits; use only an isolated test key, and restore/remove it through the environment's approved cleanup process. The retrieval schema checks the documented key-info response, but this runner does not assert the updated values individually.",
+    "labels": [
+      "litellm",
+      "management",
+      "virtual-keys",
+      "admin",
+      "state-change",
+      "budgets",
+      "GW-API-009"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/virtual_keys"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

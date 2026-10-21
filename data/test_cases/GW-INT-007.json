@@ -1,0 +1,101 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-INT-007",
+  "summary": "Correlate a LiteLLM request with its OpenTelemetry trace",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-valid-litellm-api-key",
+      "model_name": "replace-with-configured-chat-model",
+      "test_run_id": "replace-with-unique-trace-correlation-id",
+      "tracing_query_endpoint": "replace-with-http-query-endpoint-for-tracing-backend",
+      "tracing_api_key": "replace-with-tracing-backend-query-key"
+    },
+    "actions": [
+      {
+        "id": "emitCorrelatedOtelRequest",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "X-Integration-Test-Id": "{{test_run_id}}"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "OpenTelemetry integration test {{test_run_id}}."
+              }
+            ],
+            "metadata": {
+              "integration_test_id": "{{test_run_id}}"
+            },
+            "stream": false
+          },
+          "expectedStatus": 200,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "object",
+              "choices"
+            ],
+            "properties": {
+              "object": {
+                "const": "chat.completion"
+              },
+              "choices": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "findCorrelatedOtelTrace",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{tracing_query_endpoint}}",
+          "method": "GET",
+          "headers": {
+            "Authorization": "Bearer {{tracing_api_key}}",
+            "Accept": "application/json"
+          },
+          "query": {
+            "integration_test_id": "{{test_run_id}}"
+          },
+          "expectedStatus": 200,
+          "expectedTextContains": "{{test_run_id}}"
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify a successful LiteLLM chat request with a unique integration_test_id can be found in the configured OpenTelemetry backend. Requires the otel callback, an HTTP-queryable trace backend, and immediate visibility of the exported trace. The runner checks correlation but does not poll for asynchronous export or assert provider-specific span names. The chat request can incur provider costs.",
+    "labels": [
+      "litellm",
+      "integration",
+      "opentelemetry",
+      "tracing",
+      "correlation"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/logging"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    },
+    {
+      "preconditionKey": "LITELLM_CHAT_MODEL_READY",
+      "version": 1
+    }
+  ]
+}

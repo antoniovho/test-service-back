@@ -1,0 +1,106 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-LIM-009",
+  "summary": "Share rate-limit accounting across Proxy instances",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_instance_1_url": "http://localhost:4000",
+      "gateway_instance_2_url": "http://localhost:4001",
+      "distributed_test_api_key": "replace-with-dedicated-key-rpm-2",
+      "model_name": "replace-with-configured-chat-model"
+    },
+    "actions": [
+      {
+        "id": "instanceOneConsumesSharedAllowance",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_instance_1_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{distributed_test_api_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Reply with OK."
+              }
+            ],
+            "stream": false
+          },
+          "expectedStatus": 200
+        }
+      },
+      {
+        "id": "instanceTwoConsumesSharedAllowance",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_instance_2_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{distributed_test_api_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Reply with OK."
+              }
+            ],
+            "stream": false
+          },
+          "expectedStatus": 200
+        }
+      },
+      {
+        "id": "sharedAllowanceExceededOnInstanceTwo",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_instance_2_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{distributed_test_api_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Reply with OK."
+              }
+            ],
+            "stream": false
+          },
+          "expectedStatus": 429
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Using a dedicated key configured with rpm_limit=2, verify requests through two Proxy instances sharing the same Redis backend are admitted twice across the instances, then rejected with HTTP 429 on the second instance. Requires both instances, shared healthy Redis rate-limit state, a clean bucket, and a non-admin key. Accepted completions may incur provider costs.",
+    "labels": [
+      "litellm",
+      "rate-limiting",
+      "distributed",
+      "redis",
+      "multi-instance"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/rate_limit"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

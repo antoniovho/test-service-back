@@ -1,0 +1,76 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-ERR-027",
+  "summary": "Wrongly typed request field returns invalid_request_error",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-valid-test-key",
+      "model_name": "replace-with-configured-chat-model"
+    },
+    "actions": [
+      {
+        "id": "wronglyTypedMessagesRejected",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": "this should be an array"
+          },
+          "expectedStatus": 400,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "type": "object",
+                "required": [
+                  "type",
+                  "param"
+                ],
+                "properties": {
+                  "type": {
+                    "const": "invalid_request_error"
+                  },
+                  "param": {
+                    "const": "messages"
+                  },
+                  "code": {
+                    "const": "400"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify that a chat-completions request with messages set to a string instead of an array is rejected with invalid_request_error, param=messages, and HTTP 400.",
+    "labels": [
+      "litellm",
+      "error-handling",
+      "validation",
+      "invalid-request"
+    ],
+    "source": "https://docs.litellm.ai/docs/completion"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

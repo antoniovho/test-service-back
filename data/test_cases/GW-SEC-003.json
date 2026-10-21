@@ -1,0 +1,82 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-SEC-003",
+  "summary": "Reject expired and untrusted JWT credentials",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "expired_jwt_token": "replace-with-expired-test-jwt",
+      "untrusted_jwt_token": "replace-with-jwt-signed-by-untrusted-test-key",
+      "model_name": "replace-with-configured-chat-model"
+    },
+    "actions": [
+      {
+        "id": "expiredJwtRejected",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{expired_jwt_token}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "JWT authentication test."
+              }
+            ],
+            "stream": false
+          },
+          "expectedStatus": 401
+        }
+      },
+      {
+        "id": "UntrustedJwtRejected",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{untrusted_jwt_token}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "JWT signature validation test."
+              }
+            ],
+            "stream": false
+          },
+          "expectedStatus": 401
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "When Proxy JWT authentication is enabled, verify an expired JWT and a JWT signed by an untrusted test key are both rejected with HTTP 401. Requires a trusted JWT_PUBLIC_KEY_URL/JWKS configuration and test-only token fixtures; do not use real user tokens. The runner cannot inspect error-body disclosure or prove upstream non-invocation, so those source assertions are omitted.",
+    "labels": [
+      "litellm",
+      "security",
+      "jwt",
+      "authentication",
+      "token-validation"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/jwt"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

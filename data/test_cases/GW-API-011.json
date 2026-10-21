@@ -1,0 +1,57 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-API-011",
+  "summary": "Retrieve individual LiteLLM spend logs for a date range",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "master_key": "replace-with-litellm-admin-key",
+      "start_date": "replace-with-start-date-with-spend-data",
+      "end_date": "replace-with-end-date-with-spend-data"
+    },
+    "actions": [
+      {
+        "id": "getSpendLogs",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/spend/logs",
+          "method": "GET",
+          "headers": {
+            "Authorization": "Bearer {{master_key}}",
+            "Accept": "application/json"
+          },
+          "params": {
+            "start_date": "{{start_date}}",
+            "end_date": "{{end_date}}",
+            "summarize": "false"
+          },
+          "expectedStatus": 200,
+          "expectedJsonSchema": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Retrieve raw spend records for a configured date interval. The LiteLLM API reference exposes GET /spend/logs; the legacy case supplies start_date, end_date, and summarize=false. The test environment must provide a valid date interval containing spend data; records and amounts are deployment-dependent.",
+    "labels": [
+      "litellm",
+      "management",
+      "spend",
+      "database"
+    ],
+    "source": "https://docs.litellm.ai/api-reference/"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

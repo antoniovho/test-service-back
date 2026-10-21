@@ -1,0 +1,99 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-STR-001",
+  "summary": "Gateway returns a valid streaming chat completion",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-litellm-api-key",
+      "model_name": "replace-with-configured-model-name"
+    },
+    "actions": [
+      {
+        "id": "streamChatCompletion",
+        "type": "SSE",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "text/event-stream"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Generate a short sentence."
+              }
+            ],
+            "stream": true
+          },
+          "expectedContentType": "text/event-stream",
+          "expectedDataJsonSchema": {
+            "type": "object",
+            "required": [
+              "id",
+              "object",
+              "created",
+              "model",
+              "choices"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "object": {
+                "const": "chat.completion.chunk"
+              },
+              "created": {
+                "type": "integer"
+              },
+              "model": {
+                "type": "string",
+                "minLength": 1
+              },
+              "choices": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "expectedDone": true,
+          "maxEvents": 1000,
+          "receiveTimeoutSeconds": 30,
+          "maxResponseTimeMs": 30000
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Also covers GW-INT-010's provider-to-client streaming transport. Verify stream=true returns JSON chat.completion.chunk events over text/event-stream and terminates with [DONE] within 30 seconds. The source's 5-second first-event threshold is not enforced separately. Requires a streaming-capable configured model and valid key; execution can incur provider charges.",
+    "labels": [
+      "litellm",
+      "chat-completions",
+      "streaming",
+      "sse",
+      "smoke",
+      "GW-INT-010"
+    ],
+    "source": "https://docs.litellm.ai/docs/completion/input"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    },
+    {
+      "preconditionKey": "LITELLM_CHAT_MODEL_READY",
+      "version": 1
+    }
+  ]
+}

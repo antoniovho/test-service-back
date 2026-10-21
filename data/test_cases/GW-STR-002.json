@@ -1,0 +1,112 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-STR-002",
+  "summary": "Streaming deltas reconstruct the expected response in order",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-litellm-api-key",
+      "model_name": "replace-with-deterministic-fixture-model"
+    },
+    "actions": [
+      {
+        "id": "reconstructStreamingChatDeltas",
+        "type": "SSE",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "text/event-stream"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Return exactly: STREAMING_TEST_RESPONSE"
+              }
+            ],
+            "temperature": 0,
+            "stream": true
+          },
+          "expectedContentType": "text/event-stream",
+          "expectedDataJsonSchema": {
+            "type": "object",
+            "required": [
+              "id",
+              "object",
+              "created",
+              "model",
+              "choices"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "object": {
+                "const": "chat.completion.chunk"
+              },
+              "created": {
+                "type": "integer"
+              },
+              "model": {
+                "type": "string",
+                "minLength": 1
+              },
+              "choices": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "delta"
+                  ],
+                  "properties": {
+                    "delta": {
+                      "type": "object",
+                      "properties": {
+                        "content": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "expectedConcatenatedContent": "STREAMING_TEST_RESPONSE",
+          "expectedDone": true,
+          "maxEvents": 1000,
+          "receiveTimeoutSeconds": 30,
+          "maxResponseTimeMs": 30000
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify SSE chunks preserve arrival order and their choices[0].delta.content fragments reconstruct STREAMING_TEST_RESPONSE, followed by [DONE]. Requires a deterministic or mocked model; a real configured model may incur charges. The total stream is limited to 30 seconds.",
+    "labels": [
+      "litellm",
+      "chat-completions",
+      "streaming",
+      "sse",
+      "reconstruction"
+    ]
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    },
+    {
+      "preconditionKey": "LITELLM_CHAT_MODEL_READY",
+      "version": 1
+    }
+  ]
+}

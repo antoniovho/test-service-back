@@ -1,0 +1,71 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-MGMT-004",
+  "summary": "Create and update a disposable LiteLLM team",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "master_key": "replace-with-proxy-master-key",
+      "team_id": "replace-with-unique-disposable-team-id",
+      "team_alias": "corpus-disposable-team"
+    },
+    "actions": [
+      {
+        "id": "createTeam",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/team/new",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{master_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "team_id": "{{team_id}}",
+            "team_alias": "{{team_alias}}"
+          },
+          "expectedStatus": 200
+        }
+      },
+      {
+        "id": "updateTeamRateLimit",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/team/update",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{master_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "team_id": "{{team_id}}",
+            "rpm_limit": 1000
+          },
+          "expectedStatus": 200
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify an administrator can create a team and update its rpm_limit to 1000. Requires PostgreSQL-backed team management, an admin credential, and a unique disposable team ID. This leaves a persistent team record and includes no deletion; run only in an isolated environment with a planned manual cleanup. This conversion performs no team creation or cleanup and asserts only HTTP status.",
+    "labels": [
+      "litellm",
+      "management",
+      "teams",
+      "admin",
+      "state-change",
+      "rate-limit"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/teams"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

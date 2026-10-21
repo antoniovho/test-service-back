@@ -1,0 +1,103 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-FUN-004",
+  "summary": "Accept prior assistant content in chat history",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-valid-chat-api-key",
+      "model_name": "replace-with-configured-chat-model"
+    },
+    "actions": [
+      {
+        "id": "assistantHistoryAccepted",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Summarize: The quick brown fox jumps over the lazy dog."
+              },
+              {
+                "role": "assistant",
+                "content": "A fox jumps over a dog."
+              },
+              {
+                "role": "user",
+                "content": "Make it shorter."
+              }
+            ]
+          },
+          "expectedStatus": 200,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "object",
+              "choices"
+            ],
+            "properties": {
+              "object": {
+                "const": "chat.completion"
+              },
+              "choices": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "object",
+                      "required": [
+                        "role",
+                        "content"
+                      ],
+                      "properties": {
+                        "role": {
+                          "const": "assistant"
+                        },
+                        "content": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify that the chat-completions endpoint accepts a conversation containing prior assistant content and returns an OpenAI-compatible completion. Exact summarization text is not asserted; provider calls can incur token costs.",
+    "labels": [
+      "litellm",
+      "functional",
+      "chat-completions",
+      "conversation"
+    ],
+    "source": "https://docs.litellm.ai/docs/completion"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_CHAT_MODEL_READY",
+      "version": 1
+    }
+  ]
+}

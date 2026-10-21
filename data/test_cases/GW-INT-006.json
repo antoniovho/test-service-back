@@ -1,0 +1,94 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-INT-006",
+  "summary": "Expose Proxy request metrics with documented labels",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-valid-litellm-api-key",
+      "model_name": "replace-with-configured-chat-model"
+    },
+    "actions": [
+      {
+        "id": "generateSuccessfulProxyRequest",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Prometheus integration test."
+              }
+            ],
+            "stream": false
+          },
+          "expectedStatus": 200,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "object",
+              "choices"
+            ],
+            "properties": {
+              "object": {
+                "const": "chat.completion"
+              },
+              "choices": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "verifyPrometheusRequestMetric",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/metrics",
+          "method": "GET",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Accept": "text/plain"
+          },
+          "expectedStatus": 200,
+          "expectedTextContains": [
+            "litellm_proxy_total_requests_metric",
+            "requested_model=\"{{model_name}}\"",
+            "status_code=\"200\""
+          ]
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify the documented authenticated /metrics endpoint exposes the Proxy request counter and its requested_model and status_code dimensions after a successful chat request. The test requires the prometheus callback to be enabled. It checks metric/label exposition but does not compare the counter before and after the request or query a Prometheus server. The chat request can incur provider costs.",
+    "labels": [
+      "litellm",
+      "integration",
+      "prometheus",
+      "metrics"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/prometheus"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    },
+    {
+      "preconditionKey": "LITELLM_CHAT_MODEL_READY",
+      "version": 1
+    }
+  ]
+}

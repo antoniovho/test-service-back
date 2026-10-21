@@ -1,0 +1,79 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-ERR-025",
+  "summary": "Provider-budget routing has exhausted all candidate deployments",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-valid-test-key",
+      "model_group": "replace-with-isolated-provider-budget-routed-model-group"
+    },
+    "actions": [
+      {
+        "id": "providerBudgetsExhausted",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_group}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Return the word OK."
+              }
+            ]
+          },
+          "expectedStatus": 429,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "type": "object",
+                "required": [
+                  "message",
+                  "code"
+                ],
+                "properties": {
+                  "message": {
+                    "const": "No deployments available - crossed budget"
+                  },
+                  "code": {
+                    "const": "429"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify provider-budget routing returns HTTP 429 with the exact No deployments available - crossed budget message when all candidate deployments have exhausted their configured provider budgets. Configure and run only in an isolated environment; do not exhaust budgets affecting unrelated or production traffic.",
+    "labels": [
+      "litellm",
+      "error-handling",
+      "routing",
+      "provider-budget",
+      "availability"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/reliability"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

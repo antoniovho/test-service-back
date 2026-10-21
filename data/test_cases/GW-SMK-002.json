@@ -1,0 +1,53 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-SMK-002",
+  "summary": "Gateway readiness endpoint is available",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000"
+    },
+    "actions": [
+      {
+        "id": "checkGatewayReadiness",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/health/readiness",
+          "method": "GET",
+          "headers": {
+            "Accept": "application/json"
+          },
+          "expectedStatus": 200,
+          "expectedHeaders": {
+            "Content-Type": "application/json"
+          },
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "status",
+              "db"
+            ],
+            "properties": {
+              "status": {
+                "const": "healthy"
+              },
+              "db": {
+                "const": "connected"
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify that the gateway is ready to receive traffic by checking its readiness response and database connectivity. The source also specified a 5-second response-time threshold; the current HTTP runner does not enforce that threshold.",
+    "labels": [
+      "gateway",
+      "health",
+      "readiness",
+      "smoke"
+    ]
+  }
+}

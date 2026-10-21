@@ -1,0 +1,63 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-GUARDRAILS-005",
+  "summary": "Send dynamic parameters to a selected guardrail",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-valid-litellm-api-key",
+      "model_name": "replace-with-configured-model-alias"
+    },
+    "actions": [
+      {
+        "id": "dynamicGuardrailParameterAccepted",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "This is a test request, write a short poem."
+              }
+            ],
+            "guardrails": {
+              "aporia-pre-guard": {
+                "extra_body": {
+                  "success_threshold": 0.9
+                }
+              }
+            }
+          },
+          "expectedStatus": 200
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify a chat completion request with the documented guardrails.extra_body.success_threshold=0.9 structure returns HTTP 200. The environment must have Enterprise guardrail support enabled and aporia-pre-guard configured to accept this dynamic parameter. The HTTP result alone does not prove the value was forwarded to Aporia. The completion may incur provider token costs.",
+    "labels": [
+      "litellm",
+      "guardrails",
+      "enterprise",
+      "dynamic-parameters",
+      "aporia"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/guardrail"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

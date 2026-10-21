@@ -1,0 +1,77 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-ERR-003",
+  "summary": "Authentication failure returns auth_error",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "invalid_auth_credential": "invalid-auth-credential-for-test",
+      "model_name": "replace-with-configured-model-name"
+    },
+    "actions": [
+      {
+        "id": "authenticationFailureType",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{invalid_auth_credential}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Return the word OK."
+              }
+            ]
+          },
+          "expectedStatus": 401,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "const": "auth_error"
+                  },
+                  "code": {
+                    "const": "401"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify a syntactically present but invalid credential returns HTTP 401 with auth_error. Authentication must be enabled and the test credential must fail gateway validation.",
+    "labels": [
+      "litellm",
+      "error-handling",
+      "authentication",
+      "negative"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/virtual_keys"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

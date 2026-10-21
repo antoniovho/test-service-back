@@ -1,0 +1,80 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-ERR-002",
+  "summary": "Expired virtual key returns expired_key",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "expired_api_key": "replace-with-existing-expired-litellm-key",
+      "model_name": "replace-with-configured-model-name"
+    },
+    "actions": [
+      {
+        "id": "expiredVirtualKeyError",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{expired_api_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Return the word OK."
+              }
+            ]
+          },
+          "expectedStatus": 401,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "const": "expired_key"
+                  },
+                  "param": {
+                    "const": "key"
+                  },
+                  "code": {
+                    "const": "401"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify an existing virtual key with an expiration timestamp in the past is rejected as expired_key with HTTP 401. The key must be provisioned and already expired before execution.",
+    "labels": [
+      "litellm",
+      "error-handling",
+      "authentication",
+      "expired-key"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/virtual_keys"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

@@ -1,0 +1,111 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-AUTH-005",
+  "summary": "Virtual key model scope enforced",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-litellm-key-scoped-to-allowed-model",
+      "allowed_model": "replace-with-model-authorized-for-key",
+      "restricted_model": "replace-with-valid-model-not-authorized-for-key"
+    },
+    "actions": [
+      {
+        "id": "allowedModelRequest",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{allowed_model}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Return a short confirmation."
+              }
+            ],
+            "stream": false
+          },
+          "expectedStatus": 200,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "object"
+            ],
+            "properties": {
+              "object": {
+                "const": "chat.completion"
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "restrictedModelRequest",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{restricted_model}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Return a short confirmation."
+              }
+            ],
+            "stream": false
+          },
+          "expectedStatus": 403,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "const": "invalid_request_error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify the same virtual key can use its allowed model and is denied access to a different valid model outside its scope. The key's model allowlist and both model deployments must be configured before execution.",
+    "labels": [
+      "litellm",
+      "auth",
+      "virtual-key",
+      "model-scope"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/virtual_keys"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

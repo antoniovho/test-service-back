@@ -1,0 +1,73 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-CON-001",
+  "summary": "Chat request schema",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-litellm-api-key",
+      "model_name": "replace-with-configured-model-name"
+    },
+    "actions": [
+      {
+        "id": "minimalValidChatRequest",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Return the word OK."
+              }
+            ]
+          },
+          "expectedStatus": 200
+        }
+      },
+      {
+        "id": "missingMessagesRejected",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}"
+          },
+          "expectedStatus": 400
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify a minimal valid chat request is accepted and a request missing the required messages field is rejected. This consolidates GW-CON-004's HTTP 200 and 400 checks; its invalid-credential 401 check is covered by GW-AUTH-003. Error-body wording is not pinned here because GW-SMK-006 validates the controlled missing-field response.",
+    "labels": [
+      "litellm",
+      "contract",
+      "chat-completions",
+      "validation",
+      "GW-CON-004"
+    ],
+    "source": "https://docs.litellm.ai/docs/completion/input"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

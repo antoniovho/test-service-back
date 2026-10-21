@@ -1,0 +1,55 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-RTE-001",
+  "summary": "Send a completion request to a configured model group",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-valid-chat-api-key",
+      "model_name": "replace-with-configured-model-group"
+    },
+    "actions": [
+      {
+        "id": "requestConfiguredModelGroup",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Return the word ROUTED."
+              }
+            ]
+          },
+          "expectedStatus": 200
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify a request addressed to the configured model group returns HTTP 200. This does not prove which deployment was selected or that its ID belongs to the group: the source relies on x-litellm-model-id response-header capture and subsequent routing telemetry, which this corpus runner cannot capture or assert. The completion can incur provider token costs.",
+    "labels": [
+      "litellm",
+      "routing",
+      "model-group",
+      "chat-completions"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/model_management"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_CHAT_MODEL_READY",
+      "version": 1
+    }
+  ]
+}

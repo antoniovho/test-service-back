@@ -1,0 +1,67 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-FBK-002",
+  "summary": "Retry exhaustion returns a gateway error",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-valid-test-key",
+      "model_name": "replace-with-model-configured-for-retries"
+    },
+    "actions": [
+      {
+        "id": "retryExhaustionError",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Execute the retry exhaustion test."
+              }
+            ],
+            "stream": false
+          },
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "With a retry policy configured and an external provider fixture failing every attempt with a retryable error, verify the gateway returns an error object after the request. The final HTTP status is not fixed by the source and is not asserted. Fixture setup and upstream attempt counting are unsupported by this HTTP-only case, so it cannot prove the configured maximum retry count is respected.",
+    "labels": [
+      "litellm",
+      "fallback",
+      "retry",
+      "retry-exhaustion",
+      "provider-fixture"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/reliability"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

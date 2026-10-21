@@ -1,0 +1,69 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-MGMT-003",
+  "summary": "Create and retrieve a disposable LiteLLM user",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "master_key": "replace-with-proxy-master-key",
+      "user_id": "replace-with-unique-disposable-user-id",
+      "user_email": "replace-with-test-mailbox@example.invalid"
+    },
+    "actions": [
+      {
+        "id": "createUserWithoutKey",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/user/new",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{master_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "user_id": "{{user_id}}",
+            "user_email": "{{user_email}}",
+            "auto_create_key": false
+          },
+          "expectedStatus": 200
+        }
+      },
+      {
+        "id": "retrieveCreatedUser",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/user/info",
+          "method": "GET",
+          "headers": {
+            "Authorization": "Bearer {{master_key}}",
+            "Accept": "application/json"
+          },
+          "query": {
+            "user_id": "{{user_id}}"
+          },
+          "expectedStatus": 200
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify an administrator can create a LiteLLM user without automatically creating a key and then retrieve user information by ID. Requires PostgreSQL-backed user management, an admin credential, and a unique disposable user ID. This leaves a persistent user record and includes no delete operation; use an isolated environment with a planned manual cleanup. This conversion performs no user creation or cleanup and asserts only HTTP status.",
+    "labels": [
+      "litellm",
+      "management",
+      "users",
+      "admin",
+      "state-change"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/users"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

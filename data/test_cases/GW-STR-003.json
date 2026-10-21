@@ -1,0 +1,64 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-STR-003",
+  "summary": "Streaming response ends with the DONE marker",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-litellm-api-key",
+      "model_name": "replace-with-configured-model-name"
+    },
+    "actions": [
+      {
+        "id": "checkStreamingTerminator",
+        "type": "SSE",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "text/event-stream"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Return a short greeting."
+              }
+            ],
+            "stream": true
+          },
+          "expectedContentType": "text/event-stream",
+          "expectedDone": true,
+          "maxEvents": 1000,
+          "receiveTimeoutSeconds": 30,
+          "maxResponseTimeMs": 30000
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify the streaming chat response completes with [DONE] as the final SSE data event and within 30 seconds. Requires a streaming-capable configured model and valid key; the request and model health precondition can incur provider charges.",
+    "labels": [
+      "litellm",
+      "chat-completions",
+      "streaming",
+      "sse",
+      "terminator"
+    ]
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    },
+    {
+      "preconditionKey": "LITELLM_CHAT_MODEL_READY",
+      "version": 1
+    }
+  ]
+}

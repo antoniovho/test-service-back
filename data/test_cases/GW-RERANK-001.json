@@ -1,0 +1,57 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-RERANK-001",
+  "summary": "Submit documents to the LiteLLM rerank endpoint",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-valid-rerank-api-key",
+      "rerank_model_name": "replace-with-configured-reranking-model"
+    },
+    "actions": [
+      {
+        "id": "rerankCandidateDocuments",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/rerank",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{rerank_model_name}}",
+            "query": "What is the capital of the United States?",
+            "documents": [
+              "Carson City is the capital city of the American state of Nevada.",
+              "The Commonwealth of the Northern Mariana Islands has Saipan as its capital.",
+              "Washington, D.C. is the capital of the United States.",
+              "Capital punishment has existed in the United States since before it was a country."
+            ],
+            "top_n": 3
+          },
+          "expectedStatus": 200
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify a configured reranking provider accepts a Cohere-compatible query/documents request at /v1/rerank and returns HTTP 200. Requires a rerank-capable deployment and valid provider credentials; provider use can incur costs. The runner cannot assert ranked result shape, ordering, or scores.",
+    "labels": [
+      "litellm",
+      "reranking",
+      "cohere-compatible",
+      "documents"
+    ],
+    "source": "https://docs.litellm.ai/docs/rerank"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

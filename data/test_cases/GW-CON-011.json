@@ -1,0 +1,87 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-CON-011",
+  "summary": "Parameter compatibility contract",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-litellm-api-key",
+      "model_name": "replace-with-parameter-compatible-model"
+    },
+    "actions": [
+      {
+        "id": "validGenerationParameters",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Return the word OK."
+              }
+            ],
+            "temperature": 0,
+            "max_tokens": 16,
+            "stream": false
+          },
+          "expectedStatus": 200
+        }
+      },
+      {
+        "id": "invalidTemperatureType",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Return the word OK."
+              }
+            ],
+            "temperature": "invalid-temperature",
+            "stream": false
+          },
+          "expectedStatus": 400
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify valid generation parameter types are accepted and an invalid temperature type is rejected. The selected provider/model must support the request's generation parameters; error text is not fixed.",
+    "labels": [
+      "litellm",
+      "contract",
+      "parameters",
+      "validation"
+    ],
+    "source": "https://docs.litellm.ai/docs/completion/input"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    },
+    {
+      "preconditionKey": "LITELLM_CHAT_MODEL_READY",
+      "version": 1
+    }
+  ]
+}

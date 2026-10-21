@@ -1,0 +1,100 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-AIQ-002",
+  "summary": "Deterministic task accuracy",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-litellm-api-key",
+      "model_name": "replace-with-configured-model-name"
+    },
+    "actions": [
+      {
+        "id": "deterministicArithmetic",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "system",
+                "content": "You are a precise calculator. Respond with only the final numeric answer, no words, no punctuation."
+              },
+              {
+                "role": "user",
+                "content": "What is 12345 * 6789?"
+              }
+            ],
+            "temperature": 0,
+            "max_tokens": 20
+          },
+          "expectedStatus": 200,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "choices"
+            ],
+            "properties": {
+              "choices": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "message"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "object",
+                      "required": [
+                        "role",
+                        "content"
+                      ],
+                      "properties": {
+                        "role": {
+                          "const": "assistant"
+                        },
+                        "content": {
+                          "const": "83810205"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Check one known-correct arithmetic prompt at temperature zero. The expected product is 83,810,205. Dataset-level scoring and aggregate release-baseline accuracy are not executed by this single-case runner.",
+    "labels": [
+      "litellm",
+      "ai-quality",
+      "accuracy",
+      "deterministic"
+    ],
+    "source": "https://docs.litellm.ai/docs/completion/input"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    },
+    {
+      "preconditionKey": "LITELLM_CHAT_MODEL_READY",
+      "version": 1
+    }
+  ]
+}

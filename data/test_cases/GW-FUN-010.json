@@ -1,0 +1,101 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-FUN-010",
+  "summary": "Accept a function tool definition",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-valid-chat-api-key",
+      "model_name": "replace-with-configured-chat-model-supporting-tools"
+    },
+    "actions": [
+      {
+        "id": "functionToolDefinitionAccepted",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "What's the weather in Paris?"
+              }
+            ],
+            "tools": [
+              {
+                "type": "function",
+                "function": {
+                  "name": "get_current_weather",
+                  "description": "Get the current weather for a location",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "location": {
+                        "type": "string",
+                        "description": "The city, e.g. Paris"
+                      },
+                      "unit": {
+                        "type": "string",
+                        "enum": [
+                          "celsius",
+                          "fahrenheit"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "location"
+                    ]
+                  }
+                }
+              }
+            ],
+            "tool_choice": "auto"
+          },
+          "expectedStatus": 200,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "object",
+              "choices"
+            ],
+            "properties": {
+              "object": {
+                "const": "chat.completion"
+              },
+              "choices": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify a configured model that supports function tools accepts the tool definition and returns a successful chat completion. tool_choice=auto does not guarantee the model will invoke the tool, so the case does not assert a tool call. The provider request can incur token costs.",
+    "labels": [
+      "litellm",
+      "functional",
+      "chat-completions",
+      "tools",
+      "function-calling"
+    ],
+    "source": "https://docs.litellm.ai/docs/completion/function_call"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_CHAT_MODEL_READY",
+      "version": 1
+    }
+  ]
+}

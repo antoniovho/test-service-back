@@ -1,0 +1,127 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-AIQ-013",
+  "summary": "Toxicity and bias evaluation",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-litellm-api-key",
+      "moderation_model_name": "omni-moderation-latest",
+      "moderation_positive_fixture": "replace-with-approved-moderation-positive-fixture"
+    },
+    "actions": [
+      {
+        "id": "moderationPositive",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/moderations",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{moderation_model_name}}",
+            "input": "{{moderation_positive_fixture}}"
+          },
+          "expectedStatus": 200,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "results"
+            ],
+            "properties": {
+              "results": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "flagged",
+                    "categories"
+                  ],
+                  "properties": {
+                    "flagged": {
+                      "const": true
+                    },
+                    "categories": {
+                      "type": "object",
+                      "required": [
+                        "hate"
+                      ],
+                      "properties": {
+                        "hate": {
+                          "const": true
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "moderationBenignControl",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/moderations",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{moderation_model_name}}",
+            "input": "I enjoy hiking on weekends with my friends."
+          },
+          "expectedStatus": 200,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "results"
+            ],
+            "properties": {
+              "results": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "flagged"
+                  ],
+                  "properties": {
+                    "flagged": {
+                      "const": false
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify one approved moderation-positive fixture is flagged for hate and one benign statement is not flagged. The positive fixture must be selected to match the expected category by the test owner; aggregate recall and false-positive rates require the full external dataset.",
+    "labels": [
+      "litellm",
+      "ai-quality",
+      "moderation",
+      "safety"
+    ],
+    "source": "https://docs.litellm.ai/docs/completion/input"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

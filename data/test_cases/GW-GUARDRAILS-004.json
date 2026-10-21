@@ -1,0 +1,63 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-GUARDRAILS-004",
+  "summary": "Evaluate configured guardrails on a mocked completion request",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-valid-litellm-api-key",
+      "model_name": "replace-with-configured-model-alias",
+      "pre_guardrail_name": "aporia-pre-guard",
+      "post_guardrail_name": "aporia-post-guard"
+    },
+    "actions": [
+      {
+        "id": "mockedRequestBlockedByGuardrail",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "hi my email is ishaan@berri.ai"
+              }
+            ],
+            "mock_response": "This is a mock response",
+            "guardrails": [
+              "{{pre_guardrail_name}}",
+              "{{post_guardrail_name}}"
+            ]
+          },
+          "expectedStatus": 400
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify the documented mock_response chat-completion request containing the PII example and explicitly selected Aporia guardrails returns HTTP 400. The environment must configure aporia-pre-guard and aporia-post-guard and the mock-response behavior required by the deployment. A pre-call block prevents proving from this response alone that LLM inference was bypassed; no provider-specific error body is asserted.",
+    "labels": [
+      "litellm",
+      "guardrails",
+      "aporia",
+      "mock-response",
+      "pii"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/guardrail"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

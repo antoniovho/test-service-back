@@ -1,0 +1,87 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-VECTOR-002",
+  "summary": "Attach an uploaded file to a vector store",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-vector-store-enabled-litellm-key",
+      "vector_store_id": "replace-with-disposable-vector-store-id",
+      "file_id": "replace-with-disposable-openai-file-id"
+    },
+    "actions": [
+      {
+        "id": "attachFileToVectorStore",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/vector_stores/{vector_store_id}/files",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "file_id": "{{file_id}}",
+            "chunking_strategy": {
+              "type": "static",
+              "static": {
+                "max_chunk_size_tokens": 800,
+                "chunk_overlap_tokens": 400
+              }
+            }
+          },
+          "expectedStatus": 200,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "id",
+              "object",
+              "vector_store_id",
+              "status",
+              "file_id"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "object": {
+                "type": "string",
+                "minLength": 1
+              },
+              "vector_store_id": {
+                "const": "{{vector_store_id}}"
+              },
+              "status": {
+                "type": "string",
+                "minLength": 1
+              },
+              "file_id": {
+                "const": "{{file_id}}"
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify an existing OpenAI-uploaded file can be attached to an existing LiteLLM vector store using static chunking. Requires OpenAI-backed vector-store support and valid disposable IDs. This mutates backend state and should only run in an isolated environment with resources that can be cleaned up afterward.",
+    "labels": [
+      "litellm",
+      "vector-store",
+      "file-attachment",
+      "integration",
+      "isolated"
+    ]
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

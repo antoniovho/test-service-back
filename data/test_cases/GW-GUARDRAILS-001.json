@@ -1,0 +1,73 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-GUARDRAILS-001",
+  "summary": "Block a PII request with an explicitly selected pre-call guardrail",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-valid-litellm-api-key",
+      "model_name": "replace-with-configured-model-alias",
+      "pre_guardrail_name": "aporia-pre-guard",
+      "post_guardrail_name": "aporia-post-guard"
+    },
+    "actions": [
+      {
+        "id": "piiRequestBlocked",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "hi my email is ishaan@berri.ai"
+              }
+            ],
+            "guardrails": [
+              "{{pre_guardrail_name}}",
+              "{{post_guardrail_name}}"
+            ]
+          },
+          "expectedStatus": 400,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify the Gateway returns HTTP 400 with an error object when the documented PII example is sent with the named Aporia guardrails explicitly selected. The environment must have Aporia credentials and API base configured, aporia-pre-guard configured for pre_call, and aporia-post-guard configured for post_call. Since the pre-call guard is expected to block the request, this case does not demonstrate that the post-call guard executed. Provider-specific error details are not asserted.",
+    "labels": [
+      "litellm",
+      "guardrails",
+      "aporia",
+      "pii",
+      "pre-call"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/guardrail"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

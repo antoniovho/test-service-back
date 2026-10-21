@@ -1,0 +1,57 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-GUARDRAILS-008",
+  "summary": "Block PII using a model-deployment guardrail",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-valid-litellm-api-key",
+      "model_name": "replace-with-deployment-configured-with-presidio-pii"
+    },
+    "actions": [
+      {
+        "id": "modelLevelPiiGuardrailBlocksRequest",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "My contact email is user@example.com."
+              }
+            ]
+          },
+          "expectedStatus": 400
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify an externally configured Enterprise model deployment with a presidio-pii pre_call guardrail rejects a request containing a reserved example email with HTTP 400. The deployment must have the documented model-level guardrails configuration active. The status does not prove ordering relative to the hosted-model request; provider-attempt telemetry is outside runner capabilities.",
+    "labels": [
+      "litellm",
+      "guardrails",
+      "enterprise",
+      "deployment",
+      "presidio",
+      "pii"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/guardrail"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

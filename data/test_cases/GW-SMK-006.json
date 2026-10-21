@@ -1,0 +1,116 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-SMK-006",
+  "summary": "Invalid chat request returns a controlled error",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-litellm-api-key",
+      "model_name": "replace-with-configured-model-name"
+    },
+    "actions": [
+      {
+        "id": "rejectChatRequestWithoutMessages",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}"
+          },
+          "expectedStatus": 400,
+          "expectedHeaders": {
+            "Content-Type": "application/json"
+          },
+          "expectedHeaderNames": [
+            "x-litellm-call-id"
+          ],
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "type": "object",
+                "required": [
+                  "message",
+                  "type",
+                  "param",
+                  "code"
+                ],
+                "properties": {
+                  "message": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "type": {
+                    "const": "invalid_request_error"
+                  },
+                  "param": {
+                    "const": "messages"
+                  },
+                  "code": {
+                    "oneOf": [
+                      {
+                        "const": "400"
+                      },
+                      {
+                        "const": 400
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "checkLivelinessAfterInvalidRequest",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/health/liveliness",
+          "method": "GET",
+          "expectedStatus": 200,
+          "expectedHeaders": {
+            "Content-Type": "application/json"
+          },
+          "expectedJsonSchema": {
+            "type": "string",
+            "const": "I'm alive!"
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify a chat request missing the required messages field returns invalid_request_error with param=messages and code=400, then confirm the gateway remains responsive. This also covers GW-ERR-017's controlled-error assertion. The source's 5-second timeout is not enforced by the current HTTP runner.",
+    "labels": [
+      "litellm",
+      "chat-completions",
+      "validation",
+      "error",
+      "smoke",
+      "GW-ERR-017"
+    ],
+    "source": "https://docs.litellm.ai/docs/completion"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    },
+    {
+      "preconditionKey": "LITELLM_CHAT_MODEL_READY",
+      "version": 1
+    }
+  ]
+}

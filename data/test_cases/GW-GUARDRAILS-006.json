@@ -1,0 +1,102 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-GUARDRAILS-006",
+  "summary": "Apply guardrails associated with a virtual API key",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "master_key": "replace-with-proxy-master-key",
+      "model_name": "replace-with-configured-model-alias",
+      "pre_guardrail_name": "aporia-pre-guard",
+      "post_guardrail_name": "aporia-post-guard"
+    },
+    "actions": [
+      {
+        "id": "generateVirtualKeyWithGuardrails",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/key/generate",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{master_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "guardrails": [
+              "{{pre_guardrail_name}}",
+              "{{post_guardrail_name}}"
+            ]
+          },
+          "expectedStatus": 200,
+          "capture": {
+            "guardrail_api_key": "$.key"
+          }
+        }
+      },
+      {
+        "id": "keyGuardrailBlocksPii",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {guardrail_api_key}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "my email is ishaan@berri.ai"
+              }
+            ]
+          },
+          "expectedStatus": 400
+        }
+      },
+      {
+        "id": "updateVirtualKeyGuardrails",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/key/update",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{master_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "key": "{guardrail_api_key}",
+            "guardrails": [
+              "{{pre_guardrail_name}}",
+              "{{post_guardrail_name}}"
+            ]
+          },
+          "expectedStatus": 200
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Generate a virtual key with Aporia guardrails, use it without a request-level guardrails field to verify a PII request is blocked, then update that key's guardrail configuration. Requires LiteLLM Enterprise virtual-key management backed by PostgreSQL, a proxy master key, configured Aporia guardrails/credentials, and a configured model. This mutates key state and leaves the generated key in the environment; only run against a disposable isolated instance with a cleanup policy. This conversion performs no key creation or cleanup.",
+    "labels": [
+      "litellm",
+      "guardrails",
+      "enterprise",
+      "virtual-keys",
+      "pii"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/guardrail"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

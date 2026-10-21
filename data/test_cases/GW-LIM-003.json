@@ -1,0 +1,106 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-LIM-003",
+  "summary": "Keep per-key rate limits isolated between users",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "user_a_api_key": "replace-with-dedicated-user-a-key-rpm-1",
+      "user_b_api_key": "replace-with-dedicated-user-b-key-rpm-1",
+      "model_name": "replace-with-configured-chat-model"
+    },
+    "actions": [
+      {
+        "id": "userAWithinLimit",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{user_a_api_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Reply with OK."
+              }
+            ],
+            "stream": false
+          },
+          "expectedStatus": 200
+        }
+      },
+      {
+        "id": "userAOverLimit",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{user_a_api_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Reply with OK."
+              }
+            ],
+            "stream": false
+          },
+          "expectedStatus": 429
+        }
+      },
+      {
+        "id": "userBIndependentLimit",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{user_b_api_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Reply with OK."
+              }
+            ],
+            "stream": false
+          },
+          "expectedStatus": 200
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "With two dedicated non-admin user keys each configured for rpm_limit=1, verify User A receives HTTP 200 then HTTP 429, while User B still receives HTTP 200. Requires an isolated deployment with a clean rate-limit bucket for both keys and the deployment's rate-limit backend. This case does not test reset behavior; accepted completions can incur provider token costs.",
+    "labels": [
+      "litellm",
+      "rate-limiting",
+      "per-user",
+      "isolation",
+      "api-key"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/users"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

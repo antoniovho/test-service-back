@@ -1,0 +1,151 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-SMK-004",
+  "summary": "Chat completion response conforms to the gateway contract",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-litellm-api-key",
+      "model_name": "replace-with-configured-model-name"
+    },
+    "actions": [
+      {
+        "id": "validateChatCompletionContract",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Return the word OK."
+              }
+            ],
+            "stream": false
+          },
+          "expectedStatus": 200,
+          "expectedHeaders": {
+            "Content-Type": "application/json"
+          },
+          "expectedHeaderNames": [
+            "x-litellm-call-id"
+          ],
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "id",
+              "object",
+              "created",
+              "model",
+              "choices",
+              "usage"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "object": {
+                "const": "chat.completion"
+              },
+              "created": {
+                "type": "integer"
+              },
+              "model": {
+                "type": "string",
+                "minLength": 1
+              },
+              "choices": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "index",
+                    "message",
+                    "finish_reason"
+                  ],
+                  "properties": {
+                    "index": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "message": {
+                      "type": "object",
+                      "required": [
+                        "role",
+                        "content"
+                      ],
+                      "properties": {
+                        "role": {
+                          "const": "assistant"
+                        },
+                        "content": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "finish_reason": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              },
+              "usage": {
+                "type": "object",
+                "required": [
+                  "prompt_tokens",
+                  "completion_tokens",
+                  "total_tokens"
+                ],
+                "properties": {
+                  "prompt_tokens": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "completion_tokens": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "total_tokens": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify the gateway's non-streaming chat completion response satisfies the OpenAI-compatible structure and includes LiteLLM call correlation. Dynamic identifiers, timestamps, generated content, and usage counts are validated by type rather than fixed legacy sample values. The source's 5-second timeout is not enforced by the current HTTP runner. Requires a configured model and valid key; execution can incur provider charges.",
+    "labels": [
+      "litellm",
+      "chat-completions",
+      "contract",
+      "smoke"
+    ],
+    "source": "https://docs.litellm.ai/docs/completion/input"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    },
+    {
+      "preconditionKey": "LITELLM_CHAT_MODEL_READY",
+      "version": 1
+    }
+  ]
+}

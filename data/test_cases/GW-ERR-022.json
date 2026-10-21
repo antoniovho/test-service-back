@@ -1,0 +1,79 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-ERR-022",
+  "summary": "Model deployments unavailable due to cooldown",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-valid-test-key",
+      "model_group": "replace-with-model-group-whose-deployments-are-in-cooldown"
+    },
+    "actions": [
+      {
+        "id": "modelGroupUnavailable",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_group}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Return the word OK."
+              }
+            ]
+          },
+          "expectedStatus": 429,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "type": "object",
+                "required": [
+                  "message",
+                  "code"
+                ],
+                "properties": {
+                  "message": {
+                    "const": "No deployments available for selected model"
+                  },
+                  "code": {
+                    "const": "429"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify a model group with every deployment in cooldown and no fallback returns HTTP 429 with the exact No deployments available for selected model message and code 429. Cooldown state must be established externally in an isolated environment; retry-after is not asserted.",
+    "labels": [
+      "litellm",
+      "error-handling",
+      "routing",
+      "cooldown",
+      "availability"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/reliability"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

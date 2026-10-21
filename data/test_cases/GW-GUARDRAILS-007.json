@@ -1,0 +1,82 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-GUARDRAILS-007",
+  "summary": "Select guardrail behavior using the User-Agent tag",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-valid-litellm-api-key",
+      "model_name": "replace-with-configured-model-alias",
+      "non_matching_user_agent": "corpus-unmatched-client"
+    },
+    "actions": [
+      {
+        "id": "taggedUserAgentLoggingMode",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": "claude-cli"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "my email is ishaan@berri.ai"
+              }
+            ]
+          },
+          "expectedStatus": 200
+        }
+      },
+      {
+        "id": "untaggedUserAgentDefaultMode",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": "{{non_matching_user_agent}}"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "my email is ishaan@berri.ai"
+              }
+            ]
+          },
+          "expectedStatus": 400
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Given an externally configured Enterprise guardrails_ai policy with default_on=true, a claude-cli User-Agent mapping to logging_only, and default pre_call blocking for unmatched clients, verify the tagged PII request succeeds and the untagged PII request is blocked. HTTP status does not prove which guardrail execution mode ran; provider telemetry is not available in this corpus runner. The tagged request can incur provider token costs.",
+    "labels": [
+      "litellm",
+      "guardrails",
+      "enterprise",
+      "user-agent",
+      "mode-selection"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/guardrail"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

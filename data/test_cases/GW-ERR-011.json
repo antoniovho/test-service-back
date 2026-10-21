@@ -1,0 +1,82 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-ERR-011",
+  "summary": "Key vector store access denied",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-key-restricted-from-vector-store",
+      "model_name": "replace-with-configured-responses-model",
+      "vector_store_id": "replace-with-existing-vector-store-id"
+    },
+    "actions": [
+      {
+        "id": "keyVectorStoreAccessDenied",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/responses",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "input": "Find information about the project.",
+            "tools": [
+              {
+                "type": "file_search",
+                "vector_store_ids": [
+                  "{{vector_store_id}}"
+                ]
+              }
+            ]
+          },
+          "expectedStatus": 403,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "const": "key_vector_store_access_denied"
+                  },
+                  "code": {
+                    "const": "403"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify that a key denied access to an existing vector store cannot reference it using the Responses file_search tool and receives key_vector_store_access_denied with HTTP 403.",
+    "labels": [
+      "litellm",
+      "error-handling",
+      "key",
+      "vector-store",
+      "authorization"
+    ],
+    "source": "https://docs.litellm.ai/docs/tutorials/file_search_responses_api"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

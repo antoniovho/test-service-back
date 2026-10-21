@@ -1,0 +1,109 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-SEC-002",
+  "summary": "Reject invalid credentials without disclosing secrets",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "invalid_api_key": "replace-with-invalid-test-key",
+      "master_key": "replace-with-proxy-master-key",
+      "provider_api_key": "replace-with-provider-api-key",
+      "database_password": "replace-with-database-password",
+      "model_name": "replace-with-configured-chat-model"
+    },
+    "actions": [
+      {
+        "id": "rejectInvalidCredentialWithoutDisclosure",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{invalid_api_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Return OK."
+              }
+            ],
+            "stream": false
+          },
+          "expectedStatus": 401,
+          "expectedHeaders": {
+            "Content-Type": "application/json"
+          },
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "type": "object",
+                "required": [
+                  "message",
+                  "type"
+                ],
+                "properties": {
+                  "message": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "type": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "param": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "code": {
+                    "type": [
+                      "string",
+                      "integer",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "forbiddenText": [
+            "{{master_key}}",
+            "{{provider_api_key}}",
+            "{{database_password}}",
+            "{{invalid_api_key}}",
+            "BEGIN PRIVATE KEY",
+            "Traceback",
+            "File \"/"
+          ]
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify an invalid virtual key is rejected with an authentication error and the full response does not expose the tested keys, a database password, a private-key marker, a traceback, or an absolute Python file path. The forbidden-text verifier emits no matching value in its failure message. The request should fail before provider invocation.",
+    "labels": [
+      "litellm",
+      "security",
+      "authentication",
+      "secret-disclosure"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/virtual_keys"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

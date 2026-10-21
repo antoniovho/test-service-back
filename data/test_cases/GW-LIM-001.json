@@ -1,0 +1,80 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-LIM-001",
+  "summary": "Enforce a one-request-per-minute key limit",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "rate_limited_api_key": "replace-with-dedicated-key-configured-rpm-limit-1",
+      "model_name": "replace-with-configured-chat-model"
+    },
+    "actions": [
+      {
+        "id": "requestWithinRateLimit",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{rate_limited_api_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Reply with OK."
+              }
+            ],
+            "stream": false
+          },
+          "expectedStatus": 200
+        }
+      },
+      {
+        "id": "requestOverRateLimit",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{rate_limited_api_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Reply with OK."
+              }
+            ],
+            "stream": false
+          },
+          "expectedStatus": 429
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify a dedicated API key configured with rpm_limit=1 accepts the first request and rejects the immediately following request with HTTP 429. Requires an isolated gateway and a clean rate-limit bucket for the key before execution. The corpus runner cannot wait for the rate-limit window to reset, so the source case's post-reset recovery assertion is omitted. The accepted completion request can incur provider cost.",
+    "labels": [
+      "litellm",
+      "rate-limiting",
+      "rpm",
+      "api-key"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/users"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

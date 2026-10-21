@@ -1,0 +1,62 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-OCR-005",
+  "summary": "Request OCR image extraction with documented limits",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-valid-ocr-api-key",
+      "ocr_model_name": "replace-with-configured-ocr-model-alias"
+    },
+    "actions": [
+      {
+        "id": "ocrWithImageExtraction",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/ocr",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{ocr_model_name}}",
+            "document": {
+              "type": "document_url",
+              "document_url": "https://arxiv.org/pdf/2201.04234"
+            },
+            "pages": [
+              0,
+              1,
+              2
+            ],
+            "include_image_base64": true,
+            "image_limit": 10,
+            "image_min_size": 100
+          },
+          "expectedStatus": 200
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify the configured OCR provider accepts include_image_base64=true, image_limit=10, and image_min_size=100 for the PDF URL and selected pages. Requires a supported provider and a document containing extractable images. The runner checks only HTTP 200, not image content, bounding boxes, or enforcement of the configured limit. OCR can incur provider costs.",
+    "labels": [
+      "litellm",
+      "ocr",
+      "image-extraction",
+      "pdf",
+      "provider-options"
+    ],
+    "source": "https://docs.litellm.ai/docs/providers/mistral"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

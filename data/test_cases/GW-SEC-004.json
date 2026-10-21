@@ -1,0 +1,82 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-SEC-004",
+  "summary": "Enforce virtual-key model authorization",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "restricted_api_key": "replace-with-test-key-authorized-for-one-model",
+      "authorized_model": "replace-with-model-authorized-for-key",
+      "unauthorized_model": "replace-with-configured-model-not-authorized-for-key"
+    },
+    "actions": [
+      {
+        "id": "authorizedModelAllowed",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{restricted_api_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{authorized_model}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Authorization scope positive control."
+              }
+            ],
+            "stream": false
+          },
+          "expectedStatus": 200
+        }
+      },
+      {
+        "id": "unauthorizedModelDenied",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{restricted_api_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{unauthorized_model}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Authorization scope negative control."
+              }
+            ],
+            "stream": false
+          },
+          "expectedStatus": 403
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify a virtual key authorized for one configured model receives HTTP 200 for that model and HTTP 403 for another configured but unauthorized model. Requires virtual-key authentication and two distinct model aliases with the key's authorization list configured. The runner does not inspect error details or verify via upstream telemetry that the denied request never reached a provider; the positive control can incur token costs.",
+    "labels": [
+      "litellm",
+      "security",
+      "virtual-keys",
+      "model-authorization",
+      "access-control"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/virtual_keys"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-API-008",
+  "summary": "Generate a virtual API key restricted to a configured model",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "master_key": "replace-with-litellm-admin-key",
+      "model_name": "replace-with-configured-model-name"
+    },
+    "actions": [
+      {
+        "id": "generateVirtualKey",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/key/generate",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{master_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "models": [
+              "{{model_name}}"
+            ]
+          },
+          "expectedStatus": 200,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "key"
+            ],
+            "properties": {
+              "key": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^sk-"
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Generate a virtual key restricted to the requested model. LiteLLM requires database-backed key management and an authorized Proxy Admin credential. This mutating case creates a persistent key; generated key fields are redacted from runner evidence.",
+    "labels": [
+      "litellm",
+      "management",
+      "virtual-key",
+      "mutating"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/virtual_keys"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

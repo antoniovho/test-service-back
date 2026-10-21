@@ -1,0 +1,62 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-CON-008",
+  "summary": "Streaming chunk schema",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-litellm-api-key",
+      "model_name": "replace-with-streaming-compatible-model"
+    },
+    "actions": [
+      {
+        "id": "streamingCompletion",
+        "type": "SSE",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "text/event-stream"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Return the word OK."
+              }
+            ],
+            "stream": true
+          },
+          "expectedDone": true,
+          "maxEvents": 1000,
+          "receiveTimeoutSeconds": 60
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify a streaming chat request reaches the OpenAI-compatible [DONE] terminator. The current SSE runner records event data but cannot parse and validate every chunk against the streaming JSON schema.",
+    "labels": [
+      "litellm",
+      "contract",
+      "streaming",
+      "sse"
+    ],
+    "source": "https://docs.litellm.ai/docs/completion/input"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    },
+    {
+      "preconditionKey": "LITELLM_CHAT_MODEL_READY",
+      "version": 1
+    }
+  ]
+}

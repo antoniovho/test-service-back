@@ -1,0 +1,73 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-ERR-014",
+  "summary": "Missing team-member permission",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-key-for-user-without-team-member-permission",
+      "team_id": "replace-with-team-id",
+      "target_member_id": "replace-with-target-member-id"
+    },
+    "actions": [
+      {
+        "id": "teamMemberPermissionDenied",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/team/member/add",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "team_id": "{{team_id}}",
+            "member": "{{target_member_id}}"
+          },
+          "expectedStatus": 401,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "const": "team_member_permission_error"
+                  },
+                  "code": {
+                    "const": "401"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify that a valid caller lacking the required team-member permission cannot invoke the protected team member-add management operation and receives team_member_permission_error with HTTP 401. The operation's state change is not independently inspected by the HTTP runner.",
+    "labels": [
+      "litellm",
+      "error-handling",
+      "team",
+      "permissions"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/virtual_keys"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

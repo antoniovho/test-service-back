@@ -1,0 +1,71 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-MGMT-002",
+  "summary": "Create and retrieve a disposable model deployment",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "master_key": "replace-with-proxy-master-key",
+      "managed_model_name": "replace-with-unique-disposable-model-name",
+      "provider_model_identifier": "replace-with-valid-provider-model-id",
+      "managed_model_id": "replace-with-unique-disposable-model-id"
+    },
+    "actions": [
+      {
+        "id": "createDisposableModelDeployment",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/model/new",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{master_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model_name": "{{managed_model_name}}",
+            "litellm_params": {
+              "model": "{{provider_model_identifier}}"
+            },
+            "model_info": {
+              "id": "{{managed_model_id}}"
+            }
+          },
+          "expectedStatus": 200
+        }
+      },
+      {
+        "id": "retrieveCreatedModelDeployment",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/models/{{managed_model_id}}",
+          "method": "GET",
+          "headers": {
+            "Authorization": "Bearer {{master_key}}",
+            "Accept": "application/json"
+          },
+          "expectedStatus": 200
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify an administrator can create a model deployment with a unique disposable name/id and retrieve it by ID. Requires PostgreSQL-backed model persistence, model persistence enabled, an admin key, and valid provider model configuration. This creates persistent deployment state and does not delete it; execute only in an isolated environment with a planned manual cleanup. This conversion performs no model creation or cleanup and asserts only HTTP status.",
+    "labels": [
+      "litellm",
+      "management",
+      "model-deployment",
+      "admin",
+      "state-change"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/model_management"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

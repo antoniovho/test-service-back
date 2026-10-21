@@ -1,0 +1,51 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-SMK-001",
+  "summary": "Gateway liveliness endpoint is available",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000"
+    },
+    "actions": [
+      {
+        "id": "checkGatewayLiveliness",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/health/liveliness",
+          "method": "GET",
+          "headers": {
+            "Accept": "application/json"
+          },
+          "expectedStatus": 200,
+          "expectedHeaders": {
+            "Content-Type": "application/json"
+          },
+          "expectedJsonSchema": {
+            "type": "string",
+            "const": "I'm alive!"
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Covers GW-API-005 as well as this smoke scenario: both call the same LiteLLM liveness route, and this definition additionally verifies the JSON string response and content type. The source also specified a 2-second response-time threshold; the current HTTP runner does not enforce that threshold.",
+    "labels": [
+      "gateway",
+      "health",
+      "liveliness",
+      "smoke",
+      "api",
+      "GW-API-005"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/health"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

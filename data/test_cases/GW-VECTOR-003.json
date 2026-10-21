@@ -1,0 +1,124 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-VECTOR-003",
+  "summary": "List vector-store files with pagination and status filtering",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-vector-store-enabled-litellm-key",
+      "vector_store_id": "replace-with-disposable-vector-store-id"
+    },
+    "actions": [
+      {
+        "id": "listVectorStoreFiles",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/vector_stores/{vector_store_id}/files",
+          "method": "GET",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Accept": "application/json"
+          },
+          "query": {
+            "limit": 20,
+            "order": "desc"
+          },
+          "expectedStatus": 200,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "object": {
+                "type": "string"
+              },
+              "data": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "first_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "last_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "has_more": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "listCompletedVectorStoreFiles",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/vector_stores/{vector_store_id}/files",
+          "method": "GET",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Accept": "application/json"
+          },
+          "query": {
+            "filter": "completed",
+            "limit": 20,
+            "order": "desc"
+          },
+          "expectedStatus": 200,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "status"
+                  ],
+                  "properties": {
+                    "status": {
+                      "const": "completed"
+                    }
+                  }
+                }
+              },
+              "has_more": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify vector-store file listing supports descending pagination and the completed status filter. Requires an existing disposable vector store with at least one associated file; this case is read-only.",
+    "labels": [
+      "litellm",
+      "vector-store",
+      "file-list",
+      "pagination",
+      "filter"
+    ]
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

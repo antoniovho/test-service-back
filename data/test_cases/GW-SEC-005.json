@@ -1,0 +1,91 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-SEC-005",
+  "summary": "Prevent cross-team access to team and key information",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "api_key_team_a": "replace-with-dedicated-team-a-key",
+      "api_key_team_b": "replace-with-dedicated-team-b-key",
+      "team_a_model": "replace-with-model-authorized-for-team-a",
+      "team_b_id": "replace-with-distinct-team-b-id"
+    },
+    "actions": [
+      {
+        "id": "teamAKeyPositiveControl",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{api_key_team_a}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{team_a_model}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Team isolation positive control."
+              }
+            ],
+            "stream": false
+          },
+          "expectedStatus": 200
+        }
+      },
+      {
+        "id": "teamAKeyCannotReadTeamB",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/team/info",
+          "method": "GET",
+          "headers": {
+            "Authorization": "Bearer {{api_key_team_a}}",
+            "Accept": "application/json"
+          },
+          "query": {
+            "team_id": "{{team_b_id}}"
+          },
+          "expectedStatus": 403
+        }
+      },
+      {
+        "id": "teamAKeyCannotReadTeamBKeyInfo",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/key/info",
+          "method": "GET",
+          "headers": {
+            "Authorization": "Bearer {{api_key_team_a}}",
+            "Accept": "application/json"
+          },
+          "query": {
+            "key": "{{api_key_team_b}}"
+          },
+          "expectedStatus": 403
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify Team A's dedicated key can make an authorized completion but receives HTTP 403 when attempting to read Team B information or Team B key information. Requires multi-team management, distinct teams/keys, Team A model authorization, and separate admin credentials not used by this case. The runner cannot inspect response bodies to prove Team B metadata was not disclosed; requests use disposable test keys, and the completion may incur provider cost.",
+    "labels": [
+      "litellm",
+      "security",
+      "multi-team",
+      "tenant-isolation",
+      "authorization"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/teams"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

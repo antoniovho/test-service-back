@@ -1,0 +1,126 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-SEC-008",
+  "summary": "Prevent rate-limit bypass through request metadata changes",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "rate_limited_api_key": "replace-with-dedicated-key-rpm-limit-1",
+      "master_key": "replace-with-proxy-admin-key",
+      "model_name": "replace-with-configured-chat-model",
+      "security_test_id": "replace-with-unique-test-correlation-id"
+    },
+    "actions": [
+      {
+        "id": "withinLimitPositiveControl",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{rate_limited_api_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Rate-limit positive control."
+              }
+            ],
+            "stream": false
+          },
+          "expectedStatus": 200
+        }
+      },
+      {
+        "id": "limitExceeded",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{rate_limited_api_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Rate-limit boundary test."
+              }
+            ],
+            "stream": false
+          },
+          "expectedStatus": 429
+        }
+      },
+      {
+        "id": "metadataDoesNotBypassRateLimit",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/chat/completions",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{rate_limited_api_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "model": "{{model_name}}",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Rate-limit bypass attempt."
+              }
+            ],
+            "metadata": {
+              "security_test_id": "{{security_test_id}}"
+            },
+            "stream": false
+          },
+          "expectedStatus": 429
+        }
+      },
+      {
+        "id": "inspectRateLimitedKeyConfiguration",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/key/info",
+          "method": "GET",
+          "headers": {
+            "Authorization": "Bearer {{master_key}}",
+            "Accept": "application/json"
+          },
+          "query": {
+            "key": "{{rate_limited_api_key}}"
+          },
+          "expectedStatus": 200
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "With a dedicated key configured for rpm_limit=1 and a clean bucket, verify one request succeeds, the next receives HTTP 429, adding unrelated request metadata does not bypass the limit, and an administrator can retrieve the key information. Requires isolated rate-limit state, a healthy model, and separate admin credentials. The runner does not assert that key/info contains the configured limit; provider cost is incurred only for the positive-control completion.",
+    "labels": [
+      "litellm",
+      "security",
+      "rate-limiting",
+      "virtual-keys",
+      "bypass-resistance"
+    ],
+    "source": "https://docs.litellm.ai/docs/proxy/users"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}

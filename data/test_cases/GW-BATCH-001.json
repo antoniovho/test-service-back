@@ -1,0 +1,68 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-BATCH-001",
+  "summary": "Create a LiteLLM batch job",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-litellm-api-key",
+      "input_file_id": "replace-with-uploaded-batch-file-id",
+      "batch_endpoint": "/v1/chat/completions"
+    },
+    "actions": [
+      {
+        "id": "createBatch",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/batches",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Bearer {{litellm_virtual_key}}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          "json": {
+            "input_file_id": "{{input_file_id}}",
+            "endpoint": "{{batch_endpoint}}",
+            "completion_window": "24h"
+          },
+          "expectedStatus": 200,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": [
+              "id",
+              "status"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "status": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Create an asynchronous batch from a previously uploaded batch-purpose input file and verify the response contains a batch identifier and status. The JSONL file, supported endpoint/model, provider batch capability, and uploaded file id must be prepared externally.",
+    "labels": [
+      "litellm",
+      "batch",
+      "async-job"
+    ],
+    "source": "https://docs.litellm.ai/api-reference/"
+  },
+  "preconditionReferences": [
+    {
+      "preconditionKey": "LITELLM_PROXY_READY",
+      "version": 1
+    }
+  ]
+}
