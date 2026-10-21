@@ -4,7 +4,8 @@ title = "Project Gitleaks Configuration"
 useDefault = true
 
 [allowlist]
-description = "Static test corpus"
+description = "Static test corpus and detect-secrets baseline"
 paths = [
-  '''^data/'''
+  '''^data/''',
+  '''^\.secrets\.baseline$''',
 ]
