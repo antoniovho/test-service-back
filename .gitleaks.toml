@@ -1,0 +1,10 @@
+title = "Project Gitleaks Configuration"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Static test corpus"
+paths = [
+  '''^data/'''
+]
