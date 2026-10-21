@@ -54,7 +54,7 @@ class ViewerProjectionBuilder:
             return ViewerProjection(
                 record=record,
                 summary=f"{snapshot.precondition_key} v{snapshot.version} - {snapshot.name}",
-                description=snapshot.description,
+                description=cls._precondition_description(snapshot),
                 definition=cls._definition_text(snapshot.validation_definition),
                 labels=cls._labels(snapshot.metadata),
             )
@@ -102,7 +102,7 @@ class ViewerProjectionBuilder:
 
     @staticmethod
     def _definition_text(definition: Definition) -> str:
-        return json.dumps(
+        content = json.dumps(
             [
                 {
                     "id": action.identifier,
@@ -114,38 +114,60 @@ class ViewerProjectionBuilder:
             sort_keys=True,
             indent=2,
         )
+        return f"{{code:json}}\n{content}\n{{code}}"
 
     @staticmethod
     def _test_case_description(test_case: TestCase) -> str:
+        metadata = dict(test_case.metadata or {})
         sections = [
             f"*Summary*\n{test_case.summary}",
             f"*Objective*\n{test_case.objective}",
             "\n".join(
                 (
                     "*Classification*",
-                    f"- *Type:* {test_case.test_type.value}",
-                    f"- *Level:* {test_case.test_level.value}",
-                    f"- *Priority:* {test_case.priority.value}",
-                    f"- *Timeout:* {test_case.timeout_seconds} seconds",
+                    f"- *Type*: {test_case.test_type.value}",
+                    f"- *Level*: {test_case.test_level.value}",
+                    f"- *Priority*: {test_case.priority.value}",
+                    f"- *Timeout*: {test_case.timeout_seconds} seconds",
                 )
             ),
-            "\n".join(
-                (
-                    "*Source*",
-                    f"- *Test key:* {test_case.test_key}",
-                    f"- *Version:* {test_case.version}",
-                )
+            ViewerProjectionBuilder._source_section(
+                "Test key", test_case.test_key, test_case.version, metadata.get("source")
             ),
         ]
-        metadata = {
-            key: value
-            for key, value in dict(test_case.metadata or {}).items()
-            if key != "objective"
-        }
-        sections.append(
-            "*Metadata*\n```json\n" + json.dumps(metadata, sort_keys=True, indent=2) + "\n```"
+        metadata_items = (
+            (key, value)
+            for key, value in metadata.items()
+            if key not in {"labels", "objective", "source"}
         )
+        sections.extend(ViewerProjectionBuilder._metadata_section(metadata_items))
         return "\n\n".join(sections)
+
+    @staticmethod
+    def _precondition_description(precondition: Precondition) -> str:
+        return "\n\n".join(
+            (
+                precondition.description,
+                ViewerProjectionBuilder._source_section(
+                    "Precondition key",
+                    precondition.precondition_key,
+                    precondition.version,
+                    (precondition.metadata or {}).get("source"),
+                ),
+            )
+        )
+
+    @staticmethod
+    def _source_section(key_label: str, key: str, version: int, source: object) -> str:
+        lines = ["*Source*", f"- *{key_label}*: {key}", f"- *Version*: {version}"]
+        if isinstance(source, str) and source:
+            lines.append(f"- *Documentation*: {source}")
+        return "\n".join(lines)
+
+    @staticmethod
+    def _metadata_section(items: Iterable[tuple[str, object]]) -> tuple[str, ...]:
+        lines = [f"- {key.replace('_', ' ').title()}: {value}" for key, value in items]
+        return ("*Metadata*\n" + "\n".join(lines),) if lines else ()
 
     @staticmethod
     def _labels(metadata: Mapping[str, object] | None) -> tuple[str, ...]:

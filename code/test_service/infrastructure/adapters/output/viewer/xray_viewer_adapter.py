@@ -654,27 +654,29 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort):
     """
     _ADD_TESTS_TO_SET = """
         mutation AddTestsToTestSet($issueId: String!, $testIssueIds: [String!]!) {
-          addTestsToTestSet(testSetIssueId: $issueId, testIssueIds: $testIssueIds) { warnings }
+                    addTestsToTestSet(issueId: $issueId, testIssueIds: $testIssueIds) {
+                        addedTests
+                        warning
+                    }
         }
     """
     _ADD_TESTS_TO_PLAN = """
         mutation AddTestsToTestPlan($issueId: String!, $testIssueIds: [String!]!) {
-          addTestsToTestPlan(testPlanIssueId: $issueId, testIssueIds: $testIssueIds) { warnings }
+                    addTestsToTestPlan(issueId: $issueId, testIssueIds: $testIssueIds) {
+                        addedTests
+                        warning
+                    }
         }
     """
     _REMOVE_TESTS_FROM_SET = """
-            mutation RemoveTestsFromTestSet($issueId: String!, $testIssueIds: [String!]!) {
-                removeTestsFromTestSet(testSetIssueId: $issueId, testIssueIds: $testIssueIds) {
-                    warnings
+                mutation RemoveTestsFromTestSet($issueId: String!, $testIssueIds: [String!]!) {
+                    removeTestsFromTestSet(issueId: $issueId, testIssueIds: $testIssueIds)
                 }
-            }
     """
     _REMOVE_TESTS_FROM_PLAN = """
-            mutation RemoveTestsFromTestPlan($issueId: String!, $testIssueIds: [String!]!) {
-                removeTestsFromTestPlan(testPlanIssueId: $issueId, testIssueIds: $testIssueIds) {
-                    warnings
+                mutation RemoveTestsFromTestPlan($issueId: String!, $testIssueIds: [String!]!) {
+                    removeTestsFromTestPlan(issueId: $issueId, testIssueIds: $testIssueIds)
                 }
-            }
     """
     _GET_TESTS = """
                 query GetTests($issueIds: [String!], $limit: Int!, $relationshipLimit: Int!,

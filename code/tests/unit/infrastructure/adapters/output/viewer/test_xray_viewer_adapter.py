@@ -497,7 +497,77 @@ class TestXrayViewerAdapter:
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
             await XrayViewerAdapter(settings, client).publish(updated_projection)
 
-        assert any(remove_mutation in request.content.decode() for request in requests)
+        remove_request = next(
+            request for request in requests if remove_mutation in request.content.decode()
+        )
+        assert f"{remove_mutation}(issueId: $issueId" in remove_request.content.decode()
+        assert "testSetIssueId" not in remove_request.content.decode()
+        assert "testPlanIssueId" not in remove_request.content.decode()
+
+    @pytest.mark.parametrize(
+        ("entity_type", "query_name", "add_mutation"),
+        (
+            (ViewerEntityType.TEST_SET, "getTestSets", "addTestsToTestSet"),
+            (ViewerEntityType.TEST_PLAN, "getTestPlans", "addTestsToTestPlan"),
+        ),
+    )
+    async def test_when_set_or_plan_is_missing_tests_expect_xray_addition(
+        self,
+        settings: XraySettings,
+        projection: ViewerProjection,
+        entity_type: ViewerEntityType,
+        query_name: str,
+        add_mutation: str,
+    ) -> None:
+        updated_projection = ViewerProjection(
+            record=replace(
+                projection.record,
+                entity_type=entity_type,
+                external_entity_id="10002",
+                external_entity_key="SHOP-12",
+            ),
+            summary=projection.summary,
+            test_external_ids=("10001",),
+        )
+        requests: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            if request.url.path == "/auth":
+                return httpx.Response(200, json="xray-token")
+            body = json.loads(request.content)
+            if query_name in body["query"]:
+                return httpx.Response(
+                    200,
+                    json={
+                        "data": {
+                            query_name: {
+                                "results": [
+                                    {
+                                        "issueId": "10002",
+                                        "tests": {"total": 0, "results": []},
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                )
+            return httpx.Response(
+                200, json={"data": {add_mutation: {"addedTests": ["10001"], "warning": None}}}
+            )
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            await XrayViewerAdapter(settings, client).publish(updated_projection)
+
+        add_request = next(
+            request for request in requests if add_mutation in request.content.decode()
+        )
+        add_query = add_request.content.decode()
+        assert f"{add_mutation}(issueId: $issueId" in add_query
+        assert "addedTests" in add_query
+        assert "warning" in add_query
+        assert "testSetIssueId" not in add_query
+        assert "testPlanIssueId" not in add_query
 
     async def test_when_xray_returns_transient_status_expect_request_is_retried(
         self, settings: XraySettings, projection: ViewerProjection

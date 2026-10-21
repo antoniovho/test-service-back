@@ -60,7 +60,10 @@ class TestViewerProjectionBuilder:
             created_at=datetime(2026, 1, 1, tzinfo=UTC),
             created_by="corpus-import",
             status=VersionStatus.ACTIVE,
-            metadata={"labels": ["litellm", "readiness", "litellm", "", 1]},
+            metadata={
+                "labels": ["litellm", "readiness", "litellm", "", 1],
+                "source": "https://docs.litellm.ai/docs/proxy/health",
+            },
         )
 
         projection = ViewerProjectionBuilder.build(
@@ -70,12 +73,13 @@ class TestViewerProjectionBuilder:
         assert projection.summary == (
             "LITELLM_PROXY_READY v1 - LiteLLM Proxy readiness endpoint reports a healthy service"
         )
-        assert (
-            projection.description
-            == "Checks the unauthenticated readiness probe documented by LiteLLM."
+        assert projection.description == (
+            "Checks the unauthenticated readiness probe documented by LiteLLM.\n\n"
+            "Source\n- Precondition key: LITELLM_PROXY_READY\n- Version: 1\n"
+            "- Documentation: https://docs.litellm.ai/docs/proxy/health"
         )
         assert projection.definition == (
-            "[\n"
+            "{code:json}\n[\n"
             "  {\n"
             '    "configuration": {\n'
             '      "method": "GET",\n'
@@ -84,7 +88,7 @@ class TestViewerProjectionBuilder:
             '    "id": "proxyReadiness",\n'
             '    "type": "HTTP"\n'
             "  }\n"
-            "]"
+            "]\n{code}"
         )
         assert projection.labels == ("litellm", "readiness")
 
@@ -111,6 +115,7 @@ class TestViewerProjectionBuilder:
                 "labels": ["litellm", "smoke"],
                 "objective": "Duplicate objective",
                 "source": "https://example.test",
+                "owner": "Gateway platform",
             },
         )
 
@@ -120,13 +125,11 @@ class TestViewerProjectionBuilder:
 
         assert projection.summary == "GW-SMK-003 v1 - Gateway returns a basic chat completion"
         assert projection.description == (
-            "**Summary**\nGateway returns a basic chat completion\n\n"
-            "**Objective**\nVerify a minimal valid chat request returns an OpenAI-compatible "
-            "completion.\n\n**Classification**\n- **Type:** AUTOMATED\n- **Level:** INTEGRATION\n"
-            "- **Priority:** MEDIUM\n- **Timeout:** 60 seconds\n\n**Source**\n"
-            "- **Test key:** GW-SMK-003\n- **Version:** 1\n\n**Metadata**\n```json\n"
-            '{\n  "labels": [\n    "litellm",\n    "smoke"\n  ],\n'
-            '  "source": "https://example.test"\n}\n```'
+            "Summary\nGateway returns a basic chat completion\n\nObjective\n"
+            "Verify a minimal valid chat request returns an OpenAI-compatible completion.\n\n"
+            "Classification\n- Type: AUTOMATED\n- Level: INTEGRATION\n- Priority: MEDIUM\n"
+            "- Timeout: 60 seconds\n\nSource\n- Test key: GW-SMK-003\n- Version: 1\n"
+            "- Documentation: https://example.test\n\nMetadata\n- Owner: Gateway platform"
         )
         assert projection.labels == ("litellm", "smoke")
 
