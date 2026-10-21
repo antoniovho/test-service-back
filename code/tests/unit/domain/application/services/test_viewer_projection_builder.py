@@ -75,8 +75,8 @@ class TestViewerProjectionBuilder:
         )
         assert projection.description == (
             "Checks the unauthenticated readiness probe documented by LiteLLM.\n\n"
-            "Source\n- Precondition key: LITELLM_PROXY_READY\n- Version: 1\n"
-            "- Documentation: https://docs.litellm.ai/docs/proxy/health"
+            "*Source*\n- *Precondition key*: LITELLM_PROXY_READY\n- *Version*: 1\n"
+            "- *Documentation*: https://docs.litellm.ai/docs/proxy/health"
         )
         assert projection.definition == (
             "{code:json}\n[\n"
@@ -125,11 +125,11 @@ class TestViewerProjectionBuilder:
 
         assert projection.summary == "GW-SMK-003 v1 - Gateway returns a basic chat completion"
         assert projection.description == (
-            "Summary\nGateway returns a basic chat completion\n\nObjective\n"
+            "*Summary*\nGateway returns a basic chat completion\n\n*Objective*\n"
             "Verify a minimal valid chat request returns an OpenAI-compatible completion.\n\n"
-            "Classification\n- Type: AUTOMATED\n- Level: INTEGRATION\n- Priority: MEDIUM\n"
-            "- Timeout: 60 seconds\n\nSource\n- Test key: GW-SMK-003\n- Version: 1\n"
-            "- Documentation: https://example.test\n\nMetadata\n- Owner: Gateway platform"
+            "*Classification*\n- *Type*: AUTOMATED\n- *Level*: INTEGRATION\n- *Priority*: MEDIUM\n"
+            "- *Timeout*: 60 seconds\n\n*Source*\n- *Test key*: GW-SMK-003\n- *Version*: 1\n"
+            "- *Documentation*: https://example.test\n\n*Metadata*\n- Owner: Gateway platform"
         )
         assert projection.labels == ("litellm", "smoke")
 
