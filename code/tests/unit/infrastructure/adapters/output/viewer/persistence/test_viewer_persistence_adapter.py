@@ -11,6 +11,7 @@ from test_service.domain.model.viewer.records import (
     SyncStatus,
     ViewerEntityType,
     ViewerOperation,
+    ViewerOperationItem,
     ViewerOperationStatus,
     ViewerOperationType,
     ViewerSyncRecord,
@@ -56,6 +57,25 @@ def _operation() -> ViewerOperation:
         operation_type=ViewerOperationType.PUBLICATION,
         status=ViewerOperationStatus.PENDING,
         created_at=datetime(2026, 1, 1, tzinfo=UTC),
+    )
+
+
+def _operation_item(record: ViewerSyncRecord) -> ViewerOperationItem:
+    return ViewerOperationItem(
+        identifier=uuid4(),
+        operation_id=uuid4(),
+        sync_record_id=record.identifier,
+        project_key=record.project_key,
+        entity_type=record.entity_type,
+        entity_key=record.entity_key,
+        entity_version=record.entity_version,
+        projected_version_id=record.projected_version_id,
+        viewer_type=record.viewer_type,
+        external_entity_key=record.external_entity_key,
+        external_entity_id=record.external_entity_id,
+        sync_status=record.sync_status,
+        error=None,
+        created_at=record.created_at,
     )
 
 
@@ -135,6 +155,71 @@ class TestViewerPersistenceAdapter:
 
         assert saved_record == record
         assert saved_event == event
+
+    async def test_when_loading_and_finding_records_expect_domain_values_restored(self) -> None:
+        record = _sync_record()
+        from test_service.infrastructure.adapters.output.viewer.persistence.mappers.viewer_persistence_mapper import (  # noqa: E501
+            ViewerPersistenceMapper,
+        )
+
+        record_dto = ViewerPersistenceMapper.sync_record_to_dto(record)
+        repository = SimpleNamespace(
+            get_sync_record=AsyncMock(return_value=record_dto),
+            find_sync_record=AsyncMock(return_value=record_dto),
+        )
+        adapter = ViewerPersistenceAdapter(repository)
+
+        loaded = await adapter.get_sync_record(record.identifier)
+        found = await adapter.find_sync_record(
+            record.project_key,
+            record.entity_type,
+            record.entity_key,
+            record.entity_version,
+            record.viewer_type,
+        )
+
+        assert loaded == record
+        assert found == record
+
+    async def test_when_sync_records_are_absent_expect_none(self) -> None:
+        repository = SimpleNamespace(
+            get_sync_record=AsyncMock(return_value=None),
+            find_sync_record=AsyncMock(return_value=None),
+        )
+        adapter = ViewerPersistenceAdapter(repository)
+
+        loaded = await adapter.get_sync_record(uuid4())
+        found = await adapter.find_sync_record(
+            "IAG", ViewerEntityType.TEST_CASE, "LOGIN", 1, ViewerType.XRAY
+        )
+
+        assert loaded is None
+        assert found is None
+
+    async def test_when_saving_and_listing_operation_items_expect_domain_values_restored(
+        self,
+    ) -> None:
+        record = _sync_record()
+        item = _operation_item(record)
+        from test_service.infrastructure.adapters.output.viewer.persistence.mappers.viewer_persistence_mapper import (  # noqa: E501
+            ViewerPersistenceMapper,
+        )
+
+        item_dto = ViewerPersistenceMapper.operation_item_to_dto(item)
+        repository = SimpleNamespace(
+            save_operation_item=AsyncMock(return_value=item_dto),
+            find_operation_items_page=AsyncMock(return_value=Page((item_dto,), 1)),
+        )
+        adapter = ViewerPersistenceAdapter(repository)
+
+        saved = await adapter.save_operation_item(item)
+        page = await adapter.find_operation_items_page(
+            item.project_key, item.operation_id, PaginationParams()
+        )
+
+        assert saved == item
+        assert page.items == (item,)
+        assert page.total == 1
 
     async def test_when_listing_records_expect_filtered_pages_mapped_to_domain(self) -> None:
         record = _sync_record()

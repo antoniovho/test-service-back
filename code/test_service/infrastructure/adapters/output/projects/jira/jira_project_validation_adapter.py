@@ -63,7 +63,7 @@ class JiraProjectValidationAdapter(ProjectValidationPort):
         """Distinguish Jira Cloud's temporary 404 response from a missing project."""
         try:
             payload = response.json()
-        except (ValueError, UnicodeDecodeError):
+        except ValueError:
             return False
         if not isinstance(payload, dict):
             return False

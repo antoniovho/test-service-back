@@ -1,5 +1,7 @@
 """Inbound REST adapter for Viewer operations."""
 
+from uuid import UUID
+
 from test_service_server.apis.viewer_integration_api_base import BaseViewerIntegrationApi
 from test_service_server.models.drift_event_list_response import DriftEventListResponse
 from test_service_server.models.drift_event_sort_by import DriftEventSortBy
@@ -186,7 +188,9 @@ class ViewerIntegrationController(BaseViewerIntegrationApi):
         )
 
     async def get_project_viewer_sync_record(
-        self, projectKey: str, syncRecordId
+        self,
+        projectKey: str,  # NOSONAR
+        syncRecordId: UUID,  # NOSONAR
     ) -> ViewerSyncRecord:  # NOSONAR
         project = await self._get_project.execute(GetProjectQuery(projectKey))
         record = await self._get_project_sync.execute((projectKey, syncRecordId))
