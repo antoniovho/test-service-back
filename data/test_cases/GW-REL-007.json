@@ -1,0 +1,42 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-REL-007",
+  "summary": "Allow a team key to download results from its completed batch",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "team_litellm_virtual_key": "replace-with-team-api-key",
+      "completed_team_batch_id": "replace-with-completed-batch-owned-by-the-team",
+      "completed_batch_output_file_id": "replace-with-that-batch-output-file-id"
+    },
+    "actions": [
+      {
+        "id": "readCompletedOwnTeamBatch",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/batches/{completed_team_batch_id}", "method": "GET",
+          "headers": {"Authorization": "Bearer {{team_litellm_virtual_key}}", "Accept": "application/json"},
+          "expectedStatus": 200,
+          "expectedJsonSchema": {"type": "object", "required": ["id", "status"], "properties": {"id": {"const": "{{completed_team_batch_id}}"}, "status": {"const": "completed"}}}
+        }
+      },
+      {
+        "id": "downloadCompletedOwnTeamBatchResults",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/files/{completed_batch_output_file_id}/content", "method": "GET",
+          "headers": {"Authorization": "Bearer {{team_litellm_virtual_key}}", "Accept": "application/json"},
+          "expectedStatus": 200
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify the v1.106.1 authorization fix that lets a team key read its completed batch and download the associated result file. This is read-only, but use a test batch because response content can contain submitted prompts and provider output.",
+    "labels": ["litellm", "release-1.106.1", "batch", "team", "file-download", "authorization", "regression"],
+    "source": "https://docs.litellm.ai/release_notes/v1.106.1/v1-106-1"
+  },
+  "preconditionReferences": [{"preconditionKey": "LITELLM_PROXY_READY", "version": 1}]
+}

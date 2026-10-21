@@ -1,0 +1,40 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-REL-002",
+  "summary": "Route a bare MCP tool name on a single-server scope",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-mcp-authorized-api-key",
+      "mcp_server_name": "replace-with-single-configured-mcp-server",
+      "mcp_tool_name": "replace-with-tool-name-unique-to-this-server"
+    },
+    "actions": [
+      {
+        "id": "callBareToolNameOnServerScope",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/{{mcp_server_name}}/mcp",
+          "method": "POST",
+          "headers": {"Authorization": "Bearer {{litellm_virtual_key}}", "Content-Type": "application/json", "Accept": "application/json"},
+          "json": {"jsonrpc": "2.0", "id": "bare-tool-name-regression", "method": "tools/call", "params": {"name": "{{mcp_tool_name}}", "arguments": {}}},
+          "expectedStatus": 200,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": ["jsonrpc", "id"],
+            "properties": {"jsonrpc": {"const": "2.0"}, "id": {"const": "bare-tool-name-regression"}}
+          },
+          "forbiddenText": ["Tool not found"]
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify the v1.106.1 MCP fix: a bare tool name is routed to the named single server rather than failing with Tool not found. Run after cold-starting a replica; use a harmless zero-argument read-only tool.",
+    "labels": ["litellm", "release-1.106.1", "mcp", "tools-call", "cold-replica", "regression"],
+    "source": "https://docs.litellm.ai/release_notes/v1.106.1/v1-106-1"
+  },
+  "preconditionReferences": [{"preconditionKey": "LITELLM_PROXY_READY", "version": 1}]
+}

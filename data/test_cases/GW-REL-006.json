@@ -1,0 +1,42 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-REL-006",
+  "summary": "Allow a team key to read and cancel its own batch",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "team_litellm_virtual_key": "replace-with-team-api-key",
+      "team_batch_id": "replace-with-disposable-cancellable-batch-owned-by-the-team"
+    },
+    "actions": [
+      {
+        "id": "readOwnTeamBatch",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/batches/{team_batch_id}", "method": "GET",
+          "headers": {"Authorization": "Bearer {{team_litellm_virtual_key}}", "Accept": "application/json"},
+          "expectedStatus": 200,
+          "expectedJsonSchema": {"type": "object", "required": ["id", "status"], "properties": {"id": {"const": "{{team_batch_id}}"}}}
+        }
+      },
+      {
+        "id": "cancelOwnTeamBatch",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/batches/{team_batch_id}/cancel", "method": "POST",
+          "headers": {"Authorization": "Bearer {{team_litellm_virtual_key}}", "Content-Type": "application/json", "Accept": "application/json"},
+          "json": {}, "expectedStatus": 200,
+          "expectedJsonSchema": {"type": "object", "required": ["id", "status"], "properties": {"id": {"const": "{{team_batch_id}}"}, "status": {"type": "string", "minLength": 1}}}
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Verify the v1.106.1 authorization fix that lets a team key read and cancel its own batch. This permanently cancels the supplied job: it must be an isolated, disposable batch not shared with other users.",
+    "labels": ["litellm", "release-1.106.1", "batch", "team", "authorization", "mutating", "regression"],
+    "source": "https://docs.litellm.ai/release_notes/v1.106.1/v1-106-1"
+  },
+  "preconditionReferences": [{"preconditionKey": "LITELLM_PROXY_READY", "version": 1}]
+}

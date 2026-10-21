@@ -1,0 +1,44 @@
+{
+  "kind": "test-case",
+  "schemaVersion": "1.2.0",
+  "testCaseKey": "GW-REL-001",
+  "summary": "Expose the source of Anthropic-format token counts",
+  "definition": {
+    "schemaVersion": "1.1",
+    "variables": {
+      "gateway_base_url": "http://localhost:4000",
+      "litellm_virtual_key": "replace-with-valid-api-key",
+      "count_model_name": "replace-with-configured-openai-or-gemini-model"
+    },
+    "actions": [
+      {
+        "id": "countAnthropicFormatTokens",
+        "type": "HTTP",
+        "configuration": {
+          "url": "{{gateway_base_url}}/v1/messages/count_tokens",
+          "method": "POST",
+          "headers": {"Authorization": "Bearer {{litellm_virtual_key}}", "Content-Type": "application/json", "Accept": "application/json"},
+          "json": {
+            "model": "{{count_model_name}}",
+            "messages": [{"role": "user", "content": "Count these tokens without generating an answer."}]
+          },
+          "expectedStatus": 200,
+          "expectedJsonSchema": {
+            "type": "object",
+            "required": ["input_tokens", "litellm_count_source"],
+            "properties": {
+              "input_tokens": {"type": "integer", "minimum": 1},
+              "litellm_count_source": {"enum": ["provider", "token_count_model", "local_estimate"]}
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metadata": {
+    "objective": "Validate the v1.106.1 token-count regression path: Anthropic-format counting for an OpenAI or Gemini deployment returns a positive count and identifies its source. This does not assert an exact count because tokenization is model-specific.",
+    "labels": ["litellm", "release-1.106.1", "count-tokens", "anthropic-format", "regression"],
+    "source": "https://docs.litellm.ai/release_notes/v1.106.1/v1-106-1"
+  },
+  "preconditionReferences": [{"preconditionKey": "LITELLM_PROXY_READY", "version": 1}]
+}
