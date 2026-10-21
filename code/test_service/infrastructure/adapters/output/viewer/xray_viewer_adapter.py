@@ -56,10 +56,11 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort):
     async def publish(self, projection: ViewerProjection) -> ViewerExternalIdentity:
         """Create or refresh the Xray entity represented by a canonical projection."""
         if projection.record.external_entity_id is not None:
-            await self._update_projection(projection)
-            return ViewerExternalIdentity(
-                projection.record.external_entity_id, projection.record.external_entity_key
-            )
+            if await self._remote_entity_exists(projection):
+                await self._update_projection(projection)
+                return ViewerExternalIdentity(
+                    projection.record.external_entity_id, projection.record.external_entity_key
+                )
         return await self._create_projection(projection)
 
     async def check_drift(self, projection: ViewerProjection) -> DriftObservation | None:
@@ -69,12 +70,7 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort):
             return DriftObservation(DriftType.MISSING, {"reason": "missing external identity"})
         payload = await self._graphql(
             self._read_query(record.entity_type),
-            {
-                "issueIds": [record.external_entity_id],
-                "limit": 1,
-                "relationshipLimit": 100,
-                "relationshipStart": 0,
-            },
+            self._read_variables(record.entity_type, record.external_entity_id),
         )
         results = self._results(payload, record.entity_type)
         if not results:
@@ -89,7 +85,7 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort):
         record = projection.record
         variables: dict[str, object] = {
             "jira": self._jira_input(
-                record.project_key, projection.summary, projection.description
+                record.project_key, projection.summary, projection.description, projection.labels
             ),
         }
         if record.entity_type is ViewerEntityType.TEST_CASE:
@@ -101,12 +97,16 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort):
                 }
             )
             payload = await self._graphql(self._CREATE_TEST, variables)
-            return self._identity(payload, "createTest", "test")
+            identity = self._identity(payload, "createTest", "test")
+            await self._synchronize_test_preconditions(
+                identity.external_id, projection.precondition_external_ids
+            )
+            return identity
         if record.entity_type is ViewerEntityType.PRECONDITION:
             variables.update(
                 {
-                    "preconditionType": {"name": "Condition"},
-                    "definition": projection.description or "",
+                    "preconditionType": {"name": "Manual"},
+                    "definition": projection.definition or "",
                 }
             )
             payload = await self._graphql(self._CREATE_PRECONDITION, variables)
@@ -135,37 +135,17 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort):
                 await self._graphql(
                     self._ADD_TEST_STEP, {"issueId": issue_id, "step": self._step_input(step)}
                 )
-            current_preconditions = await self._relationship_issue_ids(
-                record.entity_type, issue_id, "preconditions"
+            await self._synchronize_test_preconditions(
+                issue_id, projection.precondition_external_ids
             )
-            stale_preconditions = tuple(
-                issue_id
-                for issue_id in current_preconditions
-                if issue_id not in projection.precondition_external_ids
-            )
-            if stale_preconditions:
-                await self._graphql(
-                    self._REMOVE_PRECONDITIONS,
-                    {"issueId": issue_id, "preconditionIssueIds": list(stale_preconditions)},
-                )
-            missing_preconditions = tuple(
-                precondition_external_id
-                for precondition_external_id in projection.precondition_external_ids
-                if precondition_external_id not in current_preconditions
-            )
-            if missing_preconditions:
-                await self._graphql(
-                    self._ADD_PRECONDITIONS,
-                    {
-                        "issueId": issue_id,
-                        "preconditionIssueIds": list(missing_preconditions),
-                    },
-                )
             return
         if record.entity_type is ViewerEntityType.PRECONDITION:
             await self._graphql(
                 self._UPDATE_PRECONDITION,
-                {"issueId": issue_id, "definition": projection.description or ""},
+                {
+                    "issueId": issue_id,
+                    "definition": projection.definition or "",
+                },
             )
             return
         if record.entity_type is ViewerEntityType.TEST_SET:
@@ -179,6 +159,40 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort):
             )
             return
         raise XrayProtocolError(f"unsupported Xray entity type: {record.entity_type}")
+
+    async def _remote_entity_exists(self, projection: ViewerProjection) -> bool:
+        record = projection.record
+        issue_id = record.external_entity_id
+        if issue_id is None:
+            return False
+        payload = await self._graphql(
+            self._read_query(record.entity_type),
+            self._read_variables(record.entity_type, issue_id),
+        )
+        return bool(self._results(payload, record.entity_type))
+
+    async def _synchronize_test_preconditions(
+        self, test_issue_id: str, expected_issue_ids: tuple[str, ...]
+    ) -> None:
+        current_issue_ids = await self._relationship_issue_ids(
+            ViewerEntityType.TEST_CASE, test_issue_id, "preconditions"
+        )
+        stale_issue_ids = tuple(
+            issue_id for issue_id in current_issue_ids if issue_id not in expected_issue_ids
+        )
+        if stale_issue_ids:
+            await self._graphql(
+                self._REMOVE_PRECONDITIONS,
+                {"issueId": test_issue_id, "preconditionIssueIds": list(stale_issue_ids)},
+            )
+        missing_issue_ids = tuple(
+            issue_id for issue_id in expected_issue_ids if issue_id not in current_issue_ids
+        )
+        if missing_issue_ids:
+            await self._graphql(
+                self._ADD_PRECONDITIONS,
+                {"issueId": test_issue_id, "preconditionIssueIds": list(missing_issue_ids)},
+            )
 
     async def _remove_stale_tests(
         self, entity_type: ViewerEntityType, issue_id: str, expected_issue_ids: tuple[str, ...]
@@ -260,12 +274,7 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort):
             if result is None:
                 payload = await self._graphql(
                     self._read_query(entity_type),
-                    {
-                        "issueIds": [issue_id],
-                        "limit": 1,
-                        "relationshipLimit": 100,
-                        "relationshipStart": start,
-                    },
+                    self._read_variables(entity_type, issue_id, start),
                 )
                 results = self._results(payload, entity_type)
                 if not results or not isinstance(results[0], Mapping):
@@ -497,10 +506,14 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort):
             raise XrayProtocolError(f"Xray {operation} response is not valid JSON") from error
 
     @staticmethod
-    def _jira_input(project_key: str, summary: str, description: str | None) -> dict[str, object]:
+    def _jira_input(
+        project_key: str, summary: str, description: str | None, labels: tuple[str, ...]
+    ) -> dict[str, object]:
         fields: dict[str, object] = {"project": {"key": project_key}, "summary": summary}
         if description:
             fields["description"] = description
+        if labels:
+            fields["labels"] = list(labels)
         return {"fields": fields}
 
     @staticmethod
@@ -561,8 +574,17 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort):
             ViewerEntityType.TEST_PLAN: XrayViewerAdapter._GET_TEST_PLANS,
         }[entity_type]
 
+    @staticmethod
+    def _read_variables(
+        entity_type: ViewerEntityType, issue_id: str, relationship_start: int = 0
+    ) -> dict[str, object]:
+        variables: dict[str, object] = {"issueIds": [issue_id], "limit": 1}
+        if entity_type is not ViewerEntityType.PRECONDITION:
+            variables.update({"relationshipLimit": 100, "relationshipStart": relationship_start})
+        return variables
+
     _CREATE_TEST = """
-        mutation CreateTest($testType: TestTypeInput!, $steps: [CreateTestStepInput!],
+        mutation CreateTest($testType: UpdateTestTypeInput, $steps: [CreateStepInput],
             $preconditionIssueIds: [String!], $jira: JSON!) {
           createTest(testType: $testType, steps: $steps,
               preconditionIssueIds: $preconditionIssueIds, jira: $jira) {
@@ -571,8 +593,8 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort):
         }
     """
     _CREATE_PRECONDITION = """
-                mutation CreatePrecondition($preconditionType: PreconditionTypeInput!,
-                        $definition: String!, $jira: JSON!) {
+            mutation CreatePrecondition($preconditionType: UpdatePreconditionTypeInput,
+                $definition: String, $jira: JSON!) {
                     createPrecondition(preconditionType: $preconditionType,
                             definition: $definition, jira: $jira) {
             precondition { issueId jira(fields: [\"key\"]) }
@@ -594,35 +616,40 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort):
         }
     """
     _UPDATE_TEST_TYPE = """
-        mutation UpdateTestType($issueId: String!, $testType: TestTypeInput!) {
-          updateTestType(testIssueId: $issueId, testType: $testType) { warnings }
+        mutation UpdateTestType($issueId: String!, $testType: UpdateTestTypeInput!) {
+                    updateTestType(issueId: $issueId, testType: $testType) { issueId }
         }
     """
     _REMOVE_ALL_TEST_STEPS = """
         mutation RemoveAllTestSteps($issueId: String!) {
-          removeAllTestSteps(testIssueId: $issueId) { warnings }
+                    removeAllTestSteps(issueId: $issueId)
         }
     """
     _ADD_TEST_STEP = """
-        mutation AddTestStep($issueId: String!, $step: CreateTestStepInput!) {
-          addTestStep(testIssueId: $issueId, step: $step) { warnings }
+        mutation AddTestStep($issueId: String!, $step: CreateStepInput!) {
+                    addTestStep(issueId: $issueId, step: $step) { id }
         }
     """
     _ADD_PRECONDITIONS = """
         mutation AddPreconditions($issueId: String!, $preconditionIssueIds: [String!]!) {
-                    addPreconditionsToTest(testIssueId: $issueId,
-                            preconditionIssueIds: $preconditionIssueIds) { warnings }
+                    addPreconditionsToTest(issueId: $issueId,
+                            preconditionIssueIds: $preconditionIssueIds) {
+                        addedPreconditions
+                        warning
+                    }
         }
     """
     _REMOVE_PRECONDITIONS = """
         mutation RemovePreconditions($issueId: String!, $preconditionIssueIds: [String!]!) {
-          removePreconditionsFromTest(testIssueId: $issueId,
-              preconditionIssueIds: $preconditionIssueIds) { warnings }
+          removePreconditionsFromTest(issueId: $issueId,
+              preconditionIssueIds: $preconditionIssueIds)
         }
     """
     _UPDATE_PRECONDITION = """
         mutation UpdatePrecondition($issueId: String!, $definition: String!) {
-          updatePrecondition(preconditionIssueId: $issueId, definition: $definition) { warnings }
+          updatePrecondition(issueId: $issueId, data: { definition: $definition }) {
+            issueId
+          }
         }
     """
     _ADD_TESTS_TO_SET = """
@@ -662,8 +689,7 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort):
         }
     """
     _GET_PRECONDITIONS = """
-                query GetPreconditions($issueIds: [String!], $limit: Int!, $relationshipLimit: Int!,
-                        $relationshipStart: Int!) {
+            query GetPreconditions($issueIds: [String!], $limit: Int!) {
                     getPreconditions(issueIds: $issueIds, limit: $limit) {
                         results { issueId definition }
                     }

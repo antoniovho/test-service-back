@@ -15,6 +15,7 @@ def _projection(
     entity_type: ViewerEntityType = ViewerEntityType.TEST_CASE,
     *,
     description: str | None = None,
+    definition: str | None = None,
     steps: tuple[ViewerProjectionStep, ...] = (),
     precondition_external_ids: tuple[str, ...] = (),
     test_external_ids: tuple[str, ...] = (),
@@ -34,6 +35,7 @@ def _projection(
         ),
         summary="Checkout succeeds",
         description=description,
+        definition=definition,
         steps=steps,
         precondition_external_ids=precondition_external_ids,
         test_external_ids=test_external_ids,
@@ -87,10 +89,10 @@ class TestViewerManagedState:
 
     def test_when_precondition_definition_differs_expect_safe_field_name(self) -> None:
         expected = ViewerManagedState.from_projection(
-            _projection(ViewerEntityType.PRECONDITION, description="The service is available.")
+            _projection(ViewerEntityType.PRECONDITION, definition='[{"id":"health"}]')
         )
         actual = ViewerManagedState.from_projection(
-            _projection(ViewerEntityType.PRECONDITION, description="Sensitive remote text")
+            _projection(ViewerEntityType.PRECONDITION, definition='[{"id":"status"}]')
         )
 
         differences = expected.differing_fields(actual)

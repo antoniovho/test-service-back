@@ -10,7 +10,11 @@ import pytest
 from pydantic import SecretStr
 
 from test_service.config import XraySettings
-from test_service.domain.model.viewer.projection import ViewerProjection, ViewerProjectionStep
+from test_service.domain.model.viewer.projection import (
+    ViewerExternalIdentity,
+    ViewerProjection,
+    ViewerProjectionStep,
+)
 from test_service.domain.model.viewer.records import (
     DriftType,
     SyncStatus,
@@ -61,6 +65,7 @@ class TestXrayViewerAdapter:
             record=record,
             summary="Checkout succeeds",
             description="A customer can complete checkout.",
+            labels=("checkout", "smoke"),
             steps=(ViewerProjectionStep("submit: http", '{"method":"POST"}', "201 Created"),),
             precondition_external_ids=("10001",),
         )
@@ -74,13 +79,35 @@ class TestXrayViewerAdapter:
             requests.append(request)
             if request.url.path == "/auth":
                 return httpx.Response(200, json="xray-token")
+            body = json.loads(request.content)
+            if "createTest" in body["query"]:
+                return httpx.Response(
+                    200,
+                    json={
+                        "data": {
+                            "createTest": {"test": {"issueId": "10002", "jira": {"key": "SHOP-12"}}}
+                        }
+                    },
+                )
+            if "getTests" in body["query"]:
+                return httpx.Response(
+                    200,
+                    json={
+                        "data": {
+                            "getTests": {
+                                "results": [
+                                    {
+                                        "issueId": "10002",
+                                        "preconditions": {"total": 0, "results": []},
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                )
             return httpx.Response(
                 200,
-                json={
-                    "data": {
-                        "createTest": {"test": {"issueId": "10002", "jira": {"key": "SHOP-12"}}}
-                    }
-                },
+                json={"data": {"addPreconditionsToTest": {"warnings": []}}},
             )
 
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
@@ -95,9 +122,180 @@ class TestXrayViewerAdapter:
         }
         assert requests[1].headers["Authorization"] == "Bearer xray-token"
         assert graphql_body["variables"]["testType"] == {"name": "Manual"}
+        assert graphql_body["variables"]["jira"]["fields"]["labels"] == ["checkout", "smoke"]
         assert graphql_body["variables"]["preconditionIssueIds"] == ["10001"]
         assert graphql_body["variables"]["steps"][0]["action"] == "submit: http"
+        add_request = next(
+            request for request in requests if "addPreconditionsToTest" in request.content.decode()
+        )
+        assert "addPreconditionsToTest(issueId: $issueId" in add_request.content.decode()
+        assert "addedPreconditions" in add_request.content.decode()
+        assert "warning" in add_request.content.decode()
         assert "client-secret" not in requests[1].content.decode()
+
+    async def test_when_creating_precondition_expect_separate_description_and_definition(
+        self, settings: XraySettings, projection: ViewerProjection
+    ) -> None:
+        requests: list[httpx.Request] = []
+        precondition_projection = replace(
+            projection,
+            record=replace(
+                projection.record,
+                entity_type=ViewerEntityType.PRECONDITION,
+                entity_key="LITELLM_PROXY_READY",
+            ),
+            summary="LITELLM_PROXY_READY v1",
+            description="LiteLLM Proxy readiness endpoint reports a healthy service",
+            definition='[{"configuration":{"method":"GET"},"id":"proxyReadiness","type":"HTTP"}]',
+            labels=("litellm", "readiness"),
+            steps=(),
+            precondition_external_ids=(),
+        )
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            if request.url.path == "/auth":
+                return httpx.Response(200, json="xray-token")
+            return httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "createPrecondition": {
+                            "precondition": {"issueId": "10003", "jira": {"key": "SHOP-13"}}
+                        }
+                    }
+                },
+            )
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            identity = await XrayViewerAdapter(settings, client).publish(precondition_projection)
+
+        assert identity == ViewerExternalIdentity("10003", "SHOP-13")
+        graphql_body = json.loads(requests[1].content)
+        assert graphql_body["variables"] == {
+            "jira": {
+                "fields": {
+                    "project": {"key": "SHOP"},
+                    "summary": "LITELLM_PROXY_READY v1",
+                    "description": "LiteLLM Proxy readiness endpoint reports a healthy service",
+                    "labels": ["litellm", "readiness"],
+                }
+            },
+            "preconditionType": {"name": "Manual"},
+            "definition": (
+                '[{"configuration":{"method":"GET"},"id":"proxyReadiness","type":"HTTP"}]'
+            ),
+        }
+
+    def test_when_declaring_xray_mutations_expect_current_cloud_input_types(self) -> None:
+        create_test = XrayViewerAdapter._CREATE_TEST
+        create_precondition = XrayViewerAdapter._CREATE_PRECONDITION
+        update_test_type = XrayViewerAdapter._UPDATE_TEST_TYPE
+        add_test_step = XrayViewerAdapter._ADD_TEST_STEP
+        remove_all_test_steps = XrayViewerAdapter._REMOVE_ALL_TEST_STEPS
+        update_precondition = XrayViewerAdapter._UPDATE_PRECONDITION
+
+        assert "$testType: UpdateTestTypeInput" in create_test
+        assert "$steps: [CreateStepInput]" in create_test
+        assert "$preconditionType: UpdatePreconditionTypeInput" in create_precondition
+        assert "$testType: UpdateTestTypeInput!" in update_test_type
+        assert "updateTestType(issueId: $issueId" in update_test_type
+        assert "removeAllTestSteps(issueId: $issueId)" in remove_all_test_steps
+        assert "$step: CreateStepInput!" in add_test_step
+        assert "addTestStep(issueId: $issueId" in add_test_step
+        assert "updatePrecondition(issueId: $issueId" in update_precondition
+
+    async def test_when_remote_precondition_was_deleted_expect_recreated(
+        self, settings: XraySettings, projection: ViewerProjection
+    ) -> None:
+        requests: list[httpx.Request] = []
+        deleted_projection = replace(
+            projection,
+            record=replace(
+                projection.record,
+                entity_type=ViewerEntityType.PRECONDITION,
+                external_entity_id="10001",
+                external_entity_key="SHOP-11",
+            ),
+        )
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            if request.url.path == "/auth":
+                return httpx.Response(200, json="xray-token")
+            body = json.loads(request.content)
+            if "getPreconditions" in body["query"]:
+                assert body["variables"] == {"issueIds": ["10001"], "limit": 1}
+                return httpx.Response(200, json={"data": {"getPreconditions": {"results": []}}})
+            return httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "createPrecondition": {
+                            "precondition": {
+                                "issueId": "10003",
+                                "jira": {"key": "SHOP-13"},
+                            }
+                        }
+                    }
+                },
+            )
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            identity = await XrayViewerAdapter(settings, client).publish(deleted_projection)
+
+        assert identity == ViewerExternalIdentity("10003", "SHOP-13")
+        assert any("createPrecondition" in request.content.decode() for request in requests)
+
+    async def test_when_remote_test_was_deleted_expect_recreated_with_preconditions(
+        self, settings: XraySettings, projection: ViewerProjection
+    ) -> None:
+        requests: list[httpx.Request] = []
+        get_tests_requests = 0
+        deleted_projection = replace(
+            projection,
+            record=replace(
+                projection.record, external_entity_id="10002", external_entity_key="SHOP-12"
+            ),
+        )
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            nonlocal get_tests_requests
+            requests.append(request)
+            if request.url.path == "/auth":
+                return httpx.Response(200, json="xray-token")
+            body = json.loads(request.content)
+            if "getTests" in body["query"]:
+                get_tests_requests += 1
+                results = (
+                    []
+                    if get_tests_requests == 1
+                    else [
+                        {
+                            "issueId": "10003",
+                            "preconditions": {"total": 1, "results": [{"issueId": "10001"}]},
+                        }
+                    ]
+                )
+                return httpx.Response(200, json={"data": {"getTests": {"results": results}}})
+            return httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "createTest": {"test": {"issueId": "10003", "jira": {"key": "SHOP-13"}}}
+                    }
+                },
+            )
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            identity = await XrayViewerAdapter(settings, client).publish(deleted_projection)
+
+        create_request = next(
+            request for request in requests if "createTest" in request.content.decode()
+        )
+        create_body = json.loads(create_request.content)
+        assert identity == ViewerExternalIdentity("10003", "SHOP-13")
+        assert create_body["variables"]["preconditionIssueIds"] == ["10001"]
 
     @pytest.mark.parametrize(
         ("entity_type", "mutation", "entity", "expected_variable"),
@@ -208,6 +406,26 @@ class TestXrayViewerAdapter:
             if request.url.path == "/auth":
                 authentication_requests += 1
                 return httpx.Response(200, json=f"xray-token-{authentication_requests}")
+            body = json.loads(request.content)
+            if "getTests" in body["query"]:
+                return httpx.Response(
+                    200,
+                    json={
+                        "data": {
+                            "getTests": {
+                                "results": [
+                                    {
+                                        "issueId": "10002",
+                                        "preconditions": {
+                                            "total": 1,
+                                            "results": [{"issueId": "10001"}],
+                                        },
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                )
             graphql_requests += 1
             if graphql_requests == 1:
                 return httpx.Response(401)
@@ -290,6 +508,26 @@ class TestXrayViewerAdapter:
             nonlocal graphql_attempts
             if request.url.path == "/auth":
                 return httpx.Response(200, json="xray-token")
+            body = json.loads(request.content)
+            if "getTests" in body["query"]:
+                return httpx.Response(
+                    200,
+                    json={
+                        "data": {
+                            "getTests": {
+                                "results": [
+                                    {
+                                        "issueId": "10002",
+                                        "preconditions": {
+                                            "total": 1,
+                                            "results": [{"issueId": "10001"}],
+                                        },
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                )
             graphql_attempts += 1
             if graphql_attempts == 1:
                 return httpx.Response(503)
@@ -732,6 +970,7 @@ class TestXrayViewerAdapter:
                 external_entity_id="10002",
             ),
             description="The customer is authenticated.",
+            definition='[{"id":"authentication"}]',
         )
         adapter = XrayViewerAdapter(settings)
         graphql = AsyncMock()
@@ -741,7 +980,10 @@ class TestXrayViewerAdapter:
 
         graphql.assert_awaited_once_with(
             adapter._UPDATE_PRECONDITION,
-            {"issueId": "10002", "definition": "The customer is authenticated."},
+            {
+                "issueId": "10002",
+                "definition": '[{"id":"authentication"}]',
+            },
         )
 
     async def test_when_test_set_has_missing_tests_expect_xray_addition(

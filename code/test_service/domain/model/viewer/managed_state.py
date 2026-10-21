@@ -33,7 +33,7 @@ class ViewerManagedState:
             )
         if entity_type is ViewerEntityType.PRECONDITION:
             return cls(
-                entity_type=entity_type, definition=cls._normalized_text(projection.description)
+                entity_type=entity_type, definition=cls._normalized_text(projection.definition)
             )
         return cls(
             entity_type=entity_type,

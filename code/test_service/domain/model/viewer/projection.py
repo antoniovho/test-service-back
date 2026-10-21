@@ -21,6 +21,8 @@ class ViewerProjection:
     record: ViewerSyncRecord
     summary: str
     description: str | None = None
+    definition: str | None = None
+    labels: tuple[str, ...] = ()
     steps: tuple[ViewerProjectionStep, ...] = ()
     precondition_external_ids: tuple[str, ...] = ()
     test_external_ids: tuple[str, ...] = ()
