@@ -1,5 +1,6 @@
 from opyoid import Injector, InstanceBinding
 
+from test_service.config import ViewerSettings
 from test_service.domain.application.services.resolvers.project_resolver import ProjectResolver
 from test_service.domain.application.use_cases.authoring.test_cases.activate_test_case_use_case import (  # noqa: E501
     ActivateTestCaseUseCaseImpl,
@@ -62,6 +63,7 @@ from test_service.domain.application.use_cases.projects.list_projects_use_case i
     ListProjectsUseCaseImpl,
 )
 from test_service.domain.domain_module import DomainModule, ExecutionsModule, TestCasesModule
+from test_service.domain.model.viewer.records import ViewerType
 from test_service.domain.ports.input.use_cases.authoring.test_cases.activate_test_case_use_case import (  # noqa: E501
     ActivateTestCaseUseCase,
 )
@@ -152,6 +154,9 @@ from test_service.domain.ports.output.persistence.test_sets.test_set_persistence
 from test_service.domain.ports.output.persistence.viewer.viewer_persistence_port import (
     ViewerPersistencePort,
 )
+from test_service.domain.ports.output.persistence.viewer.viewer_result_persistence_port import (
+    ViewerResultPersistencePort,
+)
 from test_service.domain.ports.output.projects.project_validation_port import ProjectValidationPort
 from test_service.domain.ports.output.runners.runner_port import RunnerPort
 from test_service.domain.ports.output.secrets.secret_resolver_port import SecretResolverPort
@@ -159,6 +164,9 @@ from test_service.domain.ports.output.viewer.viewer_drift_detector_port import (
     ViewerDriftDetectorPort,
 )
 from test_service.domain.ports.output.viewer.viewer_publisher_port import ViewerPublisherPort
+from test_service.domain.ports.output.viewer.viewer_result_publisher_port import (
+    ViewerResultPublisherPort,
+)
 
 
 class _FakeProjectRepository:
@@ -333,6 +341,15 @@ class _FakeViewerDriftDetector:
         return None
 
 
+class _FakeViewerResultPersistence:
+    pass
+
+
+class _FakeViewerResultPublisher:
+    async def publish_execution_result(self, projection):
+        return None
+
+
 class TestDomainModule:
     def test_when_injecting_project_use_cases_expect_bound_implementations(self):
         injector = Injector(
@@ -351,8 +368,12 @@ class TestDomainModule:
                 InstanceBinding(RunnerPort, _FakeRunner()),
                 InstanceBinding(SecretResolverPort, _FakeSecretResolver()),
                 InstanceBinding(ViewerPersistencePort, _FakeViewerRepository()),
+                InstanceBinding(ViewerResultPersistencePort, _FakeViewerResultPersistence()),
                 InstanceBinding(ViewerPublisherPort, _FakeViewerPublisher()),
                 InstanceBinding(ViewerDriftDetectorPort, _FakeViewerDriftDetector()),
+                InstanceBinding(ViewerResultPublisherPort, _FakeViewerResultPublisher()),
+                InstanceBinding(ViewerSettings, ViewerSettings()),
+                InstanceBinding(ViewerType, ViewerType.XRAY),
             ],
         )
 
@@ -399,6 +420,11 @@ class TestDomainModule:
                 InstanceBinding(ExecutionCancellationPort, _FakeExecutionCancellation()),
                 InstanceBinding(RunnerPort, _FakeRunner()),
                 InstanceBinding(SecretResolverPort, _FakeSecretResolver()),
+                InstanceBinding(ViewerPersistencePort, _FakeViewerRepository()),
+                InstanceBinding(ViewerResultPersistencePort, _FakeViewerResultPersistence()),
+                InstanceBinding(ViewerResultPublisherPort, _FakeViewerResultPublisher()),
+                InstanceBinding(ViewerSettings, ViewerSettings()),
+                InstanceBinding(ViewerType, ViewerType.XRAY),
             ],
         )
 

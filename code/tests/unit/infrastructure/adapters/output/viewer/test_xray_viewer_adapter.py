@@ -10,6 +10,15 @@ import pytest
 from pydantic import SecretStr
 
 from test_service.config import XraySettings
+from test_service.domain.model.execution.execution import ExecutionStatus, ResultStatus
+from test_service.domain.model.viewer.execution_result_projection import (
+    ViewerExecutionResultProjection,
+    ViewerTestRunProjection,
+)
+from test_service.domain.model.viewer.execution_results import (
+    ViewerResultPublication,
+    ViewerResultPublicationStatus,
+)
 from test_service.domain.model.viewer.projection import (
     ViewerExternalIdentity,
     ViewerProjection,
@@ -132,6 +141,112 @@ class TestXrayViewerAdapter:
         assert "addedPreconditions" in add_request.content.decode()
         assert "warning" in add_request.content.decode()
         assert "client-secret" not in requests[1].content.decode()
+
+    @pytest.mark.parametrize(
+        ("execution_status", "result_status", "expected_xray_status"),
+        [
+            (ExecutionStatus.FAILED, ResultStatus.FAILED, "FAIL"),
+            (ExecutionStatus.CANCELLED, ResultStatus.SKIPPED, "ABORTED"),
+        ],
+        ids=["failed", "cancelled_skipped"],
+    )
+    async def test_when_publishing_result_expect_test_execution_and_test_run_updated(
+        self,
+        settings: XraySettings,
+        execution_status: ExecutionStatus,
+        result_status: ResultStatus,
+        expected_xray_status: str,
+    ) -> None:
+        requests: list[httpx.Request] = []
+        test_result_id = uuid4()
+        publication = ViewerResultPublication(
+            identifier=uuid4(),
+            project_key="SHOP",
+            execution_id=uuid4(),
+            viewer_type=ViewerType.XRAY,
+            status=ViewerResultPublicationStatus.RUNNING,
+            attempts=1,
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
+            updated_at=datetime(2026, 1, 1, tzinfo=UTC),
+        )
+        projection = ViewerExecutionResultProjection(
+            publication=publication,
+            summary="Test Service execution",
+            environment_name="Integration",
+            execution_status=execution_status,
+            test_runs=(
+                ViewerTestRunProjection(
+                    test_result_id=test_result_id,
+                    external_test_id="10001",
+                    status=result_status,
+                    started_at=datetime(2026, 1, 1, 10, tzinfo=UTC),
+                    finished_at=datetime(2026, 1, 1, 10, 0, 1, tzinfo=UTC),
+                    duration_ms=1_000,
+                    comment="HTTP_ASSERTION_FAILED: response did not match",
+                ),
+            ),
+        )
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            if request.url.path == "/auth":
+                return httpx.Response(200, json="xray-token")
+            body = json.loads(request.content)
+            query = body["query"]
+            if "GetTestExecutions" in query:
+                return httpx.Response(200, json={"data": {"getTestExecutions": {"results": []}}})
+            if "CreateTestExecution" in query:
+                return httpx.Response(
+                    200,
+                    json={
+                        "data": {
+                            "createTestExecution": {
+                                "testExecution": {
+                                    "issueId": "20001",
+                                    "jira": {"key": "SHOP-20"},
+                                }
+                            }
+                        }
+                    },
+                )
+            if "GetTestRuns" in query:
+                return httpx.Response(
+                    200,
+                    json={
+                        "data": {
+                            "getTestRuns": {
+                                "results": [{"id": "30001", "test": {"issueId": "10001"}}]
+                            }
+                        }
+                    },
+                )
+            return httpx.Response(200, json={"data": {"updateTestRun": {"id": "30001"}}})
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            identity = await XrayViewerAdapter(settings, client).publish_execution_result(
+                projection
+            )
+
+        payloads = [
+            json.loads(request.content) for request in requests if request.url.path == "/graphql"
+        ]
+        create_payload = next(item for item in payloads if "CreateTestExecution" in item["query"])
+        status_payload = next(item for item in payloads if "UpdateTestRunStatus" in item["query"])
+        update_payload = next(
+            item for item in payloads if "mutation UpdateTestRun(" in item["query"]
+        )
+        assert identity.execution_id == "20001"
+        assert identity.execution_key == "SHOP-20"
+        assert identity.test_run_ids == {test_result_id: "30001"}
+        assert create_payload["variables"]["testIssueIds"] == ["10001"]
+        assert create_payload["variables"]["testEnvironments"] == ["Integration"]
+        assert create_payload["variables"]["jira"]["fields"]["labels"] == [
+            publication.correlation_key
+        ]
+        assert status_payload["variables"] == {"id": "30001", "status": expected_xray_status}
+        assert "Duration: 1000 ms" in update_payload["variables"]["testRun"]["comment"]
+        assert update_payload["variables"]["testRun"]["startedOn"].endswith("+00:00")
+        assert update_payload["variables"]["testRun"]["finishedOn"].endswith("+00:00")
 
     async def test_when_creating_precondition_expect_separate_description_and_definition(
         self, settings: XraySettings, projection: ViewerProjection
@@ -744,8 +859,9 @@ class TestXrayViewerAdapter:
             )
 
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            adapter = XrayViewerAdapter(settings, client)
             with pytest.raises(XrayValidationError) as raised:
-                await XrayViewerAdapter(settings, client).publish(projection)
+                await adapter.publish(projection)
 
         assert "project key is invalid" in str(raised.value)
         assert "xray-secret-value" not in str(raised.value)

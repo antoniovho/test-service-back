@@ -13,6 +13,9 @@ from test_service.domain.application.services.execution.execution_variables_reso
     ExecutionVariables,
     ExecutionVariablesResolver,
 )
+from test_service.domain.application.services.viewer_result_publication_service import (
+    ViewerResultPublicationService,
+)
 from test_service.domain.application.use_cases.execution.executions import (
     process_next_execution_use_case,
 )
@@ -309,6 +312,14 @@ class _Cancellations:
         self.unregistered.append(execution_id)
 
 
+class _ResultPublications:
+    def __init__(self) -> None:
+        self.enqueued: list[Execution] = []
+
+    async def enqueue(self, execution: Execution) -> None:
+        self.enqueued.append(execution)
+
+
 def _process_next_execution_use_case(
     executions: _Executions,
     results: _Results,
@@ -318,6 +329,7 @@ def _process_next_execution_use_case(
     runner: _Runner,
     cancellations: _Cancellations,
     variables_resolver: ExecutionVariablesResolver,
+    result_publications: _ResultPublications | None = None,
 ) -> ProcessNextExecutionUseCaseImpl:
     return ProcessNextExecutionUseCaseImpl(
         cast(ExecutionPersistencePort, executions),
@@ -329,6 +341,7 @@ def _process_next_execution_use_case(
         runner,
         cast(ExecutionCancellationPort, cancellations),
         variables_resolver,
+        cast(ViewerResultPublicationService, result_publications or _ResultPublications()),
     )
 
 
@@ -341,6 +354,7 @@ def _use_case(
     test_plans: _TestPlans | None = None,
     other_test_cases: tuple[TestCase, ...] = (),
     preconditions: tuple[Precondition, ...] = (),
+    result_publications: _ResultPublications | None = None,
 ) -> ProcessNextExecutionUseCaseImpl:
     return _process_next_execution_use_case(
         _Executions(execution),
@@ -351,6 +365,7 @@ def _use_case(
         runner,
         _Cancellations(),
         ExecutionVariablesResolver(_SecretResolver(secrets)),
+        result_publications,
     )
 
 
