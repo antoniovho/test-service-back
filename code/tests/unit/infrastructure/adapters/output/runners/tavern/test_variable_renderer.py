@@ -3,6 +3,7 @@ from types import MappingProxyType
 import pytest
 
 from test_service.infrastructure.adapters.output.runners.tavern.variable_renderer import (
+    escape_tavern_literal_braces,
     render_service_variables,
 )
 
@@ -66,3 +67,23 @@ class TestRenderServiceVariables:
         )
 
         assert rendered == "{orderId}/{{x}}"
+
+
+class TestEscapeTavernLiteralBraces:
+    def test_when_value_contains_regex_quantifier_expect_braces_escaped(self) -> None:
+        assert escape_tavern_literal_braces(r"^(?:- [^\r\n]+\n){2}- [^\r\n]+$") == (
+            r"^(?:- [^\r\n]+\n){{2}}- [^\r\n]+$"
+        )
+
+    def test_when_value_contains_json_example_expect_braces_escaped(self) -> None:
+        assert escape_tavern_literal_braces('{"name": string, "age": integer}') == (
+            '{{"name": string, "age": integer}}'
+        )
+
+    def test_when_value_contains_saved_variable_expect_placeholder_preserved(self) -> None:
+        assert escape_tavern_literal_braces("/v1/responses/{response_id}") == (
+            "/v1/responses/{response_id}"
+        )
+
+    def test_when_value_contains_already_escaped_braces_expect_unchanged(self) -> None:
+        assert escape_tavern_literal_braces("{{literal}}") == "{{literal}}"

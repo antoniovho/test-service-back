@@ -10,6 +10,7 @@ from test_service.infrastructure.adapters.output.runners.tavern.tavern_safety im
     find_unsafe_tavern_construct,
 )
 from test_service.infrastructure.adapters.output.runners.tavern.variable_renderer import (
+    escape_tavern_literal_braces,
     render_service_variables,
 )
 
@@ -37,6 +38,9 @@ class TavernCompiler:
         unsafe = find_unsafe_tavern_construct(configuration)
         if unsafe is not None:
             raise ValueError(f"HTTP action '{action.identifier}' uses {unsafe}")
+        configuration = escape_tavern_literal_braces(configuration)
+        if not isinstance(configuration, dict):
+            raise ValueError("HTTP action configuration must be an object")
         return {
             "name": action.identifier,
             "request": TavernCompiler._compile_request(configuration),

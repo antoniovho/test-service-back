@@ -241,6 +241,30 @@ class TestTavernCompiler:
 
         assert document["stages"][0]["request"]["headers"] == {"X-Id": "{{tavern.env_vars.SECRET}}"}
 
+    def test_when_prompt_and_schema_contain_literal_braces_expect_tavern_escaping(self) -> None:
+        action = CompiledAction(
+            "format-output",
+            "HTTP",
+            0,
+            {
+                "url": "https://api.test/chat/completions",
+                "json": {"messages": [{"content": 'Return {"name": string} only.'}]},
+                "expectedJsonSchema": {
+                    "type": "string",
+                    "pattern": r"^(?:- item\n){2}- item$",
+                },
+            },
+        )
+
+        document = TavernCompiler().compile((action,), {})
+
+        stage = document["stages"][0]
+        assert stage["request"]["json"]["messages"][0]["content"] == (
+            'Return {{"name": string}} only.'
+        )
+        validator = stage["response"]["verify_response_with"]
+        assert validator["extra_kwargs"]["schema"]["pattern"] == r"^(?:- item\n){{2}}- item$"
+
     @pytest.mark.parametrize(
         ("configuration", "construct"),
         [

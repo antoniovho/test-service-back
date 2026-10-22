@@ -2,7 +2,9 @@ import asyncio
 import logging
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager, suppress
+from pathlib import Path
 
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from test_service_server.apis.authoring_api import router as authoring_api_router
 from test_service_server.apis.composition_api import router as composition_api_router
@@ -45,6 +47,10 @@ from test_service.infrastructure.adapters.output.commons.persistence.postgres.po
 )
 
 logger = logging.getLogger(__name__)
+
+# Load local runtime secrets before the dependency container or background workers are used.
+# Explicit process environment variables retain precedence over values in .env.
+load_dotenv(Path(__file__).resolve().parents[1] / ".env", override=False)
 
 _IDLE_SECONDS = 0.1
 _BACKOFF_BASE_SECONDS = 1.0
