@@ -1,5 +1,6 @@
 """Secret resolution backed by namespaced environment variables of this process."""
 
+import logging
 import os
 import re
 from collections.abc import Mapping
@@ -13,6 +14,7 @@ from test_service.domain.ports.output.secrets.secret_resolver_port import Secret
 PROVIDER = "env"
 DEFAULT_PREFIX = "TEST_SERVICE_SECRET_"
 _REFERENCE_KEY = re.compile(r"[A-Z][A-Z0-9_]*")
+logger = logging.getLogger(__name__)
 
 
 class EnvironmentSecretResolver(SecretResolverPort):
@@ -42,5 +44,9 @@ class EnvironmentSecretResolver(SecretResolverPort):
         environ = os.environ if self._environ is None else self._environ
         value = environ.get(f"{self._prefix}{reference.reference_key}")
         if not value:
+            logger.warning(
+                "Environment secret is unavailable: referenceKey=%s",
+                reference.reference_key,
+            )
             raise SecretResolutionException("secret is not available")
         return value
