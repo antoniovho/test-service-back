@@ -3,7 +3,7 @@
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import and_, asc, desc, func, or_, select
+from sqlalchemy import and_, asc, desc, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 
 from test_service.config import ViewerSettings
@@ -11,6 +11,9 @@ from test_service.domain.application.queries.pagination import Page, PaginationP
 from test_service.domain.model.viewer.records import ViewerEntityType, ViewerType
 from test_service.infrastructure.adapters.output.commons.persistence.postgres.postgres_session_provider import (  # noqa: E501
     PostgresSessionProvider,
+)
+from test_service.infrastructure.adapters.output.execution.executions.persistence.dtos.execution_dto import (  # noqa: E501
+    ExecutionDTO,
 )
 from test_service.infrastructure.adapters.output.viewer.persistence.dtos.viewer_dtos import (
     DriftEventDTO,
@@ -195,6 +198,41 @@ class ViewerRepository:
             await session.commit()
             await session.refresh(persisted)
             return persisted
+
+    async def transition_execution_and_enqueue_result_publication(
+        self,
+        execution: ExecutionDTO,
+        expected_statuses: tuple[str, ...],
+        publication: ViewerResultPublicationDTO,
+    ) -> ExecutionDTO | None:
+        """Atomically persist terminal execution state and its publication outbox record."""
+        async with self._session_provider.session() as session:
+            result = await session.execute(
+                update(ExecutionDTO)
+                .where(
+                    (ExecutionDTO.id == execution.id) & (ExecutionDTO.status.in_(expected_statuses))
+                )
+                .values(
+                    status=execution.status,
+                    finished_at=execution.finished_at,
+                    duration_ms=execution.duration_ms,
+                )
+                .returning(ExecutionDTO)
+            )
+            transitioned = result.scalar_one_or_none()
+            if transitioned is None:
+                return await session.get(ExecutionDTO, execution.id)
+            values = {
+                column.key: getattr(publication, column.key)
+                for column in ViewerResultPublicationDTO.__table__.columns
+            }
+            await session.execute(
+                insert(ViewerResultPublicationDTO)
+                .values(**values)
+                .on_conflict_do_nothing(constraint="uq_viewer_result_execution")
+            )
+            await session.commit()
+            return transitioned
 
     async def claim_next_result_publication(self) -> ViewerResultPublicationDTO | None:
         now = datetime.now(UTC)

@@ -15,6 +15,7 @@ from test_service.domain.model.exceptions.retryable_viewer_result_publication_ex
 from test_service.domain.model.execution.execution import (
     TERMINAL_EXECUTION_STATUSES,
     Execution,
+    ExecutionStatus,
 )
 from test_service.domain.model.viewer.execution_result_projection import (
     ViewerExecutionResultProjection,
@@ -77,10 +78,12 @@ class ViewerResultPublicationService:
         self._publisher = publisher
         self._settings = settings
 
-    async def enqueue(self, execution: Execution) -> ViewerResultPublication:
-        """Create idempotent external-viewer publication work for an execution."""
-        return await self._publications.enqueue_result_publication(
-            execution, self._publisher.viewer_type
+    async def complete_execution(
+        self, execution: Execution, expected_statuses: tuple[ExecutionStatus, ...]
+    ) -> Execution | None:
+        """Atomically persist a terminal execution and its external publication work."""
+        return await self._publications.transition_execution_and_enqueue_result_publication(
+            execution, expected_statuses, self._publisher.viewer_type
         )
 
     async def process_next_publication(self) -> ViewerResultPublication | None:

@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock
 from uuid import uuid4
 
 from test_service.domain.application.queries.pagination import Page, PaginationParams
+from test_service.domain.model.execution.execution import ExecutionStatus
 from test_service.domain.model.viewer.records import (
     DriftEvent,
     DriftType,
@@ -20,6 +21,7 @@ from test_service.domain.model.viewer.records import (
 from test_service.infrastructure.adapters.output.viewer.persistence.viewer_persistence_adapter import (  # noqa: E501
     ViewerPersistenceAdapter,
 )
+from tests.mothers.execution_mother import an_execution
 
 
 def _sync_record() -> ViewerSyncRecord:
@@ -80,6 +82,39 @@ def _operation_item(record: ViewerSyncRecord) -> ViewerOperationItem:
 
 
 class TestViewerPersistenceAdapter:
+    async def test_when_completing_execution_expect_transition_and_outbox_saved_together(
+        self,
+    ) -> None:
+        execution = (
+            an_execution(created_at=datetime(2026, 1, 1, tzinfo=UTC))
+            .start(datetime(2026, 1, 1, 1, tzinfo=UTC))
+            .complete(ExecutionStatus.FAILED, datetime(2026, 1, 1, 2, tzinfo=UTC))
+        )
+        from test_service.infrastructure.adapters.output.execution.executions.persistence.mappers.execution_persistence_mapper import (  # noqa: E501
+            ExecutionPersistenceMapper,
+        )
+
+        execution_dto = ExecutionPersistenceMapper.to_dto(execution)
+        repository = SimpleNamespace(
+            transition_execution_and_enqueue_result_publication=AsyncMock(
+                return_value=execution_dto
+            )
+        )
+        adapter = ViewerPersistenceAdapter(repository)
+
+        completed = await adapter.transition_execution_and_enqueue_result_publication(
+            execution, (ExecutionStatus.RUNNING,), ViewerType.XRAY
+        )
+
+        assert completed == execution
+        stored_execution, expected_statuses, publication = (
+            repository.transition_execution_and_enqueue_result_publication.await_args.args
+        )
+        assert stored_execution.id == execution.identifier
+        assert expected_statuses == (ExecutionStatus.RUNNING.value,)
+        assert publication.execution_id == execution.identifier
+        assert publication.viewer_type == ViewerType.XRAY.value
+
     async def test_when_saving_and_loading_operations_expect_domain_values_restored(self) -> None:
         operation = _operation()
         repository = SimpleNamespace(

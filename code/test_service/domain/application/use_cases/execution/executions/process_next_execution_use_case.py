@@ -191,14 +191,8 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
     async def _finish_execution(
         self, execution: Execution, expected_statuses: tuple[ExecutionStatus, ...]
     ) -> Execution | None:
-        """Durably enqueue external publication before completing the local execution."""
-        try:
-            await self._result_publications.enqueue(execution)
-        except Exception:
-            logger.exception(
-                "Could not enqueue result publication for execution '%s'.", execution.identifier
-            )
-        return await self._executions.transition_execution(execution, expected_statuses)
+        """Atomically persist terminal execution state and external publication work."""
+        return await self._result_publications.complete_execution(execution, expected_statuses)
 
     async def _watch_persisted_cancellation(
         self, execution_id, cancellation: asyncio.Event

@@ -17,7 +17,7 @@ from test_service.domain.model.exceptions.permanent_viewer_result_publication_ex
 from test_service.domain.model.exceptions.retryable_viewer_result_publication_exception import (
     RetryableViewerResultPublicationError,
 )
-from test_service.domain.model.execution.execution import ExecutionStatus, ResultStatus
+from test_service.domain.model.execution.execution import ExecutionStatus
 from test_service.domain.model.viewer.execution_result_projection import (
     ViewerExecutionResultIdentity,
     ViewerExecutionResultProjection,
@@ -48,6 +48,9 @@ from test_service.infrastructure.adapters.output.viewer.xray_exceptions import (
     XrayProviderError,
     XrayTransportError,
     XrayValidationError,
+)
+from test_service.infrastructure.adapters.output.viewer.xray_result_status_mapper import (
+    XrayResultStatusMapper,
 )
 
 _TRANSIENT_STATUS_CODES = frozenset({429, 502, 503, 504})
@@ -221,7 +224,9 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort, ViewerResu
             self._UPDATE_TEST_RUN_STATUS,
             {
                 "id": test_run_id,
-                "status": self._xray_test_run_status(test_run.status, execution_status),
+                "status": XrayResultStatusMapper.to_test_run_status(
+                    test_run.status, execution_status
+                ),
             },
         )
         comment = self._test_run_comment(test_run.comment, test_run.duration_ms)
@@ -245,20 +250,6 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort, ViewerResu
             f"Duration: {duration_ms} ms" if duration_ms is not None else "Duration: unavailable"
         )
         return f"{duration}\n{comment}"[:1000] if comment else duration
-
-    @staticmethod
-    def _xray_test_run_status(
-        result_status: ResultStatus, execution_status: ExecutionStatus
-    ) -> str:
-        if execution_status is ExecutionStatus.CANCELLED and result_status is ResultStatus.SKIPPED:
-            return "ABORTED"
-        return {
-            ResultStatus.PASSED: "PASS",
-            ResultStatus.FAILED: "FAIL",
-            ResultStatus.ERROR: "FAIL",
-            ResultStatus.BLOCKED: "ABORTED",
-            ResultStatus.SKIPPED: "TODO",
-        }[result_status]
 
     @staticmethod
     def _execution_identity_from_result(result: object) -> ViewerExternalIdentity:

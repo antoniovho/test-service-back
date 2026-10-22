@@ -313,11 +313,13 @@ class _Cancellations:
 
 
 class _ResultPublications:
-    def __init__(self) -> None:
-        self.enqueued: list[Execution] = []
+    def __init__(self, executions: _Executions) -> None:
+        self._executions = executions
+        self.completions: list[tuple[Execution, tuple[ExecutionStatus, ...]]] = []
 
-    async def enqueue(self, execution: Execution) -> None:
-        self.enqueued.append(execution)
+    async def complete_execution(self, execution, expected_statuses):
+        self.completions.append((execution, expected_statuses))
+        return await self._executions.transition_execution(execution, expected_statuses)
 
 
 def _process_next_execution_use_case(
@@ -341,7 +343,9 @@ def _process_next_execution_use_case(
         runner,
         cast(ExecutionCancellationPort, cancellations),
         variables_resolver,
-        cast(ViewerResultPublicationService, result_publications or _ResultPublications()),
+        cast(
+            ViewerResultPublicationService, result_publications or _ResultPublications(executions)
+        ),
     )
 
 

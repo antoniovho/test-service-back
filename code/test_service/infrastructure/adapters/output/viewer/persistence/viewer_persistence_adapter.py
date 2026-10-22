@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from test_service.domain.application.queries.pagination import Page, PaginationParams
+from test_service.domain.model.execution.execution import Execution, ExecutionStatus
 from test_service.domain.model.viewer.execution_results import (
     ViewerResultPublication,
     ViewerResultPublicationStatus,
@@ -21,6 +22,9 @@ from test_service.domain.ports.output.persistence.viewer.viewer_persistence_port
 )
 from test_service.domain.ports.output.persistence.viewer.viewer_result_persistence_port import (
     ViewerResultPersistencePort,
+)
+from test_service.infrastructure.adapters.output.execution.executions.persistence.mappers.execution_persistence_mapper import (  # noqa: E501
+    ExecutionPersistenceMapper,
 )
 from test_service.infrastructure.adapters.output.viewer.persistence.mappers.viewer_persistence_mapper import (  # noqa: E501
     ViewerPersistenceMapper,
@@ -129,7 +133,34 @@ class ViewerPersistenceAdapter(ViewerPersistencePort, ViewerResultPersistencePor
         self, execution, viewer_type: ViewerType
     ) -> ViewerResultPublication:
         now = datetime.now(UTC)
-        publication = ViewerResultPublication(
+        publication = self._result_publication(execution, viewer_type, now)
+        return ViewerPersistenceMapper.result_publication_to_domain(
+            await self._repository.enqueue_result_publication(
+                ViewerPersistenceMapper.result_publication_to_dto(publication)
+            )
+        )
+
+    async def transition_execution_and_enqueue_result_publication(
+        self,
+        execution: Execution,
+        expected_statuses: tuple[ExecutionStatus, ...],
+        viewer_type: ViewerType,
+    ) -> Execution | None:
+        now = datetime.now(UTC)
+        persisted = await self._repository.transition_execution_and_enqueue_result_publication(
+            ExecutionPersistenceMapper.to_dto(execution),
+            tuple(status.value for status in expected_statuses),
+            ViewerPersistenceMapper.result_publication_to_dto(
+                self._result_publication(execution, viewer_type, now)
+            ),
+        )
+        return ExecutionPersistenceMapper.to_domain(persisted) if persisted is not None else None
+
+    @staticmethod
+    def _result_publication(
+        execution: Execution, viewer_type: ViewerType, now: datetime
+    ) -> ViewerResultPublication:
+        return ViewerResultPublication(
             identifier=uuid4(),
             project_key=execution.project_key,
             execution_id=execution.identifier,
@@ -137,11 +168,6 @@ class ViewerPersistenceAdapter(ViewerPersistencePort, ViewerResultPersistencePor
             status=ViewerResultPublicationStatus.PENDING,
             created_at=now,
             updated_at=now,
-        )
-        return ViewerPersistenceMapper.result_publication_to_domain(
-            await self._repository.enqueue_result_publication(
-                ViewerPersistenceMapper.result_publication_to_dto(publication)
-            )
         )
 
     async def claim_next_result_publication(self) -> ViewerResultPublication | None:

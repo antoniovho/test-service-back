@@ -71,11 +71,13 @@ class _Publications:
     def __init__(self, publication: ViewerResultPublication) -> None:
         self._publication = publication
         self.saved: list[ViewerResultPublication] = []
-        self.enqueued = []
+        self.completions = []
 
-    async def enqueue_result_publication(self, execution, viewer_type):
-        self.enqueued.append((execution, viewer_type))
-        return self._publication
+    async def transition_execution_and_enqueue_result_publication(
+        self, execution, expected_statuses, viewer_type
+    ):
+        self.completions.append((execution, expected_statuses, viewer_type))
+        return execution
 
     async def claim_next_result_publication(self):
         return self._publication
@@ -103,14 +105,20 @@ class _Publisher:
 
 
 class TestViewerResultPublicationService:
-    async def test_when_enqueuing_expect_publisher_viewer_type(self) -> None:
+    async def test_when_completing_execution_expect_publisher_viewer_type(self) -> None:
         service, publications, _, _ = self._service(record=self._sync_record())
-        execution = an_execution(created_at=_CREATED_AT)
+        execution = (
+            an_execution(created_at=_CREATED_AT)
+            .start(_CREATED_AT)
+            .complete(ExecutionStatus.FAILED, _FINISHED_AT)
+        )
 
-        result = await service.enqueue(execution)
+        result = await service.complete_execution(execution, (ExecutionStatus.RUNNING,))
 
-        assert result is publications._publication
-        assert publications.enqueued == [(execution, ViewerType.XRAY)]
+        assert result is execution
+        assert publications.completions == [
+            (execution, (ExecutionStatus.RUNNING,), ViewerType.XRAY)
+        ]
 
     async def test_when_test_identity_is_unsynchronized_expect_retry_wait(self) -> None:
         service, publications, _, test_result = self._service(record=None)
