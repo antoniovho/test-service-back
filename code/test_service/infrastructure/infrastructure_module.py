@@ -39,6 +39,9 @@ from test_service.domain.ports.output.persistence.test_sets.test_set_persistence
 from test_service.domain.ports.output.persistence.viewer.viewer_persistence_port import (
     ViewerPersistencePort,
 )
+from test_service.domain.ports.output.persistence.viewer.viewer_result_persistence_port import (
+    ViewerResultPersistencePort,
+)
 from test_service.domain.ports.output.projects.project_validation_port import ProjectValidationPort
 from test_service.domain.ports.output.runners.runner_port import RunnerPort
 from test_service.domain.ports.output.secrets.secret_resolver_port import SecretResolverPort
@@ -46,6 +49,9 @@ from test_service.domain.ports.output.viewer.viewer_drift_detector_port import (
     ViewerDriftDetectorPort,
 )
 from test_service.domain.ports.output.viewer.viewer_publisher_port import ViewerPublisherPort
+from test_service.domain.ports.output.viewer.viewer_result_publisher_port import (
+    ViewerResultPublisherPort,
+)
 from test_service.infrastructure.adapters.output.commons.persistence.postgres.postgres_database_configuration import (  # noqa: E501
     PostgresDatabaseConfiguration,
 )
@@ -168,7 +174,9 @@ class ViewerModule(Module):
         self.bind(XraySettings, to_instance=XraySettings())
         self.bind(ViewerPublisherPort, to_class=XrayViewerAdapter)
         self.bind(ViewerDriftDetectorPort, to_class=XrayViewerAdapter)
+        self.bind(ViewerResultPublisherPort, to_class=XrayViewerAdapter)
         self.bind(ViewerPersistencePort, to_class=ViewerPersistenceAdapter)
+        self.bind(ViewerResultPersistencePort, to_class=ViewerPersistenceAdapter)
 
 
 class InfrastructureModule(Module):

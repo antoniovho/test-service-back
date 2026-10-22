@@ -30,6 +30,9 @@ from test_service.domain.application.services.resolvers.test_set_snapshot_resolv
 from test_service.domain.application.services.viewer_projection_service import (
     ViewerProjectionService,
 )
+from test_service.domain.application.services.viewer_result_publication_service import (
+    ViewerResultPublicationService,
+)
 from test_service.domain.application.use_cases.authoring.preconditions.activate_precondition_use_case import (  # noqa: E501
     ActivatePreconditionUseCaseImpl,
 )
@@ -491,6 +494,7 @@ class ExecutionsModule(Module):
     def configure(self) -> None:
         self.bind(DefinitionCompiler)
         self.bind(ExecutionVariablesResolver)
+        self.bind(ViewerResultPublicationService)
         self.bind(ExecutionAccessResolver)
         self.bind(ExecutionResultAccessResolver)
         self.bind(ExecutionManifestResolver)

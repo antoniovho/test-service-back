@@ -22,6 +22,9 @@ from test_service.domain.application.services.execution.execution_variables_reso
 from test_service.domain.application.services.execution.secret_redactor import (
     redact_test_case_outcome,
 )
+from test_service.domain.application.services.viewer_result_publication_service import (
+    ViewerResultPublicationService,
+)
 from test_service.domain.model.exceptions.entity_not_found_exception import EntityNotFoundException
 from test_service.domain.model.exceptions.execution_manifest_integrity_exception import (
     ExecutionManifestIntegrityException,
@@ -105,6 +108,7 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
         runner: RunnerPort,
         cancellations: ExecutionCancellationPort,
         variables_resolver: ExecutionVariablesResolver,
+        result_publications: ViewerResultPublicationService,
     ) -> None:
         self._executions = executions
         self._results = results
@@ -116,6 +120,7 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
         self._runner = runner
         self._cancellations = cancellations
         self._variables_resolver = variables_resolver
+        self._result_publications = result_publications
 
     async def execute(self, _: None) -> Execution | None:
         # Mark any stale RUNNING executions as error before claiming the next one.
@@ -152,12 +157,11 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
             )
             # If the execution was cancelled during the test plan execution, handle it accordingly.
             if cancellation.is_set():
-                return await self._executions.transition_execution(
-                    execution.cancel(datetime.now(UTC)),
-                    (ExecutionStatus.RUNNING,),
+                return await self._finish_execution(
+                    execution.cancel(datetime.now(UTC)), (ExecutionStatus.RUNNING,)
                 )
             # Transition the execution to the appropriate final state based on the outcomes.
-            return await self._executions.transition_execution(
+            return await self._finish_execution(
                 execution.complete(
                     self._execution_status(outcomes),
                     datetime.now(UTC),
@@ -171,7 +175,7 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
                 self._runner.identifier,
                 self._runner.version,
             )
-            return await self._executions.transition_execution(
+            return await self._finish_execution(
                 execution.complete(
                     ExecutionStatus.ERROR,
                     datetime.now(UTC),
@@ -183,6 +187,18 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
             cancellation_monitor.cancel()
             await asyncio.gather(cancellation_monitor, return_exceptions=True)
             self._cancellations.unregister(execution.identifier)
+
+    async def _finish_execution(
+        self, execution: Execution, expected_statuses: tuple[ExecutionStatus, ...]
+    ) -> Execution | None:
+        """Durably enqueue external publication before completing the local execution."""
+        try:
+            await self._result_publications.enqueue(execution)
+        except Exception:
+            logger.exception(
+                "Could not enqueue result publication for execution '%s'.", execution.identifier
+            )
+        return await self._executions.transition_execution(execution, expected_statuses)
 
     async def _watch_persisted_cancellation(
         self, execution_id, cancellation: asyncio.Event

@@ -32,6 +32,7 @@ from test_service.domain.model.viewer.records import (
     DriftObservation,
     DriftType,
     ViewerEntityType,
+    ViewerType,
 )
 from test_service.domain.ports.output.viewer.viewer_drift_detector_port import (
     ViewerDriftDetectorPort,
@@ -67,6 +68,11 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort, ViewerResu
         self._authentication_lock = asyncio.Lock()
         self._rate_limit_lock = asyncio.Lock()
         self._next_request_at = 0.0
+
+    @property
+    def viewer_type(self) -> ViewerType:
+        """Identify Xray as the external viewer implemented by this adapter."""
+        return ViewerType.XRAY
 
     async def publish(self, projection: ViewerProjection) -> ViewerExternalIdentity:
         """Create or refresh the Xray entity represented by a canonical projection."""

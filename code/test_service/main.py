@@ -16,6 +16,9 @@ from test_service.bootstrap.container import get_injector
 from test_service.domain.application.services.viewer_projection_service import (
     ViewerProjectionService,
 )
+from test_service.domain.application.services.viewer_result_publication_service import (
+    ViewerResultPublicationService,
+)
 from test_service.domain.ports.input.use_cases.execution.executions.process_next_execution_use_case import (  # noqa: E501
     ProcessNextExecutionUseCase,
 )
@@ -63,15 +66,22 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
     """Release database connections when the application stops."""
     projection_service = get_injector().inject(ViewerProjectionService)
     viewer_worker = asyncio.create_task(_process_viewer_operations(projection_service))
+    result_publication_service = get_injector().inject(ViewerResultPublicationService)
+    result_publication_worker = asyncio.create_task(
+        _process_viewer_result_publications(result_publication_service)
+    )
     execution_processor = get_injector().inject(ProcessNextExecutionUseCase)
     execution_task = asyncio.create_task(_process_executions(execution_processor))
     try:
         yield
     finally:
         viewer_worker.cancel()
+        result_publication_worker.cancel()
         execution_task.cancel()
         with suppress(asyncio.CancelledError):
             await viewer_worker
+        with suppress(asyncio.CancelledError):
+            await result_publication_worker
         with suppress(asyncio.CancelledError):
             await execution_task
         database_configuration = get_injector().inject(PostgresDatabaseConfiguration)
@@ -111,6 +121,13 @@ async def _process_viewer_operations(service: ViewerProjectionService) -> None:
 async def _process_executions(processor: ProcessNextExecutionUseCase) -> None:
     """Claim and execute durable work without retaining HTTP request state."""
     await _supervise("executions", lambda: processor.execute(None))
+
+
+async def _process_viewer_result_publications(
+    service: ViewerResultPublicationService,
+) -> None:
+    """Publish persisted execution results without retaining request state."""
+    await _supervise("viewer-result-publications", service.process_next_publication)
 
 
 def create_app() -> FastAPI:
