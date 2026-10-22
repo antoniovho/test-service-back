@@ -1,5 +1,9 @@
 """Mapping between Viewer domain values and persistence DTOs."""
 
+from test_service.domain.model.viewer.execution_results import (
+    ViewerResultPublication,
+    ViewerResultPublicationStatus,
+)
 from test_service.domain.model.viewer.records import (
     DriftEvent,
     ViewerOperation,
@@ -10,11 +14,56 @@ from test_service.infrastructure.adapters.output.viewer.persistence.dtos.viewer_
     DriftEventDTO,
     ViewerOperationDTO,
     ViewerOperationItemDTO,
+    ViewerResultPublicationDTO,
     ViewerSyncRecordDTO,
 )
 
 
 class ViewerPersistenceMapper:
+    @staticmethod
+    def result_publication_to_dto(
+        publication: ViewerResultPublication,
+    ) -> ViewerResultPublicationDTO:
+        return ViewerResultPublicationDTO(
+            id=publication.identifier,
+            project_key=publication.project_key,
+            execution_id=publication.execution_id,
+            viewer_type=publication.viewer_type.value,
+            status=publication.status.value,
+            attempts=publication.attempts,
+            next_attempt_at=publication.next_attempt_at,
+            started_at=publication.started_at,
+            finished_at=publication.finished_at,
+            external_execution_id=publication.external_execution_id,
+            external_execution_key=publication.external_execution_key,
+            error=publication.error,
+            created_at=publication.created_at,
+            updated_at=publication.updated_at,
+        )
+
+    @staticmethod
+    def result_publication_to_domain(
+        publication: ViewerResultPublicationDTO,
+    ) -> ViewerResultPublication:
+        from test_service.domain.model.viewer.records import ViewerType
+
+        return ViewerResultPublication(
+            identifier=publication.id,
+            project_key=publication.project_key,
+            execution_id=publication.execution_id,
+            viewer_type=ViewerType(publication.viewer_type),
+            status=ViewerResultPublicationStatus(publication.status),
+            attempts=publication.attempts,
+            next_attempt_at=publication.next_attempt_at,
+            started_at=publication.started_at,
+            finished_at=publication.finished_at,
+            external_execution_id=publication.external_execution_id,
+            external_execution_key=publication.external_execution_key,
+            error=publication.error,
+            created_at=publication.created_at,
+            updated_at=publication.updated_at,
+        )
+
     @staticmethod
     def operation_item_to_dto(item: ViewerOperationItem) -> ViewerOperationItemDTO:
         return ViewerOperationItemDTO(

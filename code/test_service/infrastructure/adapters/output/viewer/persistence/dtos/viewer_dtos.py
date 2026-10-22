@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import DateTime, String, Text
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -84,3 +84,37 @@ class DriftEventDTO(Base):
     notification_status: Mapped[str] = mapped_column(String, nullable=False)
     details: Mapped[dict[str, object] | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ViewerResultPublicationDTO(Base):
+    """Database representation of durable execution-result publication work."""
+
+    __tablename__ = "viewer_result_publication"
+    __table_args__ = (
+        UniqueConstraint("execution_id", "viewer_type", name="uq_viewer_result_execution"),
+        Index("ix_viewer_result_publication_due", "status", "next_attempt_at", "created_at"),
+        {"schema": "test_service_v1"},
+    )
+
+    id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), primary_key=True)
+    project_key: Mapped[str] = mapped_column(
+        Text,
+        ForeignKey("test_service_v1.project.key", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    execution_id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("test_service_v1.execution.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    viewer_type: Mapped[str] = mapped_column(String, nullable=False)
+    status: Mapped[str] = mapped_column(String, nullable=False)
+    attempts: Mapped[int] = mapped_column(nullable=False, default=0)
+    next_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    external_execution_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    external_execution_key: Mapped[str | None] = mapped_column(Text, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
