@@ -102,6 +102,8 @@ class ViewerSettings(BaseSettings):
     )
 
     operation_recovery_timeout_seconds: int = Field(default=1800, gt=0)
+    result_retry_backoff_seconds: int = Field(default=5, gt=0)
+    result_retry_max_seconds: int = Field(default=300, gt=0)
 
 
 class ExecutionSettings(BaseSettings):

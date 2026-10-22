@@ -74,6 +74,14 @@ class DomainError(Enum):
         "VIEWER_PROJECTION_INVALID",
         "Viewer projection cannot be built",
     )
+    VIEWER_RESULT_PUBLICATION_RETRYABLE = (
+        "VIEWER_RESULT_PUBLICATION_RETRYABLE",
+        "Viewer result publication can be retried",
+    )
+    VIEWER_RESULT_PUBLICATION_PERMANENT = (
+        "VIEWER_RESULT_PUBLICATION_PERMANENT",
+        "Viewer result publication cannot be completed",
+    )
 
     @property
     def code(self) -> str:
