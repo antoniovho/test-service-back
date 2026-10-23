@@ -1345,7 +1345,7 @@ class TestProcessNextExecutionUseCase:
             "RUNNER_UNSUPPORTED_PRECONDITION",
             f"Execution '{execution.identifier}' cannot run Test Case "
             f"'{test_case.identifier}' because runner 'runner' does not support precondition "
-            f"'{precondition_id}'.",
+            f"'authenticated' ('{precondition_id}').",
         )
         assert runner.requested_action_types == [frozenset({"HTTP"})]
 
@@ -1449,7 +1449,7 @@ class TestProcessNextExecutionUseCase:
             ResultStatus.BLOCKED,
             "PRECONDITION_FAILED",
             f"Execution '{execution.identifier}' cannot run Test Case "
-            f"'{test_case.identifier}' because precondition 'proxy-ready' "
+            f"'{test_case.identifier}' because precondition 'authenticated' "
             f"('{precondition_id}') did not pass.",
         )
 
