@@ -12,7 +12,7 @@ from test_service.domain.model.viewer.records import ViewerEntityType
 
 @dataclass(frozen=True, slots=True)
 class ViewerManagedState:
-    """Provider-managed projection content, excluding Jira presentation fields."""
+    """Provider-managed projection content, excluding presentation fields."""
 
     entity_type: ViewerEntityType
     definition: str | None = None

@@ -3,8 +3,16 @@
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import StrEnum
 
 from test_service.domain.model.execution.execution import ResultStatus
+
+
+class ExecutionSubjectType(StrEnum):
+    """Types of executable definitions handled by a runner."""
+
+    TEST_CASE = "test case"
+    PRECONDITION = "precondition"
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,6 +32,7 @@ class CompiledTestCase:
     test_case_id: str
     variables: Mapping[str, str]
     actions: tuple[CompiledAction, ...]
+    subject_type: ExecutionSubjectType = ExecutionSubjectType.TEST_CASE
 
 
 @dataclass(frozen=True, slots=True)

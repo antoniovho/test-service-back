@@ -1,6 +1,10 @@
 from datetime import UTC, datetime
 from uuid import uuid4
 
+from test_service.domain.model.viewer.execution_results import (
+    ViewerResultPublication,
+    ViewerResultPublicationStatus,
+)
 from test_service.domain.model.viewer.records import (
     DriftEvent,
     DriftType,
@@ -88,6 +92,25 @@ def _operation_item(sync_record: ViewerSyncRecord) -> ViewerOperationItem:
     )
 
 
+def _result_publication() -> ViewerResultPublication:
+    return ViewerResultPublication(
+        identifier=uuid4(),
+        project_key="IAG",
+        execution_id=uuid4(),
+        viewer_type=ViewerType.XRAY,
+        status=ViewerResultPublicationStatus.RETRY_WAIT,
+        attempts=2,
+        next_attempt_at=datetime(2026, 1, 5, tzinfo=UTC),
+        started_at=datetime(2026, 1, 4, tzinfo=UTC),
+        finished_at=None,
+        external_execution_id="10001",
+        external_execution_key="IAG-1",
+        error="Xray request timed out",
+        created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        updated_at=datetime(2026, 1, 4, tzinfo=UTC),
+    )
+
+
 class TestViewerPersistenceMapper:
     def test_when_mapping_sync_record_expect_persistence_round_trip(self) -> None:
         record = _sync_record()
@@ -124,3 +147,12 @@ class TestViewerPersistenceMapper:
         )
 
         assert restored == item
+
+    def test_when_mapping_result_publication_expect_persistence_round_trip(self) -> None:
+        publication = _result_publication()
+
+        restored = ViewerPersistenceMapper.result_publication_to_domain(
+            ViewerPersistenceMapper.result_publication_to_dto(publication)
+        )
+
+        assert restored == publication

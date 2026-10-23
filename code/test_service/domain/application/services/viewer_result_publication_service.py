@@ -1,0 +1,531 @@
+"""Asynchronously project completed local executions to an external viewer."""
+
+import json
+import logging
+import re
+from collections.abc import Mapping
+from dataclasses import replace
+from datetime import UTC, datetime, timedelta
+
+from test_service.config import ViewerSettings
+from test_service.domain.application.queries.pagination import MAX_PAGE_LIMIT, PaginationParams
+from test_service.domain.model.exceptions.permanent_viewer_result_publication_exception import (
+    PermanentViewerResultPublicationError,
+)
+from test_service.domain.model.exceptions.retryable_viewer_result_publication_exception import (
+    RetryableViewerResultPublicationError,
+)
+from test_service.domain.model.execution.execution import (
+    TERMINAL_EXECUTION_STATUSES,
+    ArtifactType,
+    Execution,
+    ExecutionStatus,
+    ResultStatus,
+    StorageType,
+)
+from test_service.domain.model.viewer.execution_result_projection import (
+    ViewerEvidenceProjection,
+    ViewerExecutionResultProjection,
+    ViewerTestRunProjection,
+    ViewerTestRunStepProjection,
+)
+from test_service.domain.model.viewer.execution_results import (
+    ViewerResultPublication,
+    ViewerResultPublicationStatus,
+)
+from test_service.domain.model.viewer.records import SyncStatus, ViewerEntityType
+from test_service.domain.ports.output.persistence.environments.environment_persistence_port import (
+    EnvironmentPersistencePort,
+)
+from test_service.domain.ports.output.persistence.executions.execution_persistence_port import (
+    ExecutionPersistencePort,
+)
+from test_service.domain.ports.output.persistence.executions.execution_results_persistence_port import (  # noqa: E501
+    ExecutionResultsPersistencePort,
+)
+from test_service.domain.ports.output.persistence.test_cases.test_case_persistence_port import (
+    TestCasePersistencePort,
+)
+from test_service.domain.ports.output.persistence.test_plans.test_plan_persistence_port import (
+    TestPlanPersistencePort,
+)
+from test_service.domain.ports.output.persistence.viewer.viewer_persistence_port import (
+    ViewerPersistencePort,
+)
+from test_service.domain.ports.output.persistence.viewer.viewer_result_persistence_port import (
+    ViewerResultPersistencePort,
+)
+from test_service.domain.ports.output.viewer.viewer_result_publisher_port import (
+    ViewerResultPublisherPort,
+)
+
+_SENSITIVE_VALUE = re.compile(
+    r"(?i)(authorization|bearer|token|secret|api[_-]?key|password)"
+    r"(\s*[:=]\s*)(?:bearer\s+)?[^\s,;\"'}]+"
+)
+_SENSITIVE_FIELD = re.compile(r"(?i)(authorization|bearer|token|secret|api[_-]?key|password)")
+_MAX_COMMENT_LENGTH = 1_000
+_MAX_EVIDENCE_CONTENT_LENGTH = 20_000
+_MAX_EVIDENCE_PER_TEST_RUN = 10
+_MAX_EVIDENCE_PER_TEST_RUN_STEP = 10
+
+logger = logging.getLogger(__name__)
+
+
+class ViewerResultPublicationService:
+    """Persist, resolve and publish execution results without blocking runners."""
+
+    def __init__(
+        self,
+        executions: ExecutionPersistencePort,
+        results: ExecutionResultsPersistencePort,
+        environments: EnvironmentPersistencePort,
+        test_cases: TestCasePersistencePort,
+        test_plans: TestPlanPersistencePort,
+        viewer_records: ViewerPersistencePort,
+        publications: ViewerResultPersistencePort,
+        publisher: ViewerResultPublisherPort,
+        settings: ViewerSettings,
+    ) -> None:
+        self._executions = executions
+        self._results = results
+        self._environments = environments
+        self._test_cases = test_cases
+        self._test_plans = test_plans
+        self._viewer_records = viewer_records
+        self._publications = publications
+        self._publisher = publisher
+        self._settings = settings
+
+    async def complete_execution(
+        self, execution: Execution, expected_statuses: tuple[ExecutionStatus, ...]
+    ) -> Execution | None:
+        """Atomically persist a terminal execution and its external publication work."""
+        return await self._publications.transition_execution_and_enqueue_result_publication(
+            execution, expected_statuses, self._publisher.viewer_type
+        )
+
+    async def process_next_publication(self) -> ViewerResultPublication | None:
+        """Claim one due result publication and complete, retry or fail it safely."""
+        publication = await self._publications.claim_next_result_publication()
+        if publication is None:
+            return None
+        try:
+            projection = await self._projection(publication)
+            identity = await self._publisher.publish_execution_result(projection)
+        except RetryableViewerResultPublicationError as error:
+            retried = await self._retry(publication, error)
+            logger.warning(
+                "Viewer result publication '%s' for execution '%s' will retry at '%s' "
+                "after attempt %d: %s",
+                retried.identifier,
+                retried.execution_id,
+                retried.next_attempt_at,
+                retried.attempts,
+                self._safe_error(error),
+            )
+            return retried
+        except PermanentViewerResultPublicationError as error:
+            failed = await self._fail_permanently(publication, error)
+            logger.exception(
+                "Viewer result publication '%s' for execution '%s' failed permanently "
+                "after attempt %d: %s",
+                failed.identifier,
+                failed.execution_id,
+                failed.attempts,
+                self._safe_error(error),
+                exc_info=False,
+            )
+            return failed
+        except Exception as error:
+            retried = await self._retry(publication, error)
+            logger.warning(
+                "Viewer result publication '%s' for execution '%s' will retry at '%s' "
+                "after attempt %d: %s",
+                retried.identifier,
+                retried.execution_id,
+                retried.next_attempt_at,
+                retried.attempts,
+                self._safe_error(error),
+            )
+            return retried
+        now = datetime.now(UTC)
+        succeeded = await self._publications.save_result_publication(
+            replace(
+                publication,
+                status=ViewerResultPublicationStatus.SUCCEEDED,
+                external_execution_id=identity.execution_id,
+                external_execution_key=identity.execution_key,
+                finished_at=now,
+                updated_at=now,
+                error=None,
+            )
+        )
+        logger.info(
+            "Viewer result publication '%s' for execution '%s' succeeded as external "
+            "execution '%s' ('%s').",
+            succeeded.identifier,
+            succeeded.execution_id,
+            succeeded.external_execution_id,
+            succeeded.external_execution_key,
+        )
+        return succeeded
+
+    async def _projection(
+        self, publication: ViewerResultPublication
+    ) -> ViewerExecutionResultProjection:
+        """Build a viewer-neutral projection from completed local execution data."""
+        execution = await self._executions.find_execution(publication.execution_id)
+        if execution is None:
+            raise PermanentViewerResultPublicationError(
+                f"Local execution '{publication.execution_id}' for Viewer result publication "
+                f"'{publication.identifier}' no longer exists."
+            )
+        if execution.status not in TERMINAL_EXECUTION_STATUSES:
+            raise RetryableViewerResultPublicationError(
+                f"Local execution '{execution.identifier}' is "
+                f"'{execution.status.value}' and has not reached a terminal state "
+                f"for Viewer result publication '{publication.identifier}'."
+            )
+        environment = await self._environments.find_by_id(execution.environment_id)
+        if environment is None:
+            raise PermanentViewerResultPublicationError(
+                f"Environment '{execution.environment_id}' for execution "
+                f"'{execution.identifier}' no longer exists."
+            )
+        external_test_plan_id = await self._test_plan_external_id(publication, execution)
+        results = await self._all_results(execution.identifier)
+        test_runs = []
+        for result in results:
+            test_runs.append(await self._test_run_projection(publication, execution, result))
+        return ViewerExecutionResultProjection(
+            publication=publication,
+            summary=f"Test Service execution {execution.identifier}",
+            environment_name=environment.name[:255],
+            external_test_plan_id=external_test_plan_id,
+            execution_status=execution.status,
+            test_runs=tuple(test_runs),
+        )
+
+    async def _test_plan_external_id(
+        self, publication: ViewerResultPublication, execution: Execution
+    ) -> str:
+        """Resolve the external identity of the Test Plan that originated an execution."""
+        test_plan = await self._test_plans.find_by_id(execution.test_plan_id)
+        if test_plan is None:
+            raise PermanentViewerResultPublicationError(
+                f"Test Plan snapshot '{execution.test_plan_id}' for execution "
+                f"'{execution.identifier}' no longer exists."
+            )
+        record = await self._viewer_records.find_sync_record(
+            execution.project_key,
+            ViewerEntityType.TEST_PLAN,
+            test_plan.logical_key,
+            test_plan.version,
+            publication.viewer_type,
+        )
+        if (
+            record is None
+            or record.sync_status is not SyncStatus.SYNCED
+            or not record.external_entity_id
+        ):
+            raise RetryableViewerResultPublicationError(
+                f"Viewer Test Plan identity is not synchronized for execution "
+                f"'{execution.identifier}', snapshot '{test_plan.identifier}' "
+                f"('{test_plan.logical_key}' version {test_plan.version}), project "
+                f"'{execution.project_key}', viewer '{publication.viewer_type.value}', "
+                f"and publication '{publication.identifier}'."
+            )
+        return record.external_entity_id
+
+    async def _all_results(self, execution_id) -> tuple:
+        """Load every persisted result for an execution through paginated queries."""
+        offset = 0
+        collected = []
+        while True:
+            page = await self._results.find_results_page(
+                execution_id, PaginationParams(offset=offset, limit=MAX_PAGE_LIMIT)
+            )
+            collected.extend(page.items)
+            offset += len(page.items)
+            if offset >= page.total:
+                return tuple(collected)
+
+    async def _test_run_projection(
+        self,
+        publication: ViewerResultPublication,
+        execution: Execution,
+        result,
+    ) -> ViewerTestRunProjection:
+        """Resolve a local result and its synced Test Case into a viewer test run."""
+        test_case = await self._test_cases.find_by_id(result.test_case_id)
+        if test_case is None:
+            raise PermanentViewerResultPublicationError(
+                f"Test Case snapshot '{result.test_case_id}' for Test Result "
+                f"'{result.identifier}' in execution '{execution.identifier}' no longer exists."
+            )
+        record = await self._viewer_records.find_sync_record(
+            execution.project_key,
+            ViewerEntityType.TEST_CASE,
+            test_case.logical_key,
+            test_case.version,
+            publication.viewer_type,
+        )
+        if (
+            record is None
+            or record.sync_status is not SyncStatus.SYNCED
+            or not record.external_entity_id
+        ):
+            raise RetryableViewerResultPublicationError(
+                f"Viewer Test Case identity is not synchronized for Test Result "
+                f"'{result.identifier}', snapshot '{test_case.identifier}' "
+                f"('{test_case.logical_key}' version {test_case.version}), project "
+                f"'{execution.project_key}', viewer '{publication.viewer_type.value}', "
+                f"and publication '{publication.identifier}'."
+            )
+        actions = await self._all_actions(result.identifier)
+        artifacts = await self._all_artifacts(result.identifier)
+        return ViewerTestRunProjection(
+            test_result_id=result.identifier,
+            external_test_id=record.external_entity_id,
+            status=result.status,
+            started_at=result.started_at,
+            finished_at=result.finished_at,
+            duration_ms=result.duration_ms,
+            comment=self._comment(result.error_code, result.error_message),
+            evidence=self._test_run_evidence(result.identifier, actions, artifacts),
+            steps=self._test_run_steps(test_case, actions, artifacts, result.identifier),
+        )
+
+    def _test_run_steps(
+        self, test_case, actions: tuple, artifacts: tuple, test_result_id
+    ) -> tuple[ViewerTestRunStepProjection, ...]:
+        """Project regular Test Case actions, leaving unexecuted steps as TODO."""
+        action_by_id = {
+            action.action_id: action
+            for action in actions
+            if not self._is_precondition_action(action)
+        }
+        artifacts_by_action_id: dict[object, list] = {}
+        for artifact in artifacts:
+            if artifact.action_result_id is not None:
+                artifacts_by_action_id.setdefault(artifact.action_result_id, []).append(artifact)
+        return tuple(
+            ViewerTestRunStepProjection(
+                action_id=definition_action.identifier,
+                action_type=definition_action.action_type,
+                status=(
+                    action_by_id[definition_action.identifier].status
+                    if definition_action.identifier in action_by_id
+                    else ResultStatus.SKIPPED
+                ),
+                evidence=self._action_evidence(
+                    test_result_id,
+                    (action_by_id[definition_action.identifier],)
+                    if definition_action.identifier in action_by_id
+                    else (),
+                    artifacts_by_action_id.get(
+                        action_by_id[definition_action.identifier].identifier, []
+                    )
+                    if definition_action.identifier in action_by_id
+                    else (),
+                    _MAX_EVIDENCE_PER_TEST_RUN_STEP,
+                ),
+            )
+            for definition_action in test_case.definition.actions
+        )
+
+    def _test_run_evidence(self, test_result_id, actions: tuple, artifacts: tuple):
+        """Keep global and precondition evidence at the Test Run."""
+        actions_by_identifier = {action.identifier: action for action in actions}
+        return self._action_evidence(
+            test_result_id,
+            tuple(action for action in actions if self._is_precondition_action(action)),
+            (
+                artifact
+                for artifact in artifacts
+                if artifact.action_result_id is None
+                or self._is_precondition_action(
+                    actions_by_identifier.get(artifact.action_result_id)
+                )
+                or artifact.action_result_id not in actions_by_identifier
+            ),
+            _MAX_EVIDENCE_PER_TEST_RUN,
+        )
+
+    def _action_evidence(self, test_result_id, actions, artifacts, maximum: int):
+        """Combine safe action actual values with persisted diagnostic artifacts."""
+        evidence = list(self._actual_evidence(test_result_id, actions))
+        if len(evidence) >= maximum:
+            return tuple(evidence[:maximum])
+        evidence.extend(self._evidence(test_result_id, artifacts, maximum - len(evidence)))
+        return tuple(evidence)
+
+    def _actual_evidence(self, test_result_id, actions) -> tuple[ViewerEvidenceProjection, ...]:
+        """Project each action's safe actual value as a structured evidence attachment."""
+        evidence = []
+        for action in actions:
+            if action.actual is None or action.action_type == "PRECONDITION":
+                continue
+            content = json.dumps(
+                {
+                    "action": {
+                        "id": action.action_id,
+                        "type": action.action_type,
+                        "status": action.status.value,
+                    },
+                    "actual": self._redact_actual(action.actual),
+                },
+                ensure_ascii=True,
+                sort_keys=True,
+                default=str,
+            )
+            evidence.append(
+                ViewerEvidenceProjection(
+                    filename=(
+                        f"test-result-{test_result_id}-"
+                        f"{self._evidence_filename_component(action.action_id, 'action')}-"
+                        f"{self._evidence_filename_component(action.action_type, 'action')}-"
+                        "actual.json"
+                    ),
+                    mime_type="application/json",
+                    content=self._safe_text(content, _MAX_EVIDENCE_CONTENT_LENGTH),
+                )
+            )
+        return tuple(evidence)
+
+    @staticmethod
+    def _evidence_filename_component(value: str, fallback: str) -> str:
+        """Return a filename-safe, recognizable fragment for action metadata."""
+        normalized = re.sub(r"[^A-Za-z0-9._-]+", "-", value).strip(".-_")
+        return normalized[:80] or fallback
+
+    @classmethod
+    def _redact_actual(cls, value):
+        """Redact sensitive values in structured action output before serialization."""
+        if isinstance(value, Mapping):
+            return {
+                str(key): "[REDACTED]"
+                if _SENSITIVE_FIELD.search(str(key))
+                else cls._redact_actual(item)
+                for key, item in value.items()
+            }
+        if isinstance(value, list | tuple):
+            return [cls._redact_actual(item) for item in value]
+        return value
+
+    @staticmethod
+    def _is_precondition_action(action) -> bool:
+        """Return whether an action was emitted while executing a precondition."""
+        return action is not None and (
+            action.action_type == "PRECONDITION" or action.action_id.startswith("precondition:")
+        )
+
+    def _evidence(
+        self, test_result_id, artifacts, maximum: int
+    ) -> tuple[ViewerEvidenceProjection, ...]:
+        """Project bounded database log artifacts as safe inline viewer evidence."""
+        evidence = []
+        for artifact in artifacts:
+            if (
+                artifact.artifact_type is not ArtifactType.LOG
+                or artifact.storage_type is not StorageType.DB
+                or not artifact.content
+            ):
+                continue
+            evidence.append(
+                ViewerEvidenceProjection(
+                    filename=f"test-result-{test_result_id}-artifact-{artifact.identifier}.log",
+                    mime_type="text/plain",
+                    content=self._safe_text(artifact.content, _MAX_EVIDENCE_CONTENT_LENGTH),
+                )
+            )
+            if len(evidence) == maximum:
+                break
+        return tuple(evidence)
+
+    async def _all_actions(self, test_result_id) -> tuple:
+        """Load every persisted action for one test result through paginated queries."""
+        offset = 0
+        collected = []
+        while True:
+            page = await self._results.find_actions_page(
+                test_result_id, PaginationParams(offset=offset, limit=MAX_PAGE_LIMIT)
+            )
+            collected.extend(page.items)
+            offset += len(page.items)
+            if offset >= page.total:
+                return tuple(collected)
+
+    async def _all_artifacts(self, test_result_id) -> tuple:
+        """Load every persisted artifact for one test result through paginated queries."""
+        offset = 0
+        collected = []
+        while True:
+            page = await self._results.find_artifacts_page(
+                test_result_id, PaginationParams(offset=offset, limit=MAX_PAGE_LIMIT)
+            )
+            collected.extend(page.items)
+            offset += len(page.items)
+            if offset >= page.total:
+                return tuple(collected)
+
+    async def _retry(
+        self, publication: ViewerResultPublication, error: Exception
+    ) -> ViewerResultPublication:
+        """Defer a failed publication using bounded exponential backoff."""
+        delay = min(
+            self._settings.result_retry_backoff_seconds * 2 ** (publication.attempts - 1),
+            self._settings.result_retry_max_seconds,
+        )
+        now = datetime.now(UTC)
+        return await self._publications.save_result_publication(
+            replace(
+                publication,
+                status=ViewerResultPublicationStatus.RETRY_WAIT,
+                next_attempt_at=now + timedelta(seconds=delay),
+                updated_at=now,
+                error=self._publication_error(publication, error),
+            )
+        )
+
+    async def _fail_permanently(
+        self, publication: ViewerResultPublication, error: Exception
+    ) -> ViewerResultPublication:
+        """Mark an unrecoverable publication failure as terminal."""
+        now = datetime.now(UTC)
+        return await self._publications.save_result_publication(
+            replace(
+                publication,
+                status=ViewerResultPublicationStatus.FAILED_PERMANENT,
+                finished_at=now,
+                updated_at=now,
+                error=self._publication_error(publication, error),
+            )
+        )
+
+    @staticmethod
+    def _comment(error_code: str | None, error_message: str | None) -> str | None:
+        """Format and redact optional local error details for viewer publication."""
+        values = [value for value in (error_code, error_message) if value]
+        if not values:
+            return None
+        return ViewerResultPublicationService._safe_text(": ".join(values))
+
+    @staticmethod
+    def _safe_error(error: Exception) -> str:
+        """Return a bounded, redacted representation of an exception."""
+        return ViewerResultPublicationService._safe_text(str(error) or type(error).__name__)
+
+    @staticmethod
+    def _publication_error(publication: ViewerResultPublication, error: Exception) -> str:
+        """Return a redacted failure message with durable publication correlation."""
+        return ViewerResultPublicationService._safe_text(
+            f"Viewer result publication '{publication.identifier}' for execution "
+            f"'{publication.execution_id}' failed: {str(error) or type(error).__name__}"
+        )
+
+    @staticmethod
+    def _safe_text(value: str, max_length: int = _MAX_COMMENT_LENGTH) -> str:
+        """Redact sensitive key-value pairs and cap viewer-facing text length."""
+        return _SENSITIVE_VALUE.sub(r"\1\2[REDACTED]", value)[:max_length]

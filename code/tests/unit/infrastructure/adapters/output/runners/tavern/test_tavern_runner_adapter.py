@@ -7,6 +7,7 @@ from test_service.domain.model.execution.execution import ResultStatus
 from test_service.domain.ports.output.runners.runner_dtos import (
     CompiledAction,
     CompiledTestCase,
+    ExecutionSubjectType,
     RunnerActionOutcome,
 )
 from test_service.infrastructure.adapters.output.runners.tavern.dtos.tavern_dtos import (
@@ -209,7 +210,12 @@ class TestTavernRunnerAdapter:
         self, caplog: pytest.LogCaptureFixture
     ) -> None:
         adapter = TavernRunnerAdapter(_Compiler(), _Executor(), _ResultMapper())
-        test_case = CompiledTestCase("case-id", {}, (CompiledAction("first", "HTTP", 0, {}),))
+        test_case = CompiledTestCase(
+            "precondition-id",
+            {},
+            (CompiledAction("proxyReadiness", "HTTP", 0, {}),),
+            ExecutionSubjectType.PRECONDITION,
+        )
 
         outcome = await adapter.execute(test_case, asyncio.Event())
 
@@ -220,9 +226,9 @@ class TestTavernRunnerAdapter:
         )
         assert outcome.started_at.tzinfo is UTC
         assert outcome.finished_at.tzinfo is UTC
-        assert outcome.actions[0].action_id == "first"
+        assert outcome.actions[0].action_id == "proxyReadiness"
         assert outcome.actions[0].action_type == "HTTP"
-        assert "test case 'case-id' stopped at action 'first'" in caplog.text
+        assert "precondition 'precondition-id' stopped at action 'proxyReadiness'" in caplog.text
         assert "TAVERN_PROCESS_FAILED" in caplog.text
         assert "Tavern process exited with code 2" in caplog.text
 

@@ -3,7 +3,8 @@
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import asc, desc, func, or_, select
+from sqlalchemy import and_, asc, desc, func, or_, select, update
+from sqlalchemy.dialects.postgresql import insert
 
 from test_service.config import ViewerSettings
 from test_service.domain.application.queries.pagination import Page, PaginationParams, SortOrder
@@ -11,10 +12,14 @@ from test_service.domain.model.viewer.records import ViewerEntityType, ViewerTyp
 from test_service.infrastructure.adapters.output.commons.persistence.postgres.postgres_session_provider import (  # noqa: E501
     PostgresSessionProvider,
 )
+from test_service.infrastructure.adapters.output.execution.executions.persistence.dtos.execution_dto import (  # noqa: E501
+    ExecutionDTO,
+)
 from test_service.infrastructure.adapters.output.viewer.persistence.dtos.viewer_dtos import (
     DriftEventDTO,
     ViewerOperationDTO,
     ViewerOperationItemDTO,
+    ViewerResultPublicationDTO,
     ViewerSyncRecordDTO,
 )
 
@@ -168,6 +173,125 @@ class ViewerRepository:
             await session.commit()
             await session.refresh(persisted)
             return persisted
+
+    async def enqueue_result_publication(
+        self, publication: ViewerResultPublicationDTO
+    ) -> ViewerResultPublicationDTO:
+        async with self._session_provider.session() as session:
+            values = {
+                column.key: getattr(publication, column.key)
+                for column in ViewerResultPublicationDTO.__table__.columns
+            }
+            await session.execute(
+                insert(ViewerResultPublicationDTO)
+                .values(**values)
+                .on_conflict_do_nothing(constraint="uq_viewer_result_execution")
+            )
+            persisted = await session.scalar(
+                select(ViewerResultPublicationDTO).where(
+                    (ViewerResultPublicationDTO.execution_id == publication.execution_id)
+                    & (ViewerResultPublicationDTO.viewer_type == publication.viewer_type)
+                )
+            )
+            if persisted is None:
+                raise RuntimeError("result publication was not persisted")
+            await session.commit()
+            await session.refresh(persisted)
+            return persisted
+
+    async def transition_execution_and_enqueue_result_publication(
+        self,
+        execution: ExecutionDTO,
+        expected_statuses: tuple[str, ...],
+        publication: ViewerResultPublicationDTO,
+    ) -> ExecutionDTO | None:
+        """Atomically persist terminal execution state and its publication outbox record."""
+        async with self._session_provider.session() as session:
+            result = await session.execute(
+                update(ExecutionDTO)
+                .where(
+                    (ExecutionDTO.id == execution.id) & (ExecutionDTO.status.in_(expected_statuses))
+                )
+                .values(
+                    status=execution.status,
+                    finished_at=execution.finished_at,
+                    duration_ms=execution.duration_ms,
+                )
+                .returning(ExecutionDTO)
+            )
+            transitioned = result.scalar_one_or_none()
+            if transitioned is None:
+                return await session.get(ExecutionDTO, execution.id)
+            values = {
+                column.key: getattr(publication, column.key)
+                for column in ViewerResultPublicationDTO.__table__.columns
+            }
+            await session.execute(
+                insert(ViewerResultPublicationDTO)
+                .values(**values)
+                .on_conflict_do_nothing(constraint="uq_viewer_result_execution")
+            )
+            await session.commit()
+            return transitioned
+
+    async def claim_next_result_publication(self) -> ViewerResultPublicationDTO | None:
+        now = datetime.now(UTC)
+        stale_before = now - timedelta(seconds=self._settings.operation_recovery_timeout_seconds)
+        async with self._session_provider.session() as session:
+            statement = (
+                select(ViewerResultPublicationDTO)
+                .where(
+                    or_(
+                        ViewerResultPublicationDTO.status == "PENDING",
+                        and_(
+                            ViewerResultPublicationDTO.status == "RETRY_WAIT",
+                            ViewerResultPublicationDTO.next_attempt_at <= now,
+                        ),
+                        and_(
+                            ViewerResultPublicationDTO.status == "RUNNING",
+                            ViewerResultPublicationDTO.started_at < stale_before,
+                        ),
+                    )
+                )
+                .order_by(
+                    asc(ViewerResultPublicationDTO.next_attempt_at),
+                    asc(ViewerResultPublicationDTO.created_at),
+                    asc(ViewerResultPublicationDTO.id),
+                )
+                .with_for_update(skip_locked=True)
+                .limit(1)
+            )
+            publication = (await session.execute(statement)).scalar_one_or_none()
+            if publication is None:
+                return None
+            publication.status = "RUNNING"
+            publication.attempts += 1
+            publication.started_at = now
+            publication.next_attempt_at = None
+            publication.updated_at = now
+            await session.commit()
+            await session.refresh(publication)
+            return publication
+
+    async def save_result_publication(
+        self, publication: ViewerResultPublicationDTO
+    ) -> ViewerResultPublicationDTO:
+        async with self._session_provider.session() as session:
+            persisted = await session.merge(publication)
+            await session.commit()
+            await session.refresh(persisted)
+            return persisted
+
+    async def find_result_publication(
+        self, execution_id: UUID, viewer_type: str
+    ) -> ViewerResultPublicationDTO | None:
+        async with self._session_provider.session() as session:
+            return await session.scalar(
+                select(ViewerResultPublicationDTO).where(
+                    (ViewerResultPublicationDTO.execution_id == execution_id)
+                    & (ViewerResultPublicationDTO.viewer_type == viewer_type)
+                )
+            )
 
     async def find_sync_records_page(
         self, pagination: PaginationParams, viewer_type: ViewerType | None = None

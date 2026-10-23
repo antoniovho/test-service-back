@@ -5,11 +5,24 @@ import base64
 import json
 import re
 from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 import httpx
 
 from test_service.config import XraySettings
+from test_service.domain.model.exceptions.error_origin_enum import ErrorOrigin
+from test_service.domain.model.exceptions.permanent_viewer_result_publication_exception import (
+    PermanentViewerResultPublicationError,
+)
+from test_service.domain.model.exceptions.retryable_viewer_result_publication_exception import (
+    RetryableViewerResultPublicationError,
+)
+from test_service.domain.model.execution.execution import ExecutionStatus
+from test_service.domain.model.viewer.execution_result_projection import (
+    ViewerExecutionResultIdentity,
+    ViewerExecutionResultProjection,
+)
 from test_service.domain.model.viewer.managed_state import ViewerManagedState
 from test_service.domain.model.viewer.projection import (
     ViewerExternalIdentity,
@@ -20,11 +33,15 @@ from test_service.domain.model.viewer.records import (
     DriftObservation,
     DriftType,
     ViewerEntityType,
+    ViewerType,
 )
 from test_service.domain.ports.output.viewer.viewer_drift_detector_port import (
     ViewerDriftDetectorPort,
 )
 from test_service.domain.ports.output.viewer.viewer_publisher_port import ViewerPublisherPort
+from test_service.domain.ports.output.viewer.viewer_result_publisher_port import (
+    ViewerResultPublisherPort,
+)
 from test_service.infrastructure.adapters.output.viewer.xray_exceptions import (
     XrayAuthenticationError,
     XrayAuthorizationError,
@@ -32,6 +49,9 @@ from test_service.infrastructure.adapters.output.viewer.xray_exceptions import (
     XrayProviderError,
     XrayTransportError,
     XrayValidationError,
+)
+from test_service.infrastructure.adapters.output.viewer.xray_result_status_mapper import (
+    XrayResultStatusMapper,
 )
 
 _TRANSIENT_STATUS_CODES = frozenset({429, 502, 503, 504})
@@ -41,10 +61,30 @@ _SENSITIVE_GRAPHQL_VALUE = re.compile(
 )
 
 
-class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort):
+@dataclass(frozen=True, slots=True)
+class _XrayTestRunStep:
+    """Stable remote Xray Test Run Step identity and action descriptor."""
+
+    identifier: str
+    action: str
+
+
+@dataclass(frozen=True, slots=True)
+class _XrayTestRun:
+    """Stable remote Xray Test Run identity and its authored steps."""
+
+    identifier: str
+    steps: tuple[_XrayTestRunStep, ...]
+
+
+class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort, ViewerResultPublisherPort):
     """Publish Viewer projections through Xray Cloud's authenticated GraphQL API."""
 
-    def __init__(self, settings: XraySettings, client: httpx.AsyncClient | None = None) -> None:
+    def __init__(
+        self,
+        settings: XraySettings,
+        client: httpx.AsyncClient | None = None,
+    ) -> None:
         self._settings = settings
         self._client = client
         self._access_token: str | None = None
@@ -52,6 +92,11 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort):
         self._authentication_lock = asyncio.Lock()
         self._rate_limit_lock = asyncio.Lock()
         self._next_request_at = 0.0
+
+    @property
+    def viewer_type(self) -> ViewerType:
+        """Identify Xray as the external viewer implemented by this adapter."""
+        return ViewerType.XRAY
 
     async def publish(self, projection: ViewerProjection) -> ViewerExternalIdentity:
         """Create or refresh the Xray entity represented by a canonical projection."""
@@ -80,6 +125,280 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort):
         if differences:
             return DriftObservation(DriftType.MODIFIED, {"fields": differences})
         return None
+
+    async def publish_execution_result(
+        self, projection: ViewerExecutionResultProjection
+    ) -> ViewerExecutionResultIdentity:
+        """Create or reuse one Xray Test Execution and update its Test Runs."""
+        try:
+            execution = await self._execution_identity(projection)
+            await self._associate_test_execution_with_plan(
+                execution.external_id, projection.external_test_plan_id
+            )
+            test_runs_by_test_id = await self._test_runs(
+                execution.external_id,
+                tuple(test_run.external_test_id for test_run in projection.test_runs),
+            )
+            for test_run in projection.test_runs:
+                remote_test_run = test_runs_by_test_id.get(test_run.external_test_id)
+                if remote_test_run is None:
+                    raise XrayProtocolError(
+                        "Xray did not create a Test Run for a synchronized Test."
+                    )
+                await self._update_test_run(remote_test_run, test_run, projection.execution_status)
+            return ViewerExecutionResultIdentity(
+                execution_id=execution.external_id,
+                execution_key=execution.external_key,
+                test_run_ids={
+                    test_run.test_result_id: test_runs_by_test_id[
+                        test_run.external_test_id
+                    ].identifier
+                    for test_run in projection.test_runs
+                },
+            )
+        except XrayTransportError as error:
+            raise RetryableViewerResultPublicationError(
+                "Xray result publication could not be completed.",
+                origin=ErrorOrigin.PROVIDER,
+                provider_name="Xray",
+            ) from error
+        except XrayProviderError as error:
+            raise PermanentViewerResultPublicationError(
+                self._redact_graphql_message(str(error)) or "Xray rejected the result publication.",
+                origin=ErrorOrigin.PROVIDER,
+                provider_name="Xray",
+            ) from error
+
+    async def _execution_identity(
+        self, projection: ViewerExecutionResultProjection
+    ) -> ViewerExternalIdentity:
+        publication = projection.publication
+        if publication.external_execution_id and publication.external_execution_key:
+            return ViewerExternalIdentity(
+                publication.external_execution_id,
+                publication.external_execution_key,
+            )
+        existing = await self._find_execution_by_correlation(
+            publication.project_key, publication.correlation_key
+        )
+        if existing is not None:
+            return existing
+        variables = {
+            "testIssueIds": [test_run.external_test_id for test_run in projection.test_runs],
+            "testEnvironments": [self._test_environment_name(projection.environment_name)],
+            "jira": self._jira_input(
+                publication.project_key,
+                projection.summary,
+                self._execution_description(projection),
+                (publication.correlation_key,),
+            ),
+        }
+        payload = await self._graphql(self._CREATE_TEST_EXECUTION, variables)
+        return self._identity(payload, "createTestExecution", "testExecution")
+
+    @staticmethod
+    def _test_environment_name(environment_name: str) -> str:
+        """Convert a local environment name to Xray's Test Environment format."""
+        normalized = re.sub(r"[^A-Za-z0-9._-]+", "-", environment_name).strip("-_")
+        return normalized[:120] or "test-service"
+
+    @staticmethod
+    def _execution_description(projection: ViewerExecutionResultProjection) -> str:
+        """Provide safe execution context in the Jira Test Execution description."""
+        return "\n".join(
+            (
+                "Automated Test Service execution.",
+                f"Execution ID: {projection.publication.execution_id}",
+                f"Final status: {projection.execution_status.value}",
+                f"Environment: {projection.environment_name}",
+                f"Test runs: {len(projection.test_runs)}",
+            )
+        )
+
+    async def _associate_test_execution_with_plan(
+        self, test_execution_id: str, test_plan_id: str
+    ) -> None:
+        """Associate one Xray Test Execution with its originating Test Plan."""
+        await self._graphql(
+            self._ADD_TEST_EXECUTION_TO_TEST_PLAN,
+            {"issueId": test_plan_id, "testExecIssueIds": [test_execution_id]},
+        )
+
+    async def _find_execution_by_correlation(
+        self, project_key: str, correlation_key: str
+    ) -> ViewerExternalIdentity | None:
+        payload = await self._graphql(
+            self._GET_TEST_EXECUTIONS,
+            {"jql": f'project = "{project_key}" AND labels = "{correlation_key}"', "limit": 1},
+        )
+        response = payload.get("getTestExecutions")
+        if not isinstance(response, Mapping):
+            raise XrayProtocolError("Xray Test Execution query does not contain a response.")
+        results = response.get("results")
+        if not isinstance(results, list):
+            raise XrayProtocolError("Xray Test Execution query does not contain results.")
+        if not results:
+            return None
+        return self._execution_identity_from_result(results[0])
+
+    async def _test_runs(
+        self, execution_id: str, test_issue_ids: tuple[str, ...]
+    ) -> dict[str, _XrayTestRun]:
+        payload = await self._graphql(
+            self._GET_TEST_RUNS,
+            {
+                "testExecIssueIds": [execution_id],
+                "testIssueIds": list(test_issue_ids),
+                "limit": len(test_issue_ids),
+            },
+        )
+        response = payload.get("getTestRuns")
+        if not isinstance(response, Mapping):
+            raise XrayProtocolError("Xray Test Run query does not contain a response.")
+        results = response.get("results")
+        if not isinstance(results, list):
+            raise XrayProtocolError("Xray Test Run query does not contain results.")
+        test_runs_by_test_id: dict[str, _XrayTestRun] = {}
+        for result in results:
+            issue_id, test_run = self._test_run_from_result(result)
+            test_runs_by_test_id[issue_id] = test_run
+        return test_runs_by_test_id
+
+    @classmethod
+    def _test_run_from_result(cls, result: object) -> tuple[str, _XrayTestRun]:
+        """Parse one Xray Test Run and its stable authored step identities."""
+        if not isinstance(result, Mapping):
+            raise XrayProtocolError("Xray Test Run query returned an invalid Test Run.")
+        identifier = result.get("id")
+        test = result.get("test")
+        issue_id = test.get("issueId") if isinstance(test, Mapping) else None
+        if not isinstance(identifier, str) or not isinstance(issue_id, str):
+            raise XrayProtocolError("Xray Test Run query returned an invalid identity.")
+        steps = result.get("steps")
+        if not isinstance(steps, list):
+            raise XrayProtocolError("Xray Test Run query returned invalid steps.")
+        return issue_id, _XrayTestRun(
+            identifier,
+            tuple(cls._test_run_step_from_result(step) for step in steps),
+        )
+
+    @staticmethod
+    def _test_run_step_from_result(result: object) -> _XrayTestRunStep:
+        """Parse one Xray Test Run Step identity and action descriptor."""
+        if not isinstance(result, Mapping):
+            raise XrayProtocolError("Xray Test Run query returned an invalid Test Run Step.")
+        identifier = result.get("id")
+        action = result.get("action")
+        if not isinstance(identifier, str) or not isinstance(action, str):
+            raise XrayProtocolError("Xray Test Run query returned an invalid Test Run Step.")
+        return _XrayTestRunStep(identifier, action)
+
+    async def _update_test_run(
+        self, remote_test_run: _XrayTestRun, test_run, execution_status: ExecutionStatus
+    ) -> None:
+        comment = (
+            self._test_run_comment(test_run.comment, test_run.duration_ms)
+            if test_run.comment
+            else None
+        )
+        if test_run.evidence:
+            await self._graphql(
+                self._ADD_EVIDENCE_TO_TEST_RUN,
+                {
+                    "id": remote_test_run.identifier,
+                    "evidence": [
+                        {
+                            "filename": evidence.filename,
+                            "mimeType": evidence.mime_type,
+                            "data": base64.b64encode(evidence.content.encode()).decode("ascii"),
+                        }
+                        for evidence in test_run.evidence
+                    ],
+                },
+            )
+        await self._update_test_run_steps(remote_test_run, test_run)
+        await self._graphql(
+            self._UPDATE_TEST_RUN_STATUS,
+            {
+                "id": remote_test_run.identifier,
+                "status": XrayResultStatusMapper.to_test_run_status(
+                    test_run.status, execution_status
+                ),
+            },
+        )
+        await self._graphql(
+            self._UPDATE_TEST_RUN_DETAILS,
+            {
+                "id": remote_test_run.identifier,
+                "comment": comment,
+                "startedOn": self._xray_timestamp(test_run.started_at),
+                "finishedOn": self._xray_timestamp(test_run.finished_at),
+            },
+        )
+
+    async def _update_test_run_steps(self, remote_test_run: _XrayTestRun, test_run) -> None:
+        """Update the exact remote steps represented by persisted local actions."""
+        expected_actions = {
+            f"{step.action_id}: {step.action_type}": step for step in test_run.steps
+        }
+        remote_steps_by_action = {step.action: step for step in remote_test_run.steps}
+        if (
+            len(remote_steps_by_action) != len(remote_test_run.steps)
+            or len(expected_actions) != len(test_run.steps)
+            or set(remote_steps_by_action) != set(expected_actions)
+        ):
+            raise XrayProtocolError(
+                "Xray Test Run steps do not match the synchronized Test Case actions."
+            )
+        for action, step in expected_actions.items():
+            remote_step = remote_steps_by_action[action]
+            await self._graphql(
+                self._UPDATE_TEST_RUN_STEP_STATUS,
+                {
+                    "testRunId": remote_test_run.identifier,
+                    "stepId": remote_step.identifier,
+                    "status": XrayResultStatusMapper.to_test_run_step_status(step.status),
+                },
+            )
+            if step.evidence:
+                await self._graphql(
+                    self._ADD_EVIDENCE_TO_TEST_RUN_STEP,
+                    {
+                        "testRunId": remote_test_run.identifier,
+                        "stepId": remote_step.identifier,
+                        "evidence": [
+                            {
+                                "filename": evidence.filename,
+                                "mimeType": evidence.mime_type,
+                                "data": base64.b64encode(evidence.content.encode()).decode("ascii"),
+                            }
+                            for evidence in step.evidence
+                        ],
+                    },
+                )
+
+    @staticmethod
+    def _xray_timestamp(value: datetime | None) -> str | None:
+        """Format an instant using the UTC representation required by Xray."""
+        return value.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ") if value else None
+
+    @staticmethod
+    def _test_run_comment(comment: str | None, duration_ms: int | None) -> str:
+        duration = (
+            f"Duration: {duration_ms} ms" if duration_ms is not None else "Duration: unavailable"
+        )
+        return f"{duration}\n{comment}"[:1000] if comment else duration
+
+    @staticmethod
+    def _execution_identity_from_result(result: object) -> ViewerExternalIdentity:
+        if not isinstance(result, Mapping):
+            raise XrayProtocolError("Xray Test Execution query returned an invalid entity.")
+        issue_id = result.get("issueId")
+        jira = result.get("jira")
+        key = jira.get("key") if isinstance(jira, Mapping) else None
+        if not isinstance(issue_id, str) or not isinstance(key, str):
+            raise XrayProtocolError("Xray Test Execution query returned an invalid identity.")
+        return ViewerExternalIdentity(issue_id, key)
 
     async def _create_projection(self, projection: ViewerProjection) -> ViewerExternalIdentity:
         record = projection.record
@@ -592,6 +911,77 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort):
           }
         }
     """
+    _CREATE_TEST_EXECUTION = """
+                mutation CreateTestExecution($testIssueIds: [String!], $testEnvironments: [String!],
+                        $jira: JSON!) {
+                        createTestExecution(testIssueIds: $testIssueIds,
+                            testEnvironments: $testEnvironments, jira: $jira) {
+                        testExecution { issueId jira(fields: [\"key\"]) }
+                    }
+                }
+        """
+    _ADD_TEST_EXECUTION_TO_TEST_PLAN = """
+        mutation AddTestExecutionsToTestPlan($issueId: String!,
+                        $testExecIssueIds: [String!]!) {
+          addTestExecutionsToTestPlan(
+                            issueId: $issueId, testExecIssueIds: $testExecIssueIds) {
+            addedTestExecutions
+            warning
+          }
+        }
+    """
+    _GET_TEST_EXECUTIONS = """
+                query GetTestExecutions($jql: String!, $limit: Int!) {
+                    getTestExecutions(jql: $jql, limit: $limit) {
+                        results { issueId jira(fields: [\"key\"]) }
+                    }
+                }
+        """
+    _GET_TEST_RUNS = """
+                query GetTestRuns($testExecIssueIds: [String!], $testIssueIds: [String!],
+                        $limit: Int!) {
+                    getTestRuns(testExecIssueIds: $testExecIssueIds,
+                            testIssueIds: $testIssueIds, limit: $limit) {
+                        results { id test { issueId } steps { id action } }
+                    }
+                }
+        """
+    _UPDATE_TEST_RUN_STATUS = """
+                mutation UpdateTestRunStatus($id: String!, $status: String!) {
+                    updateTestRunStatus(id: $id, status: $status)
+                }
+        """
+    _UPDATE_TEST_RUN_DETAILS = """
+        mutation UpdateTestRun($id: String!, $comment: String, $startedOn: String,
+            $finishedOn: String) {
+            updateTestRun(id: $id, comment: $comment, startedOn: $startedOn,
+                finishedOn: $finishedOn) { warnings }
+        }
+    """
+    _ADD_EVIDENCE_TO_TEST_RUN = """
+        mutation AddEvidenceToTestRun($id: String!, $evidence: [AttachmentDataInput]!) {
+          addEvidenceToTestRun(id: $id, evidence: $evidence) { addedEvidence }
+        }
+    """
+    _UPDATE_TEST_RUN_STEP_STATUS = """
+                mutation UpdateTestRunStepStatus($testRunId: String!, $stepId: String!,
+                        $status: String!) {
+                    updateTestRunStepStatus(testRunId: $testRunId, stepId: $stepId,
+                            status: $status) {
+                        warnings
+                    }
+                }
+        """
+    _ADD_EVIDENCE_TO_TEST_RUN_STEP = """
+                mutation AddEvidenceToTestRunStep($testRunId: String!, $stepId: String!,
+                        $evidence: [AttachmentDataInput]) {
+          addEvidenceToTestRunStep(testRunId: $testRunId, stepId: $stepId,
+              evidence: $evidence) {
+                        addedEvidence
+                        warnings
+                    }
+                }
+        """
     _CREATE_PRECONDITION = """
             mutation CreatePrecondition($preconditionType: UpdatePreconditionTypeInput,
                 $definition: String, $jira: JSON!) {

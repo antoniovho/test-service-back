@@ -10,6 +10,17 @@ import pytest
 from pydantic import SecretStr
 
 from test_service.config import XraySettings
+from test_service.domain.model.execution.execution import ExecutionStatus, ResultStatus
+from test_service.domain.model.viewer.execution_result_projection import (
+    ViewerEvidenceProjection,
+    ViewerExecutionResultProjection,
+    ViewerTestRunProjection,
+    ViewerTestRunStepProjection,
+)
+from test_service.domain.model.viewer.execution_results import (
+    ViewerResultPublication,
+    ViewerResultPublicationStatus,
+)
 from test_service.domain.model.viewer.projection import (
     ViewerExternalIdentity,
     ViewerProjection,
@@ -133,6 +144,403 @@ class TestXrayViewerAdapter:
         assert "warning" in add_request.content.decode()
         assert "client-secret" not in requests[1].content.decode()
 
+    @pytest.mark.parametrize(
+        ("execution_status", "result_status", "expected_xray_status"),
+        [
+            (ExecutionStatus.FAILED, ResultStatus.FAILED, "FAILED"),
+            (ExecutionStatus.FAILED, ResultStatus.BLOCKED, "BLOCKED"),
+            (ExecutionStatus.CANCELLED, ResultStatus.SKIPPED, "TO DO"),
+        ],
+        ids=["failed", "blocked", "cancelled_skipped"],
+    )
+    async def test_when_publishing_result_expect_test_execution_and_test_run_updated(
+        self,
+        settings: XraySettings,
+        execution_status: ExecutionStatus,
+        result_status: ResultStatus,
+        expected_xray_status: str,
+    ) -> None:
+        requests: list[httpx.Request] = []
+        test_result_id = uuid4()
+        publication = ViewerResultPublication(
+            identifier=uuid4(),
+            project_key="SHOP",
+            execution_id=uuid4(),
+            viewer_type=ViewerType.XRAY,
+            status=ViewerResultPublicationStatus.RUNNING,
+            attempts=1,
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
+            updated_at=datetime(2026, 1, 1, tzinfo=UTC),
+        )
+        projection = ViewerExecutionResultProjection(
+            publication=publication,
+            summary="Test Service execution",
+            environment_name="AI LLM Back DEV · LiteLLM v1.106.1",
+            external_test_plan_id="10003",
+            execution_status=execution_status,
+            test_runs=(
+                ViewerTestRunProjection(
+                    test_result_id=test_result_id,
+                    external_test_id="10001",
+                    status=result_status,
+                    started_at=datetime(2026, 1, 1, 10, tzinfo=UTC),
+                    finished_at=datetime(2026, 1, 1, 10, 0, 1, tzinfo=UTC),
+                    duration_ms=1_000,
+                    comment="HTTP_ASSERTION_FAILED: response did not match",
+                    evidence=(
+                        ViewerEvidenceProjection(
+                            filename="request-trace.log",
+                            mime_type="text/plain",
+                            content="sanitized trace",
+                        ),
+                    ),
+                    steps=(
+                        ViewerTestRunStepProjection(
+                            action_id="submit",
+                            action_type="HTTP",
+                            status=result_status,
+                            evidence=(
+                                ViewerEvidenceProjection(
+                                    filename="submit-trace.log",
+                                    mime_type="text/plain",
+                                    content="sanitized submit trace",
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            if request.url.path == "/auth":
+                return httpx.Response(200, json="xray-token")
+            body = json.loads(request.content)
+            query = body["query"]
+            if "GetTestExecutions" in query:
+                return httpx.Response(200, json={"data": {"getTestExecutions": {"results": []}}})
+            if "CreateTestExecution" in query:
+                return httpx.Response(
+                    200,
+                    json={
+                        "data": {
+                            "createTestExecution": {
+                                "testExecution": {
+                                    "issueId": "20001",
+                                    "jira": {"key": "SHOP-20"},
+                                }
+                            }
+                        }
+                    },
+                )
+            if "GetTestRuns" in query:
+                return httpx.Response(
+                    200,
+                    json={
+                        "data": {
+                            "getTestRuns": {
+                                "results": [
+                                    {
+                                        "id": "30001",
+                                        "test": {"issueId": "10001"},
+                                        "steps": [{"id": "40001", "action": "submit: HTTP"}],
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                )
+            if "AddTestExecutionsToTestPlan" in query:
+                return httpx.Response(
+                    200,
+                    json={
+                        "data": {
+                            "addTestExecutionsToTestPlan": {
+                                "addedTestExecutions": ["20001"],
+                                "warning": None,
+                            }
+                        }
+                    },
+                )
+            return httpx.Response(200, json={"data": {"updateTestRun": {"warnings": []}}})
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            identity = await XrayViewerAdapter(settings, client).publish_execution_result(
+                projection
+            )
+
+        payloads = [
+            json.loads(request.content) for request in requests if request.url.path == "/graphql"
+        ]
+        create_payload = next(item for item in payloads if "CreateTestExecution" in item["query"])
+        association_payload = next(
+            item for item in payloads if "AddTestExecutionsToTestPlan" in item["query"]
+        )
+        test_runs_payload = next(item for item in payloads if "GetTestRuns" in item["query"])
+        status_payload = next(item for item in payloads if "UpdateTestRunStatus" in item["query"])
+        update_payload = next(
+            item for item in payloads if "mutation UpdateTestRun(" in item["query"]
+        )
+        step_status_payload = next(
+            item for item in payloads if "UpdateTestRunStepStatus" in item["query"]
+        )
+        evidence_payload = next(
+            item for item in payloads if "AddEvidenceToTestRun" in item["query"]
+        )
+        step_evidence_payload = next(
+            item for item in payloads if "AddEvidenceToTestRunStep" in item["query"]
+        )
+        assert identity.execution_id == "20001"
+        assert identity.execution_key == "SHOP-20"
+        assert identity.test_run_ids == {test_result_id: "30001"}
+        assert create_payload["variables"]["testIssueIds"] == ["10001"]
+        assert create_payload["variables"]["testEnvironments"] == [
+            "AI-LLM-Back-DEV-LiteLLM-v1.106.1"
+        ]
+        assert create_payload["variables"]["jira"]["fields"]["labels"] == [
+            publication.correlation_key
+        ]
+        assert create_payload["variables"]["jira"]["fields"]["description"] == (
+            "Automated Test Service execution.\n"
+            f"Execution ID: {publication.execution_id}\n"
+            f"Final status: {execution_status.value}\n"
+            "Environment: AI LLM Back DEV · LiteLLM v1.106.1\n"
+            "Test runs: 1"
+        )
+        assert association_payload["variables"] == {
+            "issueId": "10003",
+            "testExecIssueIds": ["20001"],
+        }
+        assert test_runs_payload["variables"] == {
+            "testExecIssueIds": ["20001"],
+            "testIssueIds": ["10001"],
+            "limit": 1,
+        }
+        assert status_payload["variables"] == {"id": "30001", "status": expected_xray_status}
+        assert "updateTestRunStatus(id: $id, status: $status)" in status_payload["query"]
+        assert "updateTestRunStatus(id: $id, status: $status) {" not in status_payload["query"]
+        assert (
+            "updateTestRun(id: $id, comment: $comment, startedOn: $startedOn,"
+            in update_payload["query"]
+        )
+        assert "testRun" not in update_payload["variables"]
+        assert "Duration: 1000 ms" in update_payload["variables"]["comment"]
+        assert update_payload["variables"]["startedOn"].endswith("Z")
+        assert update_payload["variables"]["finishedOn"].endswith("Z")
+        assert evidence_payload["variables"] == {
+            "id": "30001",
+            "evidence": [
+                {
+                    "filename": "request-trace.log",
+                    "mimeType": "text/plain",
+                    "data": "c2FuaXRpemVkIHRyYWNl",
+                }
+            ],
+        }
+        assert step_status_payload["variables"] == {
+            "testRunId": "30001",
+            "stepId": "40001",
+            "status": "FAILED" if result_status is ResultStatus.FAILED else "TODO",
+        }
+        assert step_evidence_payload["variables"] == {
+            "testRunId": "30001",
+            "stepId": "40001",
+            "evidence": [
+                {
+                    "filename": "submit-trace.log",
+                    "mimeType": "text/plain",
+                    "data": "c2FuaXRpemVkIHN1Ym1pdCB0cmFjZQ==",
+                }
+            ],
+        }
+        assert evidence_payload["variables"]["evidence"][0]["filename"] == "request-trace.log"
+        assert payloads.index(step_status_payload) < payloads.index(status_payload)
+        assert payloads.index(status_payload) < payloads.index(update_payload)
+        assert not any("AddDefectsToTestRun" in item["query"] for item in payloads)
+
+    @pytest.mark.parametrize(
+        ("environment_name", "expected"),
+        [
+            ("   ", "test-service"),
+            ("a" * 121, "a" * 120),
+        ],
+    )
+    def test_when_environment_name_violates_xray_constraints_expect_safe_value(
+        self, environment_name: str, expected: str
+    ) -> None:
+        normalized = XrayViewerAdapter._test_environment_name(environment_name)
+
+        assert normalized == expected
+
+    async def test_when_correlated_test_execution_exists_expect_plan_association_repaired(
+        self, settings: XraySettings
+    ) -> None:
+        requests: list[httpx.Request] = []
+        test_result_id = uuid4()
+        projection = ViewerExecutionResultProjection(
+            publication=ViewerResultPublication(
+                identifier=uuid4(),
+                project_key="SHOP",
+                execution_id=uuid4(),
+                viewer_type=ViewerType.XRAY,
+                status=ViewerResultPublicationStatus.RUNNING,
+                attempts=2,
+                created_at=datetime(2026, 1, 1, tzinfo=UTC),
+                updated_at=datetime(2026, 1, 1, tzinfo=UTC),
+            ),
+            summary="Test Service execution",
+            environment_name="Integration",
+            external_test_plan_id="10003",
+            execution_status=ExecutionStatus.PASSED,
+            test_runs=(
+                ViewerTestRunProjection(
+                    test_result_id=test_result_id,
+                    external_test_id="10001",
+                    status=ResultStatus.PASSED,
+                    started_at=None,
+                    finished_at=None,
+                    duration_ms=None,
+                    comment=None,
+                ),
+            ),
+        )
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            if request.url.path == "/auth":
+                return httpx.Response(200, json="xray-token")
+            query = json.loads(request.content)["query"]
+            if "GetTestExecutions" in query:
+                return httpx.Response(
+                    200,
+                    json={
+                        "data": {
+                            "getTestExecutions": {
+                                "results": [{"issueId": "20001", "jira": {"key": "SHOP-20"}}]
+                            }
+                        }
+                    },
+                )
+            if "GetTestRuns" in query:
+                return httpx.Response(
+                    200,
+                    json={
+                        "data": {
+                            "getTestRuns": {
+                                "results": [
+                                    {
+                                        "id": "30001",
+                                        "test": {"issueId": "10001"},
+                                        "steps": [],
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                )
+            if "AddTestExecutionsToTestPlan" in query:
+                return httpx.Response(
+                    200,
+                    json={
+                        "data": {
+                            "addTestExecutionsToTestPlan": {
+                                "addedTestExecutions": ["20001"],
+                                "warning": None,
+                            }
+                        }
+                    },
+                )
+            return httpx.Response(200, json={"data": {"updateTestRun": {"id": "30001"}}})
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            identity = await XrayViewerAdapter(settings, client).publish_execution_result(
+                projection
+            )
+
+        payloads = [
+            json.loads(request.content) for request in requests if request.url.path == "/graphql"
+        ]
+        association_payload = next(
+            item for item in payloads if "AddTestExecutionsToTestPlan" in item["query"]
+        )
+        assert identity.execution_id == "20001"
+        assert identity.execution_key == "SHOP-20"
+        assert association_payload["variables"] == {
+            "issueId": "10003",
+            "testExecIssueIds": ["20001"],
+        }
+        assert not any("CreateTestExecution" in item["query"] for item in payloads)
+
+    async def test_when_execution_identity_is_persisted_expect_no_lookup_needed(
+        self, settings: XraySettings
+    ) -> None:
+        publication = ViewerResultPublication(
+            identifier=uuid4(),
+            project_key="SHOP",
+            execution_id=uuid4(),
+            viewer_type=ViewerType.XRAY,
+            status=ViewerResultPublicationStatus.RUNNING,
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
+            updated_at=datetime(2026, 1, 1, tzinfo=UTC),
+            external_execution_id="20001",
+            external_execution_key="SHOP-20",
+        )
+        projection = ViewerExecutionResultProjection(
+            publication=publication,
+            summary="Test Service execution",
+            environment_name="Integration",
+            external_test_plan_id="10003",
+            execution_status=ExecutionStatus.PASSED,
+            test_runs=(),
+        )
+        adapter = XrayViewerAdapter(settings)
+
+        identity = await adapter._execution_identity(projection)
+
+        assert identity == ViewerExternalIdentity("20001", "SHOP-20")
+
+    async def test_when_execution_identity_is_partial_expect_correlation_lookup(
+        self, settings: XraySettings
+    ) -> None:
+        publication = ViewerResultPublication(
+            identifier=uuid4(),
+            project_key="SHOP",
+            execution_id=uuid4(),
+            viewer_type=ViewerType.XRAY,
+            status=ViewerResultPublicationStatus.RUNNING,
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
+            updated_at=datetime(2026, 1, 1, tzinfo=UTC),
+            external_execution_id="20001",
+        )
+        projection = ViewerExecutionResultProjection(
+            publication=publication,
+            summary="Test Service execution",
+            environment_name="Integration",
+            external_test_plan_id="10003",
+            execution_status=ExecutionStatus.PASSED,
+            test_runs=(),
+        )
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/auth":
+                return httpx.Response(200, json="xray-token")
+            return httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "getTestExecutions": {
+                            "results": [{"issueId": "20002", "jira": {"key": "SHOP-21"}}]
+                        }
+                    }
+                },
+            )
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            identity = await XrayViewerAdapter(settings, client)._execution_identity(projection)
+
+        assert identity == ViewerExternalIdentity("20002", "SHOP-21")
+
     async def test_when_creating_precondition_expect_separate_description_and_definition(
         self, settings: XraySettings, projection: ViewerProjection
     ) -> None:
@@ -194,6 +602,8 @@ class TestXrayViewerAdapter:
         add_test_step = XrayViewerAdapter._ADD_TEST_STEP
         remove_all_test_steps = XrayViewerAdapter._REMOVE_ALL_TEST_STEPS
         update_precondition = XrayViewerAdapter._UPDATE_PRECONDITION
+        update_test_run_step_status = XrayViewerAdapter._UPDATE_TEST_RUN_STEP_STATUS
+        add_evidence_to_test_run_step = XrayViewerAdapter._ADD_EVIDENCE_TO_TEST_RUN_STEP
 
         assert "$testType: UpdateTestTypeInput" in create_test
         assert "$steps: [CreateStepInput]" in create_test
@@ -204,6 +614,15 @@ class TestXrayViewerAdapter:
         assert "$step: CreateStepInput!" in add_test_step
         assert "addTestStep(issueId: $issueId" in add_test_step
         assert "updatePrecondition(issueId: $issueId" in update_precondition
+        assert "$testRunId: String!" in update_test_run_step_status
+        assert "$stepId: String!" in update_test_run_step_status
+        assert "updateTestRunStepStatus(testRunId: $testRunId, stepId: $stepId" in (
+            update_test_run_step_status
+        )
+        assert "$evidence: [AttachmentDataInput]" in add_evidence_to_test_run_step
+        assert "addEvidenceToTestRunStep(testRunId: $testRunId, stepId: $stepId" in (
+            add_evidence_to_test_run_step
+        )
 
     async def test_when_remote_precondition_was_deleted_expect_recreated(
         self, settings: XraySettings, projection: ViewerProjection
@@ -744,8 +1163,9 @@ class TestXrayViewerAdapter:
             )
 
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            adapter = XrayViewerAdapter(settings, client)
             with pytest.raises(XrayValidationError) as raised:
-                await XrayViewerAdapter(settings, client).publish(projection)
+                await adapter.publish(projection)
 
         assert "project key is invalid" in str(raised.value)
         assert "xray-secret-value" not in str(raised.value)

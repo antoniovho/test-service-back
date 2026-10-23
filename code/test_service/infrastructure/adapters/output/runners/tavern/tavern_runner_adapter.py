@@ -17,6 +17,7 @@ from test_service.domain.model.execution.execution import ResultStatus
 from test_service.domain.ports.output.runners.runner_dtos import (
     CompiledAction,
     CompiledTestCase,
+    ExecutionSubjectType,
     RunnerActionOutcome,
     RunnerTestCaseOutcome,
 )
@@ -115,7 +116,9 @@ class TavernRunnerAdapter:
                     None,
                 )
                 if terminal_issue is not None:
-                    self._log_terminal_issue(test_case.test_case_id, terminal_issue)
+                    self._log_terminal_issue(
+                        test_case.subject_type, test_case.test_case_id, terminal_issue
+                    )
                     return self._build_test_case_outcome(
                         terminal_issue.status,
                         started_at,
@@ -215,7 +218,9 @@ class TavernRunnerAdapter:
         return f"{prefix}: {type(error).__name__} while compiling or starting Tavern"
 
     @staticmethod
-    def _log_terminal_issue(test_case_id: str, outcome: RunnerActionOutcome) -> None:
+    def _log_terminal_issue(
+        subject_type: ExecutionSubjectType, subject_id: str, outcome: RunnerActionOutcome
+    ) -> None:
         """Expose a normalized action failure in the application log.
 
         ``error_message`` is the same sanitized and bounded diagnostic that is
@@ -223,8 +228,9 @@ class TavernRunnerAdapter:
         observable without adding a separate runner console.
         """
         logger.warning(
-            "Execution of test case '%s' stopped at action '%s' with status %s (code: %s): %s",
-            test_case_id,
+            "Execution of %s '%s' stopped at action '%s' with status %s (code: %s): %s",
+            subject_type,
+            subject_id,
             outcome.action_id,
             outcome.status.value,
             outcome.error_code or "UNKNOWN",

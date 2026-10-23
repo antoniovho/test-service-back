@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import DateTime, Integer, String, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -18,8 +18,16 @@ class TestResultDTO(Base):
     __table_args__ = {"schema": "test_service_v1"}
 
     id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), primary_key=True)
-    execution_id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), nullable=False)
-    test_case_id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), nullable=False)
+    execution_id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("test_service_v1.execution.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    test_case_id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("test_service_v1.test_case.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
     status: Mapped[str] = mapped_column(String, nullable=False)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -36,7 +44,11 @@ class ActionResultDTO(Base):
     __table_args__ = {"schema": "test_service_v1"}
 
     id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), primary_key=True)
-    test_result_id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), nullable=False)
+    test_result_id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("test_service_v1.test_result.id", ondelete="CASCADE"),
+        nullable=False,
+    )
     action_id: Mapped[str] = mapped_column(Text, nullable=False)
     action_type: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(String, nullable=False)
@@ -58,9 +70,15 @@ class TestResultArtifactDTO(Base):
     __table_args__ = {"schema": "test_service_v1"}
 
     id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), primary_key=True)
-    test_result_id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), nullable=False)
+    test_result_id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("test_service_v1.test_result.id", ondelete="CASCADE"),
+        nullable=False,
+    )
     action_result_id: Mapped[UUID | None] = mapped_column(
-        PostgreSQLUUID(as_uuid=True), nullable=True
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("test_service_v1.action_result.id", ondelete="SET NULL"),
+        nullable=True,
     )
     artifact_type: Mapped[str] = mapped_column(String, nullable=False)
     storage_type: Mapped[str] = mapped_column(String, nullable=False)

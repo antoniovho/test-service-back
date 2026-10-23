@@ -15,10 +15,14 @@ from test_service.domain.model.viewer.records import ViewerEntityType, ViewerTyp
 from test_service.infrastructure.adapters.output.commons.persistence.postgres.postgres_session_provider import (  # noqa: E501
     PostgresSessionProvider,
 )
+from test_service.infrastructure.adapters.output.execution.executions.persistence.dtos.execution_dto import (  # noqa: E501
+    ExecutionDTO,
+)
 from test_service.infrastructure.adapters.output.viewer.persistence.dtos.viewer_dtos import (
     DriftEventDTO,
     ViewerOperationDTO,
     ViewerOperationItemDTO,
+    ViewerResultPublicationDTO,
     ViewerSyncRecordDTO,
 )
 from test_service.infrastructure.adapters.output.viewer.persistence.repositories import (
@@ -105,6 +109,45 @@ def _operation_item_dto(sync_record: ViewerSyncRecordDTO) -> ViewerOperationItem
         sync_status=sync_record.sync_status,
         error=None,
         created_at=sync_record.created_at,
+    )
+
+
+def _execution_dto(status: str = "RUNNING") -> ExecutionDTO:
+    return ExecutionDTO(
+        id=uuid4(),
+        project_key="IAG",
+        test_plan_id=uuid4(),
+        environment_id=uuid4(),
+        test_case_ids=[],
+        environment_snapshot={},
+        trigger_type="MANUAL",
+        triggered_by="tester@example.test",
+        status=status,
+        runner_identifier="tavern",
+        runner_version="2.0",
+        started_at=_FIXED_NOW,
+        finished_at=_FIXED_NOW + timedelta(seconds=1),
+        duration_ms=1_000,
+        created_at=_FIXED_NOW,
+    )
+
+
+def _result_publication_dto(execution_id=None) -> ViewerResultPublicationDTO:
+    return ViewerResultPublicationDTO(
+        id=uuid4(),
+        project_key="IAG",
+        execution_id=execution_id or uuid4(),
+        viewer_type="XRAY",
+        status="PENDING",
+        attempts=0,
+        next_attempt_at=_FIXED_NOW,
+        started_at=None,
+        finished_at=None,
+        external_execution_id=None,
+        external_execution_key=None,
+        error=None,
+        created_at=_FIXED_NOW,
+        updated_at=_FIXED_NOW,
     )
 
 
@@ -326,3 +369,135 @@ class TestViewerRepository:
 
         with pytest.raises(ValueError, match="unsupported viewer sort field: unsafe"):
             await page_request
+
+    async def test_when_enqueueing_result_publication_expect_idempotent_record_persisted(
+        self,
+    ) -> None:
+        publication = _result_publication_dto()
+        session = MagicMock()
+        session.execute = AsyncMock()
+        session.scalar = AsyncMock(return_value=publication)
+        session.commit = AsyncMock()
+        session.refresh = AsyncMock()
+        repository = ViewerRepository(_SessionProvider(session), ViewerSettings())
+
+        persisted = await repository.enqueue_result_publication(publication)
+
+        assert persisted is publication
+        session.execute.assert_awaited_once()
+        session.commit.assert_awaited_once()
+        session.refresh.assert_awaited_once_with(publication)
+
+    async def test_when_result_publication_is_not_persisted_expect_error(self) -> None:
+        publication = _result_publication_dto()
+        session = MagicMock()
+        session.execute = AsyncMock()
+        session.scalar = AsyncMock(return_value=None)
+        session.commit = AsyncMock()
+        repository = ViewerRepository(_SessionProvider(session), ViewerSettings())
+
+        with pytest.raises(RuntimeError, match="result publication was not persisted"):
+            await repository.enqueue_result_publication(publication)
+
+        session.commit.assert_not_awaited()
+
+    async def test_when_transitioning_execution_expect_terminal_state_and_publication_committed(
+        self,
+    ) -> None:
+        execution = _execution_dto(status="FAILED")
+        publication = _result_publication_dto(execution.id)
+        result = MagicMock()
+        result.scalar_one_or_none.return_value = execution
+        session = MagicMock()
+        session.execute = AsyncMock(return_value=result)
+        session.commit = AsyncMock()
+        repository = ViewerRepository(_SessionProvider(session), ViewerSettings())
+
+        transitioned = await repository.transition_execution_and_enqueue_result_publication(
+            execution, ("RUNNING",), publication
+        )
+
+        assert transitioned is execution
+        assert session.execute.await_count == 2
+        session.commit.assert_awaited_once()
+
+    async def test_when_execution_does_not_transition_expect_current_state_without_publication(
+        self,
+    ) -> None:
+        execution = _execution_dto(status="FAILED")
+        current_execution = _execution_dto(status="SUCCEEDED")
+        result = MagicMock()
+        result.scalar_one_or_none.return_value = None
+        session = MagicMock()
+        session.execute = AsyncMock(return_value=result)
+        session.get = AsyncMock(return_value=current_execution)
+        session.commit = AsyncMock()
+        repository = ViewerRepository(_SessionProvider(session), ViewerSettings())
+
+        transitioned = await repository.transition_execution_and_enqueue_result_publication(
+            execution, ("RUNNING",), _result_publication_dto(execution.id)
+        )
+
+        assert transitioned is current_execution
+        session.execute.assert_awaited_once()
+        session.get.assert_awaited_once_with(ExecutionDTO, execution.id)
+        session.commit.assert_not_awaited()
+
+    async def test_when_claiming_due_result_publication_expect_running_state(
+        self, settings: ViewerSettings, monkeypatch
+    ) -> None:
+        publication = _result_publication_dto()
+        result = MagicMock()
+        result.scalar_one_or_none.return_value = publication
+        session = MagicMock()
+        session.execute = AsyncMock(return_value=result)
+        session.commit = AsyncMock()
+        session.refresh = AsyncMock()
+        repository = ViewerRepository(_SessionProvider(session), settings)
+        monkeypatch.setattr(
+            viewer_repository, "datetime", SimpleNamespace(now=lambda _: _FIXED_NOW)
+        )
+
+        claimed = await repository.claim_next_result_publication()
+
+        assert claimed is publication
+        assert publication.status == "RUNNING"
+        assert publication.attempts == 1
+        assert publication.started_at == _FIXED_NOW
+        assert publication.next_attempt_at is None
+        assert publication.updated_at == _FIXED_NOW
+        session.commit.assert_awaited_once()
+        session.refresh.assert_awaited_once_with(publication)
+
+    async def test_when_no_result_publication_is_due_expect_none(self) -> None:
+        result = MagicMock()
+        result.scalar_one_or_none.return_value = None
+        session = MagicMock()
+        session.execute = AsyncMock(return_value=result)
+        session.commit = AsyncMock()
+        repository = ViewerRepository(_SessionProvider(session), ViewerSettings())
+
+        publication = await repository.claim_next_result_publication()
+
+        assert publication is None
+        session.commit.assert_not_awaited()
+
+    async def test_when_saving_and_finding_result_publication_expect_persisted_dto(self) -> None:
+        publication = _result_publication_dto()
+        session = MagicMock()
+        session.merge = AsyncMock(return_value=publication)
+        session.scalar = AsyncMock(return_value=publication)
+        session.commit = AsyncMock()
+        session.refresh = AsyncMock()
+        repository = ViewerRepository(_SessionProvider(session), ViewerSettings())
+
+        saved = await repository.save_result_publication(publication)
+        found = await repository.find_result_publication(
+            publication.execution_id, publication.viewer_type
+        )
+
+        assert saved is publication
+        assert found is publication
+        session.merge.assert_awaited_once_with(publication)
+        session.commit.assert_awaited_once()
+        session.refresh.assert_awaited_once_with(publication)

@@ -9,6 +9,7 @@ from test_service.domain.model.authoring.definition import Action, Definition
 from test_service.domain.model.exceptions.invalid_definition_exception import (
     InvalidDefinitionException,
 )
+from test_service.domain.ports.output.runners.runner_dtos import ExecutionSubjectType
 
 
 def _definition(*actions: Action, variables: dict[str, str] | None = None) -> Definition:
@@ -27,6 +28,7 @@ class TestDefinitionCompiler:
         compiled = DefinitionCompiler().compile(test_case_id, definition)
 
         assert compiled.test_case_id == str(test_case_id)
+        assert compiled.subject_type is ExecutionSubjectType.TEST_CASE
         assert [(a.identifier, a.action_type, a.position) for a in compiled.actions] == [
             ("first", "HTTP", 0),
             ("second", "SSE", 1),
@@ -53,6 +55,18 @@ class TestDefinitionCompiler:
             "tenant": "acme",
             "apiKey": "key",
         }
+
+    def test_when_compiling_precondition_expect_precondition_subject_type(self) -> None:
+        precondition_id = uuid4()
+
+        compiled = DefinitionCompiler().compile(
+            precondition_id,
+            _definition(_http()),
+            subject_type=ExecutionSubjectType.PRECONDITION,
+        )
+
+        assert compiled.test_case_id == str(precondition_id)
+        assert compiled.subject_type is ExecutionSubjectType.PRECONDITION
 
     def test_when_compiling_expect_definition_variables_not_modified(self) -> None:
         definition = _definition(_http(), variables={"baseUrl": "https://definition.test"})

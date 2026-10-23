@@ -22,6 +22,9 @@ from test_service.domain.application.services.execution.execution_variables_reso
 from test_service.domain.application.services.execution.secret_redactor import (
     redact_test_case_outcome,
 )
+from test_service.domain.application.services.viewer_result_publication_service import (
+    ViewerResultPublicationService,
+)
 from test_service.domain.model.exceptions.entity_not_found_exception import EntityNotFoundException
 from test_service.domain.model.exceptions.execution_manifest_integrity_exception import (
     ExecutionManifestIntegrityException,
@@ -58,6 +61,7 @@ from test_service.domain.ports.output.persistence.test_plans.test_plan_persisten
 )
 from test_service.domain.ports.output.runners.runner_dtos import (
     CompiledTestCase,
+    ExecutionSubjectType,
     RunnerActionOutcome,
     RunnerTestCaseOutcome,
 )
@@ -105,6 +109,7 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
         runner: RunnerPort,
         cancellations: ExecutionCancellationPort,
         variables_resolver: ExecutionVariablesResolver,
+        result_publications: ViewerResultPublicationService,
     ) -> None:
         self._executions = executions
         self._results = results
@@ -116,6 +121,7 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
         self._runner = runner
         self._cancellations = cancellations
         self._variables_resolver = variables_resolver
+        self._result_publications = result_publications
 
     async def execute(self, _: None) -> Execution | None:
         # Mark any stale RUNNING executions as error before claiming the next one.
@@ -152,12 +158,11 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
             )
             # If the execution was cancelled during the test plan execution, handle it accordingly.
             if cancellation.is_set():
-                return await self._executions.transition_execution(
-                    execution.cancel(datetime.now(UTC)),
-                    (ExecutionStatus.RUNNING,),
+                return await self._finish_execution(
+                    execution.cancel(datetime.now(UTC)), (ExecutionStatus.RUNNING,)
                 )
             # Transition the execution to the appropriate final state based on the outcomes.
-            return await self._executions.transition_execution(
+            return await self._finish_execution(
                 execution.complete(
                     self._execution_status(outcomes),
                     datetime.now(UTC),
@@ -171,7 +176,7 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
                 self._runner.identifier,
                 self._runner.version,
             )
-            return await self._executions.transition_execution(
+            return await self._finish_execution(
                 execution.complete(
                     ExecutionStatus.ERROR,
                     datetime.now(UTC),
@@ -183,6 +188,12 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
             cancellation_monitor.cancel()
             await asyncio.gather(cancellation_monitor, return_exceptions=True)
             self._cancellations.unregister(execution.identifier)
+
+    async def _finish_execution(
+        self, execution: Execution, expected_statuses: tuple[ExecutionStatus, ...]
+    ) -> Execution | None:
+        """Atomically persist terminal execution state and external publication work."""
+        return await self._result_publications.complete_execution(execution, expected_statuses)
 
     async def _watch_persisted_cancellation(
         self, execution_id, cancellation: asyncio.Event
@@ -253,7 +264,15 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
             )
 
             statuses.append(status)
+            log = logger.info if status is ResultStatus.PASSED else logger.warning
+            log(
+                "Execution '%s' Test Case '%s' completed with status '%s'.",
+                execution.identifier,
+                test_case.identifier,
+                status.value,
+            )
 
+        self._log_test_case_summary(execution.identifier, statuses)
         return tuple(statuses)
 
     async def _execute_test_case(
@@ -369,6 +388,9 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
         for reference in test_case.preconditions:
             precondition = await self._preconditions.find_by_id(reference.identifier)
             if precondition is None:
+                self._log_precondition_completion(
+                    execution.identifier, reference.identifier, ResultStatus.BLOCKED
+                )
                 return _PreconditionOutcome(
                     variable_values,
                     frozenset(variable_secrets),
@@ -378,7 +400,7 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
                         "PRECONDITION_MISSING",
                         f"Execution '{execution.identifier}' cannot run Test Case "
                         f"'{test_case.identifier}' because precondition "
-                        f"'{reference.identifier}' is unavailable.",
+                        f"'{reference.precondition_key}' ('{reference.identifier}') is unavailable.",
                     ),
                 )
 
@@ -386,8 +408,12 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
                 precondition.identifier,
                 precondition.validation_definition,
                 variable_values,
+                subject_type=ExecutionSubjectType.PRECONDITION,
             )
             if not self._runner.supports(frozenset(item.action_type for item in compiled.actions)):
+                self._log_precondition_completion(
+                    execution.identifier, precondition.identifier, ResultStatus.BLOCKED
+                )
                 return _PreconditionOutcome(
                     variable_values,
                     frozenset(variable_secrets),
@@ -397,12 +423,16 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
                         "RUNNER_UNSUPPORTED_PRECONDITION",
                         f"Execution '{execution.identifier}' cannot run Test Case "
                         f"'{test_case.identifier}' because runner '{self._runner.identifier}' "
-                        f"does not support precondition '{reference.identifier}'.",
+                        f"does not support precondition '{reference.precondition_key}' "
+                        f"('{reference.identifier}').",
                     ),
                 )
             # Run the compiled precondition and handle its outcome.
             outcome = await self._run(compiled, cancellation, deadline)
             if outcome is None:
+                self._log_precondition_completion(
+                    execution.identifier, precondition.identifier, ResultStatus.ERROR
+                )
                 return _PreconditionOutcome(
                     variable_values,
                     frozenset(variable_secrets),
@@ -414,6 +444,9 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
             variable_secrets.update(value for value in outcome.variables.values() if value)
             outcome = redact_test_case_outcome(outcome, variable_secrets)
             evidence.extend(self._result_mapper.precondition_evidence(precondition, outcome))
+            self._log_precondition_completion(
+                execution.identifier, precondition.identifier, outcome.status
+            )
 
             if outcome.status is not ResultStatus.PASSED:
                 return _PreconditionOutcome(
@@ -425,7 +458,7 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
                         "PRECONDITION_FAILED",
                         f"Execution '{execution.identifier}' cannot run Test Case "
                         f"'{test_case.identifier}' because precondition "
-                        f"'{reference.identifier}' did not pass.",
+                        f"'{reference.precondition_key}' ('{reference.identifier}') did not pass.",
                     ),
                 )
 
@@ -433,6 +466,16 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
             variable_values,
             frozenset(variable_secrets),
             tuple(evidence),
+        )
+
+    @staticmethod
+    def _log_precondition_completion(execution_id, precondition_id, status: ResultStatus) -> None:
+        log = logger.info if status is ResultStatus.PASSED else logger.warning
+        log(
+            "Execution '%s' Precondition '%s' completed with status '%s'.",
+            execution_id,
+            precondition_id,
+            status.value,
         )
 
     async def _run(
@@ -545,3 +588,22 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
             return ExecutionStatus.FAILED
 
         return ExecutionStatus.PARTIALLY_FAILED
+
+    @staticmethod
+    def _log_test_case_summary(execution_id, statuses: list[ResultStatus]) -> None:
+        log = (
+            logger.info
+            if all(status is ResultStatus.PASSED for status in statuses)
+            else logger.warning
+        )
+        log(
+            "Execution '%s' Test Case summary: total=%d passed=%d failed=%d blocked=%d "
+            "error=%d skipped=%d.",
+            execution_id,
+            len(statuses),
+            sum(status is ResultStatus.PASSED for status in statuses),
+            sum(status is ResultStatus.FAILED for status in statuses),
+            sum(status is ResultStatus.BLOCKED for status in statuses),
+            sum(status is ResultStatus.ERROR for status in statuses),
+            sum(status is ResultStatus.SKIPPED for status in statuses),
+        )

@@ -19,6 +19,7 @@ class TestCreateApp:
         self, monkeypatch
     ) -> None:
         projection_service = object()
+        result_publication_service = object()
         execution_processor = object()
         database_configuration = MagicMock()
         database_configuration.dispose = AsyncMock()
@@ -27,6 +28,7 @@ class TestCreateApp:
             def inject(self, dependency):
                 return {
                     main.ViewerProjectionService: projection_service,
+                    main.ViewerResultPublicationService: result_publication_service,
                     main.ProcessNextExecutionUseCase: execution_processor,
                     main.PostgresDatabaseConfiguration: database_configuration,
                 }[dependency]
@@ -36,6 +38,7 @@ class TestCreateApp:
 
         monkeypatch.setattr(main, "get_injector", _Injector)
         monkeypatch.setattr(main, "_process_viewer_operations", wait_for_cancellation)
+        monkeypatch.setattr(main, "_process_viewer_result_publications", wait_for_cancellation)
         monkeypatch.setattr(main, "_process_executions", wait_for_cancellation)
 
         async with main.lifespan(FastAPI()):
@@ -47,9 +50,10 @@ class TestCreateApp:
         ("worker", "service_method"),
         [
             (main._process_viewer_operations, "process_next_operation"),
+            (main._process_viewer_result_publications, "process_next_publication"),
             (main._process_executions, "execute"),
         ],
-        ids=["viewer", "execution"],
+        ids=["viewer", "viewer-results", "execution"],
     )
     async def test_when_worker_has_no_work_expect_idle_sleep(
         self, monkeypatch, worker, service_method
@@ -83,9 +87,10 @@ class TestWorkerSupervision:
         ("worker", "service_method"),
         [
             (main._process_viewer_operations, "process_next_operation"),
+            (main._process_viewer_result_publications, "process_next_publication"),
             (main._process_executions, "execute"),
         ],
-        ids=["viewer", "execution"],
+        ids=["viewer", "viewer-results", "execution"],
     )
     async def test_when_worker_step_fails_once_expect_error_logged_and_processing_resumed(
         self, sleeps, caplog, worker, service_method

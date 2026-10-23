@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from dataclasses import replace
 from datetime import UTC, datetime
 from typing import cast
@@ -12,6 +13,9 @@ from test_service.domain.application.services.execution.definition_compiler impo
 from test_service.domain.application.services.execution.execution_variables_resolver import (
     ExecutionVariables,
     ExecutionVariablesResolver,
+)
+from test_service.domain.application.services.viewer_result_publication_service import (
+    ViewerResultPublicationService,
 )
 from test_service.domain.application.use_cases.execution.executions import (
     process_next_execution_use_case,
@@ -62,6 +66,7 @@ from test_service.domain.ports.output.persistence.test_plans.test_plan_persisten
     TestPlanPersistencePort,
 )
 from test_service.domain.ports.output.runners.runner_dtos import (
+    ExecutionSubjectType,
     RunnerActionOutcome,
     RunnerTestCaseOutcome,
 )
@@ -195,6 +200,7 @@ class _Runner:
         self.identifier = identifier
         self.version = version
         self.executed_test_case_ids: list[str] = []
+        self.executed_subject_types: list[ExecutionSubjectType] = []
         self.executed_variables: list[dict[str, str]] = []
         self._outcome = outcome or RunnerTestCaseOutcome(
             status=ResultStatus.PASSED,
@@ -209,6 +215,7 @@ class _Runner:
 
     async def execute(self, test_case, cancellation: asyncio.Event) -> RunnerTestCaseOutcome:
         self.executed_test_case_ids.append(test_case.test_case_id)
+        self.executed_subject_types.append(test_case.subject_type)
         self.executed_variables.append(dict(test_case.variables))
         return self._outcome
 
@@ -220,6 +227,7 @@ class _SequenceRunner(_Runner):
 
     async def execute(self, test_case, cancellation: asyncio.Event) -> RunnerTestCaseOutcome:
         self.executed_test_case_ids.append(test_case.test_case_id)
+        self.executed_subject_types.append(test_case.subject_type)
         self.executed_variables.append(dict(test_case.variables))
         return self._outcomes.pop(0)
 
@@ -309,6 +317,16 @@ class _Cancellations:
         self.unregistered.append(execution_id)
 
 
+class _ResultPublications:
+    def __init__(self, executions: _Executions) -> None:
+        self._executions = executions
+        self.completions: list[tuple[Execution, tuple[ExecutionStatus, ...]]] = []
+
+    async def complete_execution(self, execution, expected_statuses):
+        self.completions.append((execution, expected_statuses))
+        return await self._executions.transition_execution(execution, expected_statuses)
+
+
 def _process_next_execution_use_case(
     executions: _Executions,
     results: _Results,
@@ -318,6 +336,7 @@ def _process_next_execution_use_case(
     runner: _Runner,
     cancellations: _Cancellations,
     variables_resolver: ExecutionVariablesResolver,
+    result_publications: _ResultPublications | None = None,
 ) -> ProcessNextExecutionUseCaseImpl:
     return ProcessNextExecutionUseCaseImpl(
         cast(ExecutionPersistencePort, executions),
@@ -329,6 +348,9 @@ def _process_next_execution_use_case(
         runner,
         cast(ExecutionCancellationPort, cancellations),
         variables_resolver,
+        cast(
+            ViewerResultPublicationService, result_publications or _ResultPublications(executions)
+        ),
     )
 
 
@@ -341,6 +363,7 @@ def _use_case(
     test_plans: _TestPlans | None = None,
     other_test_cases: tuple[TestCase, ...] = (),
     preconditions: tuple[Precondition, ...] = (),
+    result_publications: _ResultPublications | None = None,
 ) -> ProcessNextExecutionUseCaseImpl:
     return _process_next_execution_use_case(
         _Executions(execution),
@@ -351,6 +374,7 @@ def _use_case(
         runner,
         _Cancellations(),
         ExecutionVariablesResolver(_SecretResolver(secrets)),
+        result_publications,
     )
 
 
@@ -397,7 +421,8 @@ class TestProcessNextExecutionUseCase:
         assert executions.recovery_calls == 1
         assert executions.calls[:2] == ["recover", "claim"]
 
-    async def test_when_pinned_test_case_is_deprecated_expect_execution_uses_snapshot(self):
+    async def test_when_pinned_test_case_is_deprecated_expect_execution_uses_snapshot(self, caplog):
+        caplog.set_level(logging.INFO)
         test_case = _test_case()
         execution = _execution(test_case.identifier)
         executions = _Executions(execution)
@@ -423,10 +448,43 @@ class TestProcessNextExecutionUseCase:
         assert results.saved[0][0].test_case_id == test_case.identifier
         assert cancellations.registered == [execution.identifier]
         assert cancellations.unregistered == [execution.identifier]
+        assert (
+            f"Execution '{execution.identifier}' Test Case '{test_case.identifier}' completed "
+            "with status 'PASSED'."
+        ) in caplog.messages
+        assert (
+            f"Execution '{execution.identifier}' Test Case summary: total=1 passed=1 failed=0 "
+            "blocked=0 error=0 skipped=0."
+        ) in caplog.messages
+
+    def test_when_summarizing_non_passing_test_cases_expect_warning_with_status_counts(
+        self, caplog
+    ) -> None:
+        execution_id = uuid4()
+        caplog.set_level(logging.WARNING)
+
+        ProcessNextExecutionUseCaseImpl._log_test_case_summary(
+            execution_id,
+            [
+                ResultStatus.PASSED,
+                ResultStatus.FAILED,
+                ResultStatus.BLOCKED,
+                ResultStatus.ERROR,
+                ResultStatus.SKIPPED,
+            ],
+        )
+
+        assert (
+            f"Execution '{execution_id}' Test Case summary: total=5 passed=1 failed=1 "
+            "blocked=1 error=1 skipped=1."
+        ) in caplog.messages
+        assert caplog.records[0].levelno == logging.WARNING
 
     async def test_when_runner_does_not_support_test_case_expect_blocked_result_without_execution(
         self,
+        caplog,
     ):
+        caplog.set_level(logging.WARNING)
         test_case = _test_case()
         execution = _execution(test_case.identifier)
         results = _Results()
@@ -448,6 +506,10 @@ class TestProcessNextExecutionUseCase:
         )
         assert actions == ()
         assert artifacts == ()
+        assert (
+            f"Execution '{execution.identifier}' Test Case '{test_case.identifier}' completed "
+            "with status 'BLOCKED'."
+        ) in caplog.messages
 
     async def test_when_precondition_saves_variables_expect_saved_evidence_and_variables_forwarded(
         self,
@@ -571,7 +633,7 @@ class TestProcessNextExecutionUseCase:
             "PRECONDITION_MISSING",
             f"Execution '{execution.identifier}' cannot run Test Case "
             f"'{test_case.identifier}' because precondition "
-            f"'{missing_precondition_id}' is unavailable.",
+            f"'profile' ('{missing_precondition_id}') is unavailable.",
         )
 
     async def test_when_runner_does_not_support_precondition_expect_blocked_result(
@@ -618,7 +680,7 @@ class TestProcessNextExecutionUseCase:
         assert result.error_message == (
             f"Execution '{execution.identifier}' cannot run Test Case "
             f"'{test_case.identifier}' because runner 'runner' does not support precondition "
-            f"'{precondition_id}'."
+            f"'authenticated' ('{precondition_id}')."
         )
         assert actions == ()
         assert artifacts == ()
@@ -1283,7 +1345,7 @@ class TestProcessNextExecutionUseCase:
             "RUNNER_UNSUPPORTED_PRECONDITION",
             f"Execution '{execution.identifier}' cannot run Test Case "
             f"'{test_case.identifier}' because runner 'runner' does not support precondition "
-            f"'{precondition_id}'.",
+            f"'authenticated' ('{precondition_id}').",
         )
         assert runner.requested_action_types == [frozenset({"HTTP"})]
 
@@ -1382,9 +1444,60 @@ class TestProcessNextExecutionUseCase:
         }
         assert precondition_outcome.secrets == frozenset({"tenant-secret", "temporary-token"})
         assert len(precondition_outcome.evidence) == 1
+        assert runner.executed_subject_types == [ExecutionSubjectType.PRECONDITION]
         assert precondition_outcome.terminal_result == (
             ResultStatus.BLOCKED,
             "PRECONDITION_FAILED",
             f"Execution '{execution.identifier}' cannot run Test Case "
-            f"'{test_case.identifier}' because precondition '{precondition_id}' did not pass.",
+            f"'{test_case.identifier}' because precondition 'authenticated' "
+            f"('{precondition_id}') did not pass.",
         )
+
+    async def test_when_precondition_runner_errors_expect_precondition_log(self, caplog):
+        precondition_id = uuid4()
+        precondition = Precondition(
+            identifier=precondition_id,
+            project_key="IAG",
+            precondition_key="proxy-ready",
+            version=1,
+            name="Proxy readiness",
+            description="Checks the proxy readiness endpoint",
+            validation_definition=Definition(
+                variables={},
+                actions=(Action("proxyReadiness", "HTTP", {"url": "https://example.test"}),),
+            ),
+            created_at=_STARTED_AT,
+            created_by="author@example.test",
+            status=VersionStatus.ACTIVE,
+        )
+        test_case = _test_case(
+            preconditions=(PreconditionReference(precondition_id, "proxy-ready", 1),)
+        )
+        execution = _execution(test_case.identifier)
+        runner = _ActionAwareRunner(
+            frozenset({"HTTP"}),
+            RunnerTestCaseOutcome(
+                status=ResultStatus.ERROR,
+                started_at=_STARTED_AT,
+                finished_at=_FINISHED_AT,
+                actions=(),
+                error_code="TAVERN_CONNECTION_ERROR",
+            ),
+        )
+        use_case = _use_case(execution, test_case, runner, preconditions=(precondition,))
+        caplog.set_level(logging.WARNING)
+
+        precondition_outcome = await use_case._execute_preconditions(
+            execution,
+            test_case,
+            asyncio.Event(),
+            ExecutionVariables({}, frozenset()),
+            process_next_execution_use_case._Deadline(float("inf"), "not reached"),
+        )
+
+        assert precondition_outcome.terminal_result is not None
+        assert precondition_outcome.terminal_result[0] is ResultStatus.BLOCKED
+        assert (
+            f"Execution '{execution.identifier}' Precondition '{precondition_id}' completed "
+            "with status 'ERROR'."
+        ) in caplog.messages
