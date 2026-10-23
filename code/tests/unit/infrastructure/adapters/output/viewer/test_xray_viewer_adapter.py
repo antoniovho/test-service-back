@@ -15,6 +15,7 @@ from test_service.domain.model.viewer.execution_result_projection import (
     ViewerEvidenceProjection,
     ViewerExecutionResultProjection,
     ViewerTestRunProjection,
+    ViewerTestRunStepProjection,
 )
 from test_service.domain.model.viewer.execution_results import (
     ViewerResultPublication,
@@ -192,6 +193,20 @@ class TestXrayViewerAdapter:
                             content="sanitized trace",
                         ),
                     ),
+                    steps=(
+                        ViewerTestRunStepProjection(
+                            action_id="submit",
+                            action_type="HTTP",
+                            status=result_status,
+                            evidence=(
+                                ViewerEvidenceProjection(
+                                    filename="submit-trace.log",
+                                    mime_type="text/plain",
+                                    content="sanitized submit trace",
+                                ),
+                            ),
+                        ),
+                    ),
                 ),
             ),
         )
@@ -224,7 +239,13 @@ class TestXrayViewerAdapter:
                     json={
                         "data": {
                             "getTestRuns": {
-                                "results": [{"id": "30001", "test": {"issueId": "10001"}}]
+                                "results": [
+                                    {
+                                        "id": "30001",
+                                        "test": {"issueId": "10001"},
+                                        "steps": [{"id": "40001", "action": "submit: HTTP"}],
+                                    }
+                                ]
                             }
                         }
                     },
@@ -260,8 +281,14 @@ class TestXrayViewerAdapter:
         update_payload = next(
             item for item in payloads if "mutation UpdateTestRun(" in item["query"]
         )
+        step_status_payload = next(
+            item for item in payloads if "UpdateTestRunStepStatus" in item["query"]
+        )
         evidence_payload = next(
             item for item in payloads if "AddEvidenceToTestRun" in item["query"]
+        )
+        step_evidence_payload = next(
+            item for item in payloads if "AddEvidenceToTestRunStep" in item["query"]
         )
         assert identity.execution_id == "20001"
         assert identity.execution_key == "SHOP-20"
@@ -310,6 +337,23 @@ class TestXrayViewerAdapter:
                 }
             ],
         }
+        assert step_status_payload["variables"] == {
+            "testRunId": "30001",
+            "stepId": "40001",
+            "status": "FAILED" if result_status is ResultStatus.FAILED else "TODO",
+        }
+        assert step_evidence_payload["variables"] == {
+            "testRunId": "30001",
+            "stepId": "40001",
+            "evidence": [
+                {
+                    "filename": "submit-trace.log",
+                    "mimeType": "text/plain",
+                    "data": "c2FuaXRpemVkIHN1Ym1pdCB0cmFjZQ==",
+                }
+            ],
+        }
+        assert evidence_payload["variables"]["evidence"][0]["filename"] == "request-trace.log"
         assert not any("AddDefectsToTestRun" in item["query"] for item in payloads)
 
     @pytest.mark.parametrize(
@@ -381,7 +425,13 @@ class TestXrayViewerAdapter:
                     json={
                         "data": {
                             "getTestRuns": {
-                                "results": [{"id": "30001", "test": {"issueId": "10001"}}]
+                                "results": [
+                                    {
+                                        "id": "30001",
+                                        "test": {"issueId": "10001"},
+                                        "steps": [],
+                                    }
+                                ]
                             }
                         }
                     },
@@ -549,6 +599,8 @@ class TestXrayViewerAdapter:
         add_test_step = XrayViewerAdapter._ADD_TEST_STEP
         remove_all_test_steps = XrayViewerAdapter._REMOVE_ALL_TEST_STEPS
         update_precondition = XrayViewerAdapter._UPDATE_PRECONDITION
+        update_test_run_step_status = XrayViewerAdapter._UPDATE_TEST_RUN_STEP_STATUS
+        add_evidence_to_test_run_step = XrayViewerAdapter._ADD_EVIDENCE_TO_TEST_RUN_STEP
 
         assert "$testType: UpdateTestTypeInput" in create_test
         assert "$steps: [CreateStepInput]" in create_test
@@ -559,6 +611,15 @@ class TestXrayViewerAdapter:
         assert "$step: CreateStepInput!" in add_test_step
         assert "addTestStep(issueId: $issueId" in add_test_step
         assert "updatePrecondition(issueId: $issueId" in update_precondition
+        assert "$testRunId: String!" in update_test_run_step_status
+        assert "$stepId: String!" in update_test_run_step_status
+        assert "updateTestRunStepStatus(testRunId: $testRunId, stepId: $stepId" in (
+            update_test_run_step_status
+        )
+        assert "$evidence: [AttachmentDataInput]" in add_evidence_to_test_run_step
+        assert "addEvidenceToTestRunStep(testRunId: $testRunId, stepId: $stepId" in (
+            add_evidence_to_test_run_step
+        )
 
     async def test_when_remote_precondition_was_deleted_expect_recreated(
         self, settings: XraySettings, projection: ViewerProjection

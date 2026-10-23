@@ -28,3 +28,21 @@ class TestXrayResultStatusMapper:
         result = XrayResultStatusMapper.to_test_run_status(result_status, execution_status)
 
         assert result == expected_xray_status
+
+    @pytest.mark.parametrize(
+        ("result_status", "expected_xray_status"),
+        [
+            (ResultStatus.PASSED, "PASSED"),
+            (ResultStatus.FAILED, "FAILED"),
+            (ResultStatus.ERROR, "FAILED"),
+            (ResultStatus.BLOCKED, "TODO"),
+            (ResultStatus.SKIPPED, "TODO"),
+        ],
+        ids=["passed", "failed", "error", "blocked", "skipped"],
+    )
+    def test_when_mapping_action_status_expect_xray_test_run_step_status(
+        self, result_status: ResultStatus, expected_xray_status: str
+    ) -> None:
+        result = XrayResultStatusMapper.to_test_run_step_status(result_status)
+
+        assert result == expected_xray_status

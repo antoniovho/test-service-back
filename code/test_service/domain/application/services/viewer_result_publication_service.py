@@ -18,12 +18,14 @@ from test_service.domain.model.execution.execution import (
     ArtifactType,
     Execution,
     ExecutionStatus,
+    ResultStatus,
     StorageType,
 )
 from test_service.domain.model.viewer.execution_result_projection import (
     ViewerEvidenceProjection,
     ViewerExecutionResultProjection,
     ViewerTestRunProjection,
+    ViewerTestRunStepProjection,
 )
 from test_service.domain.model.viewer.execution_results import (
     ViewerResultPublication,
@@ -62,6 +64,7 @@ _SENSITIVE_VALUE = re.compile(
 _MAX_COMMENT_LENGTH = 1_000
 _MAX_EVIDENCE_CONTENT_LENGTH = 20_000
 _MAX_EVIDENCE_PER_TEST_RUN = 10
+_MAX_EVIDENCE_PER_TEST_RUN_STEP = 10
 
 logger = logging.getLogger(__name__)
 
@@ -277,6 +280,8 @@ class ViewerResultPublicationService:
                 f"'{execution.project_key}', viewer '{publication.viewer_type.value}', "
                 f"and publication '{publication.identifier}'."
             )
+        actions = await self._all_actions(result.identifier)
+        artifacts = await self._all_artifacts(result.identifier)
         return ViewerTestRunProjection(
             test_result_id=result.identifier,
             external_test_id=record.external_entity_id,
@@ -285,13 +290,75 @@ class ViewerResultPublicationService:
             finished_at=result.finished_at,
             duration_ms=result.duration_ms,
             comment=self._comment(result.error_code, result.error_message),
-            evidence=await self._evidence(result.identifier),
+            evidence=self._test_run_evidence(result.identifier, actions, artifacts),
+            steps=self._test_run_steps(test_case, actions, artifacts, result.identifier),
         )
 
-    async def _evidence(self, test_result_id) -> tuple[ViewerEvidenceProjection, ...]:
+    def _test_run_steps(
+        self, test_case, actions: tuple, artifacts: tuple, test_result_id
+    ) -> tuple[ViewerTestRunStepProjection, ...]:
+        """Project regular Test Case actions, leaving unexecuted steps as TODO."""
+        action_by_id = {
+            action.action_id: action
+            for action in actions
+            if not self._is_precondition_action(action)
+        }
+        artifacts_by_action_id: dict[object, list] = {}
+        for artifact in artifacts:
+            if artifact.action_result_id is not None:
+                artifacts_by_action_id.setdefault(artifact.action_result_id, []).append(artifact)
+        return tuple(
+            ViewerTestRunStepProjection(
+                action_id=definition_action.identifier,
+                action_type=definition_action.action_type,
+                status=(
+                    action_by_id[definition_action.identifier].status
+                    if definition_action.identifier in action_by_id
+                    else ResultStatus.SKIPPED
+                ),
+                evidence=self._evidence(
+                    test_result_id,
+                    artifacts_by_action_id.get(
+                        action_by_id[definition_action.identifier].identifier, []
+                    )
+                    if definition_action.identifier in action_by_id
+                    else (),
+                    _MAX_EVIDENCE_PER_TEST_RUN_STEP,
+                ),
+            )
+            for definition_action in test_case.definition.actions
+        )
+
+    def _test_run_evidence(self, test_result_id, actions: tuple, artifacts: tuple):
+        """Keep global and precondition evidence at the Test Run level."""
+        actions_by_identifier = {action.identifier: action for action in actions}
+        return self._evidence(
+            test_result_id,
+            (
+                artifact
+                for artifact in artifacts
+                if artifact.action_result_id is None
+                or self._is_precondition_action(
+                    actions_by_identifier.get(artifact.action_result_id)
+                )
+                or artifact.action_result_id not in actions_by_identifier
+            ),
+            _MAX_EVIDENCE_PER_TEST_RUN,
+        )
+
+    @staticmethod
+    def _is_precondition_action(action) -> bool:
+        """Return whether an action was emitted while executing a precondition."""
+        return action is not None and (
+            action.action_type == "PRECONDITION" or action.action_id.startswith("precondition:")
+        )
+
+    def _evidence(
+        self, test_result_id, artifacts, maximum: int
+    ) -> tuple[ViewerEvidenceProjection, ...]:
         """Project bounded database log artifacts as safe inline viewer evidence."""
         evidence = []
-        for artifact in await self._all_artifacts(test_result_id):
+        for artifact in artifacts:
             if (
                 artifact.artifact_type is not ArtifactType.LOG
                 or artifact.storage_type is not StorageType.DB
@@ -305,9 +372,22 @@ class ViewerResultPublicationService:
                     content=self._safe_text(artifact.content, _MAX_EVIDENCE_CONTENT_LENGTH),
                 )
             )
-            if len(evidence) == _MAX_EVIDENCE_PER_TEST_RUN:
+            if len(evidence) == maximum:
                 break
         return tuple(evidence)
+
+    async def _all_actions(self, test_result_id) -> tuple:
+        """Load every persisted action for one test result through paginated queries."""
+        offset = 0
+        collected = []
+        while True:
+            page = await self._results.find_actions_page(
+                test_result_id, PaginationParams(offset=offset, limit=MAX_PAGE_LIMIT)
+            )
+            collected.extend(page.items)
+            offset += len(page.items)
+            if offset >= page.total:
+                return tuple(collected)
 
     async def _all_artifacts(self, test_result_id) -> tuple:
         """Load every persisted artifact for one test result through paginated queries."""

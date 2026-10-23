@@ -546,7 +546,12 @@ def pytest_runtest_makereport(item, call):
             else transport_error(error, call.excinfo)
         )
         status = "FAILED" if assertion_failed else "ERROR"
-        complete(status, code, message, redact_trace(error, call.excinfo))
+        complete(
+            status,
+            code,
+            message,
+            redact_trace(error, call.excinfo) if assertion_failed else None,
+        )
 
 def pytest_sessionfinish(session, exitstatus):
     """Write the final structured result for the parent Tavern executor."""

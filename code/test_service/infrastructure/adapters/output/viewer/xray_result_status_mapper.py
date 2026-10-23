@@ -18,3 +18,14 @@ class XrayResultStatusMapper:
             ResultStatus.BLOCKED: "BLOCKED",
             ResultStatus.SKIPPED: "TO DO",
         }[result_status]
+
+    @staticmethod
+    def to_test_run_step_status(result_status: ResultStatus) -> str:
+        """Return the Xray status appropriate for one Test Run step."""
+        return {
+            ResultStatus.PASSED: "PASSED",
+            ResultStatus.FAILED: "FAILED",
+            ResultStatus.ERROR: "FAILED",
+            ResultStatus.BLOCKED: "TODO",
+            ResultStatus.SKIPPED: "TODO",
+        }[result_status]

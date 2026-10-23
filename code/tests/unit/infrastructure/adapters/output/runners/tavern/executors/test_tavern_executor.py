@@ -634,14 +634,13 @@ class TestTavernExecutor:
         assert stage["errorCode"] == expected_code
         assert stage["errorMessage"] == expected_message
         assert "transport-secret" not in str(stage)
-        assert "diagnosticTrace" in stage
-        assert "Traceback containing" in stage["diagnosticTrace"]
+        assert "diagnosticTrace" not in stage
 
     def test_when_trace_contains_token_hash_expect_hash_redacted(self) -> None:
         namespace: dict[str, object] = {}
         exec(_reporter_source(("request-account",)), namespace)
         namespace["pytest_tavern_beta_before_every_request"]({})
-        error = RuntimeError(
+        error = TavernAssertionError(
             "Key Hash (Token) =6b9c111bd578697f9aa5eff59014567da19a193b0f022a08c65b1470bec16903"
         )
         call = SimpleNamespace(

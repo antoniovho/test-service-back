@@ -21,6 +21,16 @@ class ViewerEvidenceProjection:
 
 
 @dataclass(frozen=True, slots=True)
+class ViewerTestRunStepProjection:
+    """One executed Test Case action ready to update an external Test Run step."""
+
+    action_id: str
+    action_type: str
+    status: ResultStatus
+    evidence: tuple[ViewerEvidenceProjection, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
 class ViewerTestRunProjection:
     """One local TestResult ready to update in the external viewer."""
 
@@ -32,6 +42,7 @@ class ViewerTestRunProjection:
     duration_ms: int | None
     comment: str | None
     evidence: tuple[ViewerEvidenceProjection, ...] = ()
+    steps: tuple[ViewerTestRunStepProjection, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

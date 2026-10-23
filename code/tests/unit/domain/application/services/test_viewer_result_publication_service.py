@@ -13,6 +13,7 @@ from test_service.domain.model.exceptions.permanent_viewer_result_publication_ex
 )
 from test_service.domain.model.execution.environment import Environment, EnvironmentStatus
 from test_service.domain.model.execution.execution import (
+    ActionResult,
     ArtifactType,
     ExecutionStatus,
     ResultStatus,
@@ -48,12 +49,21 @@ class _Executions:
 
 
 class _Results:
-    def __init__(self, result: TestResult, artifacts: tuple[TestResultArtifact, ...] = ()) -> None:
+    def __init__(
+        self,
+        result: TestResult,
+        actions: tuple[ActionResult, ...] = (),
+        artifacts: tuple[TestResultArtifact, ...] = (),
+    ) -> None:
         self._result = result
+        self._actions = actions
         self._artifacts = artifacts
 
     async def find_results_page(self, _, __):
         return Page((self._result,), 1)
+
+    async def find_actions_page(self, _, __):
+        return Page(self._actions, len(self._actions))
 
     async def find_artifacts_page(self, _, __):
         return Page(self._artifacts, len(self._artifacts))
@@ -205,6 +215,57 @@ class TestViewerResultPublicationService:
         assert "[REDACTED]" in evidence[0].content
         assert str(test_result.identifier) in evidence[0].filename
 
+    async def test_when_result_has_action_outcomes_expect_step_projection_and_evidence_split(
+        self,
+    ) -> None:
+        service, _, publisher, test_result = self._service(record=self._sync_record())
+        action = ActionResult(
+            identifier=uuid4(),
+            test_result_id=test_result.identifier,
+            action_id="request",
+            action_type="HTTP",
+            status=ResultStatus.FAILED,
+            created_at=_CREATED_AT,
+        )
+        precondition = ActionResult(
+            identifier=uuid4(),
+            test_result_id=test_result.identifier,
+            action_id="precondition:ready",
+            action_type="PRECONDITION",
+            status=ResultStatus.PASSED,
+            created_at=_CREATED_AT,
+        )
+        step_artifact = TestResultArtifact(
+            identifier=uuid4(),
+            test_result_id=test_result.identifier,
+            action_result_id=action.identifier,
+            artifact_type=ArtifactType.LOG,
+            storage_type=StorageType.DB,
+            created_at=_FINISHED_AT,
+            content="action trace",
+        )
+        precondition_artifact = TestResultArtifact(
+            identifier=uuid4(),
+            test_result_id=test_result.identifier,
+            action_result_id=precondition.identifier,
+            artifact_type=ArtifactType.LOG,
+            storage_type=StorageType.DB,
+            created_at=_FINISHED_AT,
+            content="precondition trace",
+        )
+        service._results = _Results(
+            test_result, (action, precondition), (step_artifact, precondition_artifact)
+        )
+
+        await service.process_next_publication()
+
+        test_run = publisher.projections[0].test_runs[0]
+        assert [(step.action_id, step.status) for step in test_run.steps] == [
+            ("request", ResultStatus.FAILED)
+        ]
+        assert [evidence.content for evidence in test_run.steps[0].evidence] == ["action trace"]
+        assert [evidence.content for evidence in test_run.evidence] == ["precondition trace"]
+
     async def test_when_result_publication_is_permanently_rejected_expect_safe_error_log(
         self, caplog
     ) -> None:
@@ -317,7 +378,7 @@ class TestViewerResultPublicationService:
         )
         service = ViewerResultPublicationService(
             _Executions(execution),
-            _Results(test_result, artifacts),
+            _Results(test_result, artifacts=artifacts),
             _Environments(
                 Environment(
                     identifier=execution.environment_id,
