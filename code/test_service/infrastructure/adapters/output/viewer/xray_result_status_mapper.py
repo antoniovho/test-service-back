@@ -10,11 +10,11 @@ class XrayResultStatusMapper:
     def to_test_run_status(result_status: ResultStatus, execution_status: ExecutionStatus) -> str:
         """Return the Xray status appropriate for one Test Run result."""
         if execution_status is ExecutionStatus.CANCELLED and result_status is ResultStatus.SKIPPED:
-            return "ABORTED"
+            return "TO DO"
         return {
-            ResultStatus.PASSED: "PASS",
-            ResultStatus.FAILED: "FAIL",
-            ResultStatus.ERROR: "FAIL",
-            ResultStatus.BLOCKED: "ABORTED",
-            ResultStatus.SKIPPED: "TODO",
+            ResultStatus.PASSED: "PASSED",
+            ResultStatus.FAILED: "FAILED",
+            ResultStatus.ERROR: "FAILED",
+            ResultStatus.BLOCKED: "TO DO",
+            ResultStatus.SKIPPED: "TO DO",
         }[result_status]

@@ -10,12 +10,12 @@ class TestXrayResultStatusMapper:
     @pytest.mark.parametrize(
         ("execution_status", "result_status", "expected_xray_status"),
         [
-            (ExecutionStatus.PASSED, ResultStatus.PASSED, "PASS"),
-            (ExecutionStatus.FAILED, ResultStatus.FAILED, "FAIL"),
-            (ExecutionStatus.ERROR, ResultStatus.ERROR, "FAIL"),
-            (ExecutionStatus.PARTIALLY_FAILED, ResultStatus.BLOCKED, "ABORTED"),
-            (ExecutionStatus.FAILED, ResultStatus.SKIPPED, "TODO"),
-            (ExecutionStatus.CANCELLED, ResultStatus.SKIPPED, "ABORTED"),
+            (ExecutionStatus.PASSED, ResultStatus.PASSED, "PASSED"),
+            (ExecutionStatus.FAILED, ResultStatus.FAILED, "FAILED"),
+            (ExecutionStatus.ERROR, ResultStatus.ERROR, "FAILED"),
+            (ExecutionStatus.PARTIALLY_FAILED, ResultStatus.BLOCKED, "TO DO"),
+            (ExecutionStatus.FAILED, ResultStatus.SKIPPED, "TO DO"),
+            (ExecutionStatus.CANCELLED, ResultStatus.SKIPPED, "TO DO"),
         ],
         ids=["passed", "failed", "error", "blocked", "skipped", "cancelled_skipped"],
     )

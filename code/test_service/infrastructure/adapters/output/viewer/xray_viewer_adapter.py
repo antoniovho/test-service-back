@@ -162,17 +162,35 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort, ViewerResu
             return existing
         variables = {
             "testIssueIds": [test_run.external_test_id for test_run in projection.test_runs],
-            "testEnvironments": [projection.environment_name],
-            "jira": {
-                "fields": {
-                    "project": {"key": publication.project_key},
-                    "summary": projection.summary,
-                    "labels": [publication.correlation_key],
-                }
-            },
+            "testEnvironments": [self._test_environment_name(projection.environment_name)],
+            "jira": self._jira_input(
+                publication.project_key,
+                projection.summary,
+                self._execution_description(projection),
+                (publication.correlation_key,),
+            ),
         }
         payload = await self._graphql(self._CREATE_TEST_EXECUTION, variables)
         return self._identity(payload, "createTestExecution", "testExecution")
+
+    @staticmethod
+    def _test_environment_name(environment_name: str) -> str:
+        """Convert a local environment name to Xray's Test Environment format."""
+        normalized = re.sub(r"[^A-Za-z0-9._-]+", "-", environment_name).strip("-_")
+        return normalized[:120] or "test-service"
+
+    @staticmethod
+    def _execution_description(projection: ViewerExecutionResultProjection) -> str:
+        """Provide safe execution context in the Jira Test Execution description."""
+        return "\n".join(
+            (
+                "Automated Test Service execution.",
+                f"Execution ID: {projection.publication.execution_id}",
+                f"Final status: {projection.execution_status.value}",
+                f"Environment: {projection.environment_name}",
+                f"Test runs: {len(projection.test_runs)}",
+            )
+        )
 
     async def _associate_test_execution_with_plan(
         self, test_execution_id: str, test_plan_id: str
@@ -180,7 +198,7 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort, ViewerResu
         """Associate one Xray Test Execution with its originating Test Plan."""
         await self._graphql(
             self._ADD_TEST_EXECUTION_TO_TEST_PLAN,
-            {"issueId": test_plan_id, "testExecutionIssueIds": [test_execution_id]},
+            {"issueId": test_plan_id, "testExecIssueIds": [test_execution_id]},
         )
 
     async def _find_execution_by_correlation(
@@ -206,7 +224,7 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort, ViewerResu
         payload = await self._graphql(
             self._GET_TEST_RUNS,
             {
-                "testExecutionIssueIds": [execution_id],
+                "testExecIssueIds": [execution_id],
                 "testIssueIds": list(test_issue_ids),
                 "limit": len(test_issue_ids),
             },
@@ -246,15 +264,16 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort, ViewerResu
             self._UPDATE_TEST_RUN_DETAILS,
             {
                 "id": test_run_id,
-                "testRun": {
-                    "comment": comment,
-                    "startedOn": (test_run.started_at.isoformat() if test_run.started_at else None),
-                    "finishedOn": (
-                        test_run.finished_at.isoformat() if test_run.finished_at else None
-                    ),
-                },
+                "comment": comment,
+                "startedOn": self._xray_timestamp(test_run.started_at),
+                "finishedOn": self._xray_timestamp(test_run.finished_at),
             },
         )
+
+    @staticmethod
+    def _xray_timestamp(value: datetime | None) -> str | None:
+        """Format an instant using the UTC representation required by Xray."""
+        return value.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ") if value else None
 
     @staticmethod
     def _test_run_comment(comment: str | None, duration_ms: int | None) -> str:
@@ -796,9 +815,9 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort, ViewerResu
         """
     _ADD_TEST_EXECUTION_TO_TEST_PLAN = """
         mutation AddTestExecutionsToTestPlan($issueId: String!,
-            $testExecutionIssueIds: [String!]!) {
+                        $testExecIssueIds: [String!]!) {
           addTestExecutionsToTestPlan(
-              issueId: $issueId, testExecutionIssueIds: $testExecutionIssueIds) {
+                            issueId: $issueId, testExecIssueIds: $testExecIssueIds) {
             addedTestExecutions
             warning
           }
@@ -812,9 +831,9 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort, ViewerResu
                 }
         """
     _GET_TEST_RUNS = """
-                query GetTestRuns($testExecutionIssueIds: [String!], $testIssueIds: [String!],
+                query GetTestRuns($testExecIssueIds: [String!], $testIssueIds: [String!],
                         $limit: Int!) {
-                    getTestRuns(testExecutionIssueIds: $testExecutionIssueIds,
+                    getTestRuns(testExecIssueIds: $testExecIssueIds,
                             testIssueIds: $testIssueIds, limit: $limit) {
                         results { id test { issueId } }
                     }
@@ -822,12 +841,14 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort, ViewerResu
         """
     _UPDATE_TEST_RUN_STATUS = """
                 mutation UpdateTestRunStatus($id: String!, $status: String!) {
-                    updateTestRunStatus(id: $id, status: $status) { id }
+                    updateTestRunStatus(id: $id, status: $status)
                 }
         """
     _UPDATE_TEST_RUN_DETAILS = """
-                mutation UpdateTestRun($id: String!, $testRun: UpdateTestRunInput!) {
-                    updateTestRun(id: $id, testRun: $testRun) { id }
+                mutation UpdateTestRun($id: String!, $comment: String, $startedOn: String,
+                        $finishedOn: String) {
+                    updateTestRun(id: $id, comment: $comment, startedOn: $startedOn,
+                            finishedOn: $finishedOn) { warnings }
                 }
         """
     _CREATE_PRECONDITION = """

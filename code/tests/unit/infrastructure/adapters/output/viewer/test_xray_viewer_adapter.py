@@ -145,8 +145,8 @@ class TestXrayViewerAdapter:
     @pytest.mark.parametrize(
         ("execution_status", "result_status", "expected_xray_status"),
         [
-            (ExecutionStatus.FAILED, ResultStatus.FAILED, "FAIL"),
-            (ExecutionStatus.CANCELLED, ResultStatus.SKIPPED, "ABORTED"),
+            (ExecutionStatus.FAILED, ResultStatus.FAILED, "FAILED"),
+            (ExecutionStatus.CANCELLED, ResultStatus.SKIPPED, "TO DO"),
         ],
         ids=["failed", "cancelled_skipped"],
     )
@@ -172,7 +172,7 @@ class TestXrayViewerAdapter:
         projection = ViewerExecutionResultProjection(
             publication=publication,
             summary="Test Service execution",
-            environment_name="Integration",
+            environment_name="AI LLM Back DEV · LiteLLM v1.106.1",
             external_test_plan_id="10003",
             execution_status=execution_status,
             test_runs=(
@@ -233,7 +233,7 @@ class TestXrayViewerAdapter:
                         }
                     },
                 )
-            return httpx.Response(200, json={"data": {"updateTestRun": {"id": "30001"}}})
+            return httpx.Response(200, json={"data": {"updateTestRun": {"warnings": []}}})
 
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
             identity = await XrayViewerAdapter(settings, client).publish_execution_result(
@@ -247,6 +247,7 @@ class TestXrayViewerAdapter:
         association_payload = next(
             item for item in payloads if "AddTestExecutionsToTestPlan" in item["query"]
         )
+        test_runs_payload = next(item for item in payloads if "GetTestRuns" in item["query"])
         status_payload = next(item for item in payloads if "UpdateTestRunStatus" in item["query"])
         update_payload = next(
             item for item in payloads if "mutation UpdateTestRun(" in item["query"]
@@ -255,18 +256,53 @@ class TestXrayViewerAdapter:
         assert identity.execution_key == "SHOP-20"
         assert identity.test_run_ids == {test_result_id: "30001"}
         assert create_payload["variables"]["testIssueIds"] == ["10001"]
-        assert create_payload["variables"]["testEnvironments"] == ["Integration"]
+        assert create_payload["variables"]["testEnvironments"] == [
+            "AI-LLM-Back-DEV-LiteLLM-v1.106.1"
+        ]
         assert create_payload["variables"]["jira"]["fields"]["labels"] == [
             publication.correlation_key
         ]
+        assert create_payload["variables"]["jira"]["fields"]["description"] == (
+            "Automated Test Service execution.\n"
+            f"Execution ID: {publication.execution_id}\n"
+            f"Final status: {execution_status.value}\n"
+            "Environment: AI LLM Back DEV · LiteLLM v1.106.1\n"
+            "Test runs: 1"
+        )
         assert association_payload["variables"] == {
             "issueId": "10003",
-            "testExecutionIssueIds": ["20001"],
+            "testExecIssueIds": ["20001"],
+        }
+        assert test_runs_payload["variables"] == {
+            "testExecIssueIds": ["20001"],
+            "testIssueIds": ["10001"],
+            "limit": 1,
         }
         assert status_payload["variables"] == {"id": "30001", "status": expected_xray_status}
-        assert "Duration: 1000 ms" in update_payload["variables"]["testRun"]["comment"]
-        assert update_payload["variables"]["testRun"]["startedOn"].endswith("+00:00")
-        assert update_payload["variables"]["testRun"]["finishedOn"].endswith("+00:00")
+        assert "updateTestRunStatus(id: $id, status: $status)" in status_payload["query"]
+        assert "updateTestRunStatus(id: $id, status: $status) {" not in status_payload["query"]
+        assert (
+            "updateTestRun(id: $id, comment: $comment, startedOn: $startedOn,"
+            in update_payload["query"]
+        )
+        assert "testRun" not in update_payload["variables"]
+        assert "Duration: 1000 ms" in update_payload["variables"]["comment"]
+        assert update_payload["variables"]["startedOn"].endswith("Z")
+        assert update_payload["variables"]["finishedOn"].endswith("Z")
+
+    @pytest.mark.parametrize(
+        ("environment_name", "expected"),
+        [
+            ("   ", "test-service"),
+            ("a" * 121, "a" * 120),
+        ],
+    )
+    def test_when_environment_name_violates_xray_constraints_expect_safe_value(
+        self, environment_name: str, expected: str
+    ) -> None:
+        normalized = XrayViewerAdapter._test_environment_name(environment_name)
+
+        assert normalized == expected
 
     async def test_when_correlated_test_execution_exists_expect_plan_association_repaired(
         self, settings: XraySettings
@@ -357,7 +393,7 @@ class TestXrayViewerAdapter:
         assert identity.execution_key == "SHOP-20"
         assert association_payload["variables"] == {
             "issueId": "10003",
-            "testExecutionIssueIds": ["20001"],
+            "testExecIssueIds": ["20001"],
         }
         assert not any("CreateTestExecution" in item["query"] for item in payloads)
 

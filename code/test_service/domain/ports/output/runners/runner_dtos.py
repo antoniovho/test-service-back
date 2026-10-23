@@ -24,6 +24,7 @@ class CompiledTestCase:
     test_case_id: str
     variables: Mapping[str, str]
     actions: tuple[CompiledAction, ...]
+    subject_type: str = "test case"
 
 
 @dataclass(frozen=True, slots=True)

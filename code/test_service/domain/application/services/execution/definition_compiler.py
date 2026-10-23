@@ -68,6 +68,7 @@ class DefinitionCompiler:
         test_case_id: UUID,
         definition: Definition,
         environment_variables: Mapping[str, str] | None = None,
+        subject_type: str = "test case",
     ) -> CompiledTestCase:
         """Produce stable work and reject unknown or malformed actions early.
 
@@ -77,6 +78,7 @@ class DefinitionCompiler:
             environment_variables: Variables supplied by the execution Environment. They
                 take precedence over a Definition variable with the same name, so choosing
                 an Environment decides where and how the Definition runs.
+            subject_type: Type of executable definition for runner observability.
         """
         actions = tuple(
             self._compile_action(
@@ -86,7 +88,7 @@ class DefinitionCompiler:
         )
         # Merge environment variables with definition variables, giving precedence to environment variables.
         variables = {**definition.variables, **(environment_variables or {})}
-        return CompiledTestCase(str(test_case_id), variables, actions)
+        return CompiledTestCase(str(test_case_id), variables, actions, subject_type)
 
     def _compile_action(
         self,

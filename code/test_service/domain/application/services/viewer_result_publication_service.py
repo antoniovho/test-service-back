@@ -1,5 +1,6 @@
 """Asynchronously project completed local executions to an external viewer."""
 
+import logging
 import re
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
@@ -57,6 +58,8 @@ _SENSITIVE_VALUE = re.compile(
 )
 _MAX_COMMENT_LENGTH = 1_000
 
+logger = logging.getLogger(__name__)
+
 
 class ViewerResultPublicationService:
     """Persist, resolve and publish execution results without blocking runners."""
@@ -100,13 +103,43 @@ class ViewerResultPublicationService:
             projection = await self._projection(publication)
             identity = await self._publisher.publish_execution_result(projection)
         except RetryableViewerResultPublicationError as error:
-            return await self._retry(publication, error)
+            retried = await self._retry(publication, error)
+            logger.warning(
+                "Viewer result publication '%s' for execution '%s' will retry at '%s' "
+                "after attempt %d: %s",
+                retried.identifier,
+                retried.execution_id,
+                retried.next_attempt_at,
+                retried.attempts,
+                self._safe_error(error),
+            )
+            return retried
         except PermanentViewerResultPublicationError as error:
-            return await self._fail_permanently(publication, error)
+            failed = await self._fail_permanently(publication, error)
+            logger.exception(
+                "Viewer result publication '%s' for execution '%s' failed permanently "
+                "after attempt %d: %s",
+                failed.identifier,
+                failed.execution_id,
+                failed.attempts,
+                self._safe_error(error),
+                exc_info=False,
+            )
+            return failed
         except Exception as error:
-            return await self._retry(publication, error)
+            retried = await self._retry(publication, error)
+            logger.warning(
+                "Viewer result publication '%s' for execution '%s' will retry at '%s' "
+                "after attempt %d: %s",
+                retried.identifier,
+                retried.execution_id,
+                retried.next_attempt_at,
+                retried.attempts,
+                self._safe_error(error),
+            )
+            return retried
         now = datetime.now(UTC)
-        return await self._publications.save_result_publication(
+        succeeded = await self._publications.save_result_publication(
             replace(
                 publication,
                 status=ViewerResultPublicationStatus.SUCCEEDED,
@@ -117,6 +150,15 @@ class ViewerResultPublicationService:
                 error=None,
             )
         )
+        logger.info(
+            "Viewer result publication '%s' for execution '%s' succeeded as external "
+            "execution '%s' ('%s').",
+            succeeded.identifier,
+            succeeded.execution_id,
+            succeeded.external_execution_id,
+            succeeded.external_execution_key,
+        )
+        return succeeded
 
     async def _projection(
         self, publication: ViewerResultPublication

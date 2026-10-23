@@ -263,7 +263,15 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
             )
 
             statuses.append(status)
+            log = logger.info if status is ResultStatus.PASSED else logger.warning
+            log(
+                "Execution '%s' Test Case '%s' completed with status '%s'.",
+                execution.identifier,
+                test_case.identifier,
+                status.value,
+            )
 
+        self._log_test_case_summary(execution.identifier, statuses)
         return tuple(statuses)
 
     async def _execute_test_case(
@@ -379,6 +387,9 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
         for reference in test_case.preconditions:
             precondition = await self._preconditions.find_by_id(reference.identifier)
             if precondition is None:
+                self._log_precondition_completion(
+                    execution.identifier, reference.identifier, ResultStatus.BLOCKED
+                )
                 return _PreconditionOutcome(
                     variable_values,
                     frozenset(variable_secrets),
@@ -396,8 +407,12 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
                 precondition.identifier,
                 precondition.validation_definition,
                 variable_values,
+                subject_type="precondition",
             )
             if not self._runner.supports(frozenset(item.action_type for item in compiled.actions)):
+                self._log_precondition_completion(
+                    execution.identifier, precondition.identifier, ResultStatus.BLOCKED
+                )
                 return _PreconditionOutcome(
                     variable_values,
                     frozenset(variable_secrets),
@@ -413,6 +428,9 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
             # Run the compiled precondition and handle its outcome.
             outcome = await self._run(compiled, cancellation, deadline)
             if outcome is None:
+                self._log_precondition_completion(
+                    execution.identifier, precondition.identifier, ResultStatus.ERROR
+                )
                 return _PreconditionOutcome(
                     variable_values,
                     frozenset(variable_secrets),
@@ -424,6 +442,9 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
             variable_secrets.update(value for value in outcome.variables.values() if value)
             outcome = redact_test_case_outcome(outcome, variable_secrets)
             evidence.extend(self._result_mapper.precondition_evidence(precondition, outcome))
+            self._log_precondition_completion(
+                execution.identifier, precondition.identifier, outcome.status
+            )
 
             if outcome.status is not ResultStatus.PASSED:
                 return _PreconditionOutcome(
@@ -443,6 +464,16 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
             variable_values,
             frozenset(variable_secrets),
             tuple(evidence),
+        )
+
+    @staticmethod
+    def _log_precondition_completion(execution_id, precondition_id, status: ResultStatus) -> None:
+        log = logger.info if status is ResultStatus.PASSED else logger.warning
+        log(
+            "Execution '%s' Precondition '%s' completed with status '%s'.",
+            execution_id,
+            precondition_id,
+            status.value,
         )
 
     async def _run(
@@ -555,3 +586,22 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
             return ExecutionStatus.FAILED
 
         return ExecutionStatus.PARTIALLY_FAILED
+
+    @staticmethod
+    def _log_test_case_summary(execution_id, statuses: list[ResultStatus]) -> None:
+        log = (
+            logger.info
+            if all(status is ResultStatus.PASSED for status in statuses)
+            else logger.warning
+        )
+        log(
+            "Execution '%s' Test Case summary: total=%d passed=%d failed=%d blocked=%d "
+            "error=%d skipped=%d.",
+            execution_id,
+            len(statuses),
+            sum(status is ResultStatus.PASSED for status in statuses),
+            sum(status is ResultStatus.FAILED for status in statuses),
+            sum(status is ResultStatus.BLOCKED for status in statuses),
+            sum(status is ResultStatus.ERROR for status in statuses),
+            sum(status is ResultStatus.SKIPPED for status in statuses),
+        )

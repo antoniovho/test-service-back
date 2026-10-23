@@ -1,3 +1,4 @@
+import logging
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -7,6 +8,9 @@ from test_service.domain.application.services.viewer_result_publication_service 
     ViewerResultPublicationService,
 )
 from test_service.domain.model.composition.test_plan import ExecutionMode, TestPlan
+from test_service.domain.model.exceptions.permanent_viewer_result_publication_exception import (
+    PermanentViewerResultPublicationError,
+)
 from test_service.domain.model.execution.environment import Environment, EnvironmentStatus
 from test_service.domain.model.execution.execution import ExecutionStatus, ResultStatus, TestResult
 from test_service.domain.model.viewer.execution_result_projection import (
@@ -113,6 +117,11 @@ class _Publisher:
         )
 
 
+class _PermanentFailurePublisher(_Publisher):
+    async def publish_execution_result(self, projection):
+        raise PermanentViewerResultPublicationError("Authorization: Bearer provider-secret")
+
+
 class TestViewerResultPublicationService:
     async def test_when_completing_execution_expect_publisher_viewer_type(self) -> None:
         service, publications, _, _ = self._service(record=self._sync_record())
@@ -129,8 +138,9 @@ class TestViewerResultPublicationService:
             (execution, (ExecutionStatus.RUNNING,), ViewerType.XRAY)
         ]
 
-    async def test_when_test_identity_is_unsynchronized_expect_retry_wait(self) -> None:
+    async def test_when_test_identity_is_unsynchronized_expect_retry_wait(self, caplog) -> None:
         service, publications, _, test_result = self._service(record=None)
+        caplog.set_level(logging.WARNING)
 
         result = await service.process_next_publication()
 
@@ -142,10 +152,13 @@ class TestViewerResultPublicationService:
         assert str(test_result.identifier) in (result.error or "")
         assert str(test_result.test_case_id) in (result.error or "")
         assert publications.saved == [result]
+        assert f"Viewer result publication '{result.identifier}'" in caplog.messages[0]
+        assert "will retry" in caplog.messages[0]
 
     async def test_when_result_is_resolved_expect_safe_projection_and_persisted_identity(
-        self,
+        self, caplog
     ) -> None:
+        caplog.set_level(logging.INFO)
         service, publications, publisher, test_result = self._service(
             record=self._sync_record(),
             error_message=("Authorization: Bearer secret-value failed"),
@@ -164,6 +177,25 @@ class TestViewerResultPublicationService:
         assert "[REDACTED]" in (projection.test_runs[0].comment or "")
         assert publications.saved == [result]
         assert projection.test_runs[0].test_result_id == test_result.identifier
+        assert f"Viewer result publication '{result.identifier}'" in caplog.messages[0]
+        assert "succeeded as external execution '20001' ('IAG-9')" in caplog.messages[0]
+
+    async def test_when_result_publication_is_permanently_rejected_expect_safe_error_log(
+        self, caplog
+    ) -> None:
+        service, publications, _, _ = self._service(
+            record=self._sync_record(), publisher=_PermanentFailurePublisher()
+        )
+        caplog.set_level(logging.ERROR)
+
+        result = await service.process_next_publication()
+
+        assert result is not None
+        assert result.status is ViewerResultPublicationStatus.FAILED_PERMANENT
+        assert "provider-secret" not in caplog.messages[0]
+        assert "[REDACTED]" in caplog.messages[0]
+        assert "failed permanently" in caplog.messages[0]
+        assert publications.saved == [result]
 
     async def test_when_execution_is_cancelled_expect_skipped_result_is_aborted(self) -> None:
         service, _, publisher, _ = self._service(
@@ -197,6 +229,7 @@ class TestViewerResultPublicationService:
         execution_status: ExecutionStatus = ExecutionStatus.FAILED,
         result_status: ResultStatus = ResultStatus.FAILED,
         test_plan_synchronized: bool = True,
+        publisher: _Publisher | None = None,
     ):
         test_case = a_test_case()
         execution = an_execution(
@@ -231,7 +264,7 @@ class TestViewerResultPublicationService:
             updated_at=_FINISHED_AT,
         )
         publications = _Publications(publication)
-        publisher = _Publisher()
+        publisher = publisher or _Publisher()
         test_plan = TestPlan(
             identifier=execution.test_plan_id,
             project_key=execution.project_key,
