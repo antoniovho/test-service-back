@@ -15,10 +15,13 @@ from test_service.domain.model.exceptions.retryable_viewer_result_publication_ex
 )
 from test_service.domain.model.execution.execution import (
     TERMINAL_EXECUTION_STATUSES,
+    ArtifactType,
     Execution,
     ExecutionStatus,
+    StorageType,
 )
 from test_service.domain.model.viewer.execution_result_projection import (
+    ViewerEvidenceProjection,
     ViewerExecutionResultProjection,
     ViewerTestRunProjection,
 )
@@ -57,6 +60,8 @@ _SENSITIVE_VALUE = re.compile(
     r"(\s*[:=]\s*)(?:bearer\s+)?[^\s,;\"'}]+"
 )
 _MAX_COMMENT_LENGTH = 1_000
+_MAX_EVIDENCE_CONTENT_LENGTH = 20_000
+_MAX_EVIDENCE_PER_TEST_RUN = 10
 
 logger = logging.getLogger(__name__)
 
@@ -280,7 +285,42 @@ class ViewerResultPublicationService:
             finished_at=result.finished_at,
             duration_ms=result.duration_ms,
             comment=self._comment(result.error_code, result.error_message),
+            evidence=await self._evidence(result.identifier),
         )
+
+    async def _evidence(self, test_result_id) -> tuple[ViewerEvidenceProjection, ...]:
+        """Project bounded database log artifacts as safe inline viewer evidence."""
+        evidence = []
+        for artifact in await self._all_artifacts(test_result_id):
+            if (
+                artifact.artifact_type is not ArtifactType.LOG
+                or artifact.storage_type is not StorageType.DB
+                or not artifact.content
+            ):
+                continue
+            evidence.append(
+                ViewerEvidenceProjection(
+                    filename=f"test-result-{test_result_id}-artifact-{artifact.identifier}.log",
+                    mime_type="text/plain",
+                    content=self._safe_text(artifact.content, _MAX_EVIDENCE_CONTENT_LENGTH),
+                )
+            )
+            if len(evidence) == _MAX_EVIDENCE_PER_TEST_RUN:
+                break
+        return tuple(evidence)
+
+    async def _all_artifacts(self, test_result_id) -> tuple:
+        """Load every persisted artifact for one test result through paginated queries."""
+        offset = 0
+        collected = []
+        while True:
+            page = await self._results.find_artifacts_page(
+                test_result_id, PaginationParams(offset=offset, limit=MAX_PAGE_LIMIT)
+            )
+            collected.extend(page.items)
+            offset += len(page.items)
+            if offset >= page.total:
+                return tuple(collected)
 
     async def _retry(
         self, publication: ViewerResultPublication, error: Exception
@@ -338,6 +378,6 @@ class ViewerResultPublicationService:
         )
 
     @staticmethod
-    def _safe_text(value: str) -> str:
+    def _safe_text(value: str, max_length: int = _MAX_COMMENT_LENGTH) -> str:
         """Redact sensitive key-value pairs and cap viewer-facing text length."""
-        return _SENSITIVE_VALUE.sub(r"\1\2[REDACTED]", value)[:_MAX_COMMENT_LENGTH]
+        return _SENSITIVE_VALUE.sub(r"\1\2[REDACTED]", value)[:max_length]

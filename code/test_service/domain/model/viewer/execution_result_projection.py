@@ -12,6 +12,15 @@ from test_service.domain.model.viewer.execution_results import ViewerResultPubli
 
 
 @dataclass(frozen=True, slots=True)
+class ViewerEvidenceProjection:
+    """One safe inline evidence item ready for an external viewer."""
+
+    filename: str
+    mime_type: str
+    content: str
+
+
+@dataclass(frozen=True, slots=True)
 class ViewerTestRunProjection:
     """One local TestResult ready to update in the external viewer."""
 
@@ -22,6 +31,7 @@ class ViewerTestRunProjection:
     finished_at: datetime | None
     duration_ms: int | None
     comment: str | None
+    evidence: tuple[ViewerEvidenceProjection, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

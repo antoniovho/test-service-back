@@ -63,7 +63,11 @@ _SENSITIVE_GRAPHQL_VALUE = re.compile(
 class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort, ViewerResultPublisherPort):
     """Publish Viewer projections through Xray Cloud's authenticated GraphQL API."""
 
-    def __init__(self, settings: XraySettings, client: httpx.AsyncClient | None = None) -> None:
+    def __init__(
+        self,
+        settings: XraySettings,
+        client: httpx.AsyncClient | None = None,
+    ) -> None:
         self._settings = settings
         self._client = client
         self._access_token: str | None = None
@@ -259,7 +263,11 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort, ViewerResu
                 ),
             },
         )
-        comment = self._test_run_comment(test_run.comment, test_run.duration_ms)
+        comment = (
+            self._test_run_comment(test_run.comment, test_run.duration_ms)
+            if test_run.comment
+            else None
+        )
         await self._graphql(
             self._UPDATE_TEST_RUN_DETAILS,
             {
@@ -269,7 +277,23 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort, ViewerResu
                 "finishedOn": self._xray_timestamp(test_run.finished_at),
             },
         )
-
+        if test_run.evidence:
+            await self._graphql(
+                self._ADD_EVIDENCE_TO_TEST_RUN,
+                {
+                    "id": test_run_id,
+                    "evidence": [
+                        {
+                            "filename": evidence.filename,
+                            "mimeType": evidence.mime_type,
+                            "data": base64.b64encode(evidence.content.encode()).decode(
+                                "ascii"
+                            ),
+                        }
+                        for evidence in test_run.evidence
+                    ],
+                },
+            )
     @staticmethod
     def _xray_timestamp(value: datetime | None) -> str | None:
         """Format an instant using the UTC representation required by Xray."""
@@ -845,12 +869,17 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort, ViewerResu
                 }
         """
     _UPDATE_TEST_RUN_DETAILS = """
-                mutation UpdateTestRun($id: String!, $comment: String, $startedOn: String,
-                        $finishedOn: String) {
-                    updateTestRun(id: $id, comment: $comment, startedOn: $startedOn,
-                            finishedOn: $finishedOn) { warnings }
-                }
-        """
+        mutation UpdateTestRun($id: String!, $comment: String, $startedOn: String,
+            $finishedOn: String) {
+            updateTestRun(id: $id, comment: $comment, startedOn: $startedOn,
+                finishedOn: $finishedOn) { warnings }
+        }
+    """
+    _ADD_EVIDENCE_TO_TEST_RUN = """
+        mutation AddEvidenceToTestRun($id: String!, $evidence: [AttachmentDataInput]!) {
+          addEvidenceToTestRun(id: $id, evidence: $evidence) { addedEvidence }
+        }
+    """
     _CREATE_PRECONDITION = """
             mutation CreatePrecondition($preconditionType: UpdatePreconditionTypeInput,
                 $definition: String, $jira: JSON!) {

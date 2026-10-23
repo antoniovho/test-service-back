@@ -12,6 +12,7 @@ from pydantic import SecretStr
 from test_service.config import XraySettings
 from test_service.domain.model.execution.execution import ExecutionStatus, ResultStatus
 from test_service.domain.model.viewer.execution_result_projection import (
+    ViewerEvidenceProjection,
     ViewerExecutionResultProjection,
     ViewerTestRunProjection,
 )
@@ -184,6 +185,13 @@ class TestXrayViewerAdapter:
                     finished_at=datetime(2026, 1, 1, 10, 0, 1, tzinfo=UTC),
                     duration_ms=1_000,
                     comment="HTTP_ASSERTION_FAILED: response did not match",
+                    evidence=(
+                        ViewerEvidenceProjection(
+                            filename="request-trace.log",
+                            mime_type="text/plain",
+                            content="sanitized trace",
+                        ),
+                    ),
                 ),
             ),
         )
@@ -252,6 +260,9 @@ class TestXrayViewerAdapter:
         update_payload = next(
             item for item in payloads if "mutation UpdateTestRun(" in item["query"]
         )
+        evidence_payload = next(
+            item for item in payloads if "AddEvidenceToTestRun" in item["query"]
+        )
         assert identity.execution_id == "20001"
         assert identity.execution_key == "SHOP-20"
         assert identity.test_run_ids == {test_result_id: "30001"}
@@ -289,6 +300,17 @@ class TestXrayViewerAdapter:
         assert "Duration: 1000 ms" in update_payload["variables"]["comment"]
         assert update_payload["variables"]["startedOn"].endswith("Z")
         assert update_payload["variables"]["finishedOn"].endswith("Z")
+        assert evidence_payload["variables"] == {
+            "id": "30001",
+            "evidence": [
+                {
+                    "filename": "request-trace.log",
+                    "mimeType": "text/plain",
+                    "data": "c2FuaXRpemVkIHRyYWNl",
+                }
+            ],
+        }
+        assert not any("AddDefectsToTestRun" in item["query"] for item in payloads)
 
     @pytest.mark.parametrize(
         ("environment_name", "expected"),

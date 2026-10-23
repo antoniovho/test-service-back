@@ -12,7 +12,14 @@ from test_service.domain.model.exceptions.permanent_viewer_result_publication_ex
     PermanentViewerResultPublicationError,
 )
 from test_service.domain.model.execution.environment import Environment, EnvironmentStatus
-from test_service.domain.model.execution.execution import ExecutionStatus, ResultStatus, TestResult
+from test_service.domain.model.execution.execution import (
+    ArtifactType,
+    ExecutionStatus,
+    ResultStatus,
+    StorageType,
+    TestResult,
+    TestResultArtifact,
+)
 from test_service.domain.model.viewer.execution_result_projection import (
     ViewerExecutionResultIdentity,
 )
@@ -41,11 +48,15 @@ class _Executions:
 
 
 class _Results:
-    def __init__(self, result: TestResult) -> None:
+    def __init__(self, result: TestResult, artifacts: tuple[TestResultArtifact, ...] = ()) -> None:
         self._result = result
+        self._artifacts = artifacts
 
     async def find_results_page(self, _, __):
         return Page((self._result,), 1)
+
+    async def find_artifacts_page(self, _, __):
+        return Page(self._artifacts, len(self._artifacts))
 
 
 class _Environments:
@@ -180,6 +191,20 @@ class TestViewerResultPublicationService:
         assert f"Viewer result publication '{result.identifier}'" in caplog.messages[0]
         assert "succeeded as external execution '20001' ('IAG-9')" in caplog.messages[0]
 
+    async def test_when_result_has_log_artifact_expect_safe_viewer_evidence(self) -> None:
+        service, _, publisher, test_result = self._service(
+            record=self._sync_record(), artifact_contents=("token=provider-secret execution trace",)
+        )
+
+        await service.process_next_publication()
+
+        evidence = publisher.projections[0].test_runs[0].evidence
+        assert len(evidence) == 1
+        assert evidence[0].mime_type == "text/plain"
+        assert "provider-secret" not in evidence[0].content
+        assert "[REDACTED]" in evidence[0].content
+        assert str(test_result.identifier) in evidence[0].filename
+
     async def test_when_result_publication_is_permanently_rejected_expect_safe_error_log(
         self, caplog
     ) -> None:
@@ -230,6 +255,8 @@ class TestViewerResultPublicationService:
         result_status: ResultStatus = ResultStatus.FAILED,
         test_plan_synchronized: bool = True,
         publisher: _Publisher | None = None,
+        artifacts: tuple[TestResultArtifact, ...] = (),
+        artifact_contents: tuple[str, ...] = (),
     ):
         test_case = a_test_case()
         execution = an_execution(
@@ -252,6 +279,18 @@ class TestViewerResultPublicationService:
             duration_ms=1_000,
             error_code="HTTP_ASSERTION_FAILED",
             error_message=error_message,
+        )
+        artifacts = artifacts + tuple(
+            TestResultArtifact(
+                identifier=uuid4(),
+                test_result_id=test_result.identifier,
+                artifact_type=ArtifactType.LOG,
+                storage_type=StorageType.DB,
+                created_at=_FINISHED_AT,
+                mime_type="text/plain; charset=utf-8",
+                content=content,
+            )
+            for content in artifact_contents
         )
         publication = ViewerResultPublication(
             identifier=uuid4(),
@@ -278,7 +317,7 @@ class TestViewerResultPublicationService:
         )
         service = ViewerResultPublicationService(
             _Executions(execution),
-            _Results(test_result),
+            _Results(test_result, artifacts),
             _Environments(
                 Environment(
                     identifier=execution.environment_id,

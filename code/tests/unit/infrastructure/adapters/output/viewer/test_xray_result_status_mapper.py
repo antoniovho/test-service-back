@@ -13,7 +13,7 @@ class TestXrayResultStatusMapper:
             (ExecutionStatus.PASSED, ResultStatus.PASSED, "PASSED"),
             (ExecutionStatus.FAILED, ResultStatus.FAILED, "FAILED"),
             (ExecutionStatus.ERROR, ResultStatus.ERROR, "FAILED"),
-            (ExecutionStatus.PARTIALLY_FAILED, ResultStatus.BLOCKED, "TO DO"),
+            (ExecutionStatus.PARTIALLY_FAILED, ResultStatus.BLOCKED, "BLOCKED"),
             (ExecutionStatus.FAILED, ResultStatus.SKIPPED, "TO DO"),
             (ExecutionStatus.CANCELLED, ResultStatus.SKIPPED, "TO DO"),
         ],

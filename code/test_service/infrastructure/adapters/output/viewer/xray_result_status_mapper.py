@@ -15,6 +15,6 @@ class XrayResultStatusMapper:
             ResultStatus.PASSED: "PASSED",
             ResultStatus.FAILED: "FAILED",
             ResultStatus.ERROR: "FAILED",
-            ResultStatus.BLOCKED: "TO DO",
+            ResultStatus.BLOCKED: "BLOCKED",
             ResultStatus.SKIPPED: "TO DO",
         }[result_status]
