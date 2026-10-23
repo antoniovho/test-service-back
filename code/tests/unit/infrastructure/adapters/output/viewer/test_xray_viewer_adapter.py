@@ -268,6 +268,168 @@ class TestXrayViewerAdapter:
         assert update_payload["variables"]["testRun"]["startedOn"].endswith("+00:00")
         assert update_payload["variables"]["testRun"]["finishedOn"].endswith("+00:00")
 
+    async def test_when_correlated_test_execution_exists_expect_plan_association_repaired(
+        self, settings: XraySettings
+    ) -> None:
+        requests: list[httpx.Request] = []
+        test_result_id = uuid4()
+        projection = ViewerExecutionResultProjection(
+            publication=ViewerResultPublication(
+                identifier=uuid4(),
+                project_key="SHOP",
+                execution_id=uuid4(),
+                viewer_type=ViewerType.XRAY,
+                status=ViewerResultPublicationStatus.RUNNING,
+                attempts=2,
+                created_at=datetime(2026, 1, 1, tzinfo=UTC),
+                updated_at=datetime(2026, 1, 1, tzinfo=UTC),
+            ),
+            summary="Test Service execution",
+            environment_name="Integration",
+            external_test_plan_id="10003",
+            execution_status=ExecutionStatus.PASSED,
+            test_runs=(
+                ViewerTestRunProjection(
+                    test_result_id=test_result_id,
+                    external_test_id="10001",
+                    status=ResultStatus.PASSED,
+                    started_at=None,
+                    finished_at=None,
+                    duration_ms=None,
+                    comment=None,
+                ),
+            ),
+        )
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            if request.url.path == "/auth":
+                return httpx.Response(200, json="xray-token")
+            query = json.loads(request.content)["query"]
+            if "GetTestExecutions" in query:
+                return httpx.Response(
+                    200,
+                    json={
+                        "data": {
+                            "getTestExecutions": {
+                                "results": [{"issueId": "20001", "jira": {"key": "SHOP-20"}}]
+                            }
+                        }
+                    },
+                )
+            if "GetTestRuns" in query:
+                return httpx.Response(
+                    200,
+                    json={
+                        "data": {
+                            "getTestRuns": {
+                                "results": [{"id": "30001", "test": {"issueId": "10001"}}]
+                            }
+                        }
+                    },
+                )
+            if "AddTestExecutionsToTestPlan" in query:
+                return httpx.Response(
+                    200,
+                    json={
+                        "data": {
+                            "addTestExecutionsToTestPlan": {
+                                "addedTestExecutions": ["20001"],
+                                "warning": None,
+                            }
+                        }
+                    },
+                )
+            return httpx.Response(200, json={"data": {"updateTestRun": {"id": "30001"}}})
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            identity = await XrayViewerAdapter(settings, client).publish_execution_result(
+                projection
+            )
+
+        payloads = [
+            json.loads(request.content) for request in requests if request.url.path == "/graphql"
+        ]
+        association_payload = next(
+            item for item in payloads if "AddTestExecutionsToTestPlan" in item["query"]
+        )
+        assert identity.execution_id == "20001"
+        assert identity.execution_key == "SHOP-20"
+        assert association_payload["variables"] == {
+            "issueId": "10003",
+            "testExecutionIssueIds": ["20001"],
+        }
+        assert not any("CreateTestExecution" in item["query"] for item in payloads)
+
+    async def test_when_execution_identity_is_persisted_expect_no_lookup_needed(
+        self, settings: XraySettings
+    ) -> None:
+        publication = ViewerResultPublication(
+            identifier=uuid4(),
+            project_key="SHOP",
+            execution_id=uuid4(),
+            viewer_type=ViewerType.XRAY,
+            status=ViewerResultPublicationStatus.RUNNING,
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
+            updated_at=datetime(2026, 1, 1, tzinfo=UTC),
+            external_execution_id="20001",
+            external_execution_key="SHOP-20",
+        )
+        projection = ViewerExecutionResultProjection(
+            publication=publication,
+            summary="Test Service execution",
+            environment_name="Integration",
+            external_test_plan_id="10003",
+            execution_status=ExecutionStatus.PASSED,
+            test_runs=(),
+        )
+        adapter = XrayViewerAdapter(settings)
+
+        identity = await adapter._execution_identity(projection)
+
+        assert identity == ViewerExternalIdentity("20001", "SHOP-20")
+
+    async def test_when_execution_identity_is_partial_expect_correlation_lookup(
+        self, settings: XraySettings
+    ) -> None:
+        publication = ViewerResultPublication(
+            identifier=uuid4(),
+            project_key="SHOP",
+            execution_id=uuid4(),
+            viewer_type=ViewerType.XRAY,
+            status=ViewerResultPublicationStatus.RUNNING,
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
+            updated_at=datetime(2026, 1, 1, tzinfo=UTC),
+            external_execution_id="20001",
+        )
+        projection = ViewerExecutionResultProjection(
+            publication=publication,
+            summary="Test Service execution",
+            environment_name="Integration",
+            external_test_plan_id="10003",
+            execution_status=ExecutionStatus.PASSED,
+            test_runs=(),
+        )
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/auth":
+                return httpx.Response(200, json="xray-token")
+            return httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "getTestExecutions": {
+                            "results": [{"issueId": "20002", "jira": {"key": "SHOP-21"}}]
+                        }
+                    }
+                },
+            )
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            identity = await XrayViewerAdapter(settings, client)._execution_identity(projection)
+
+        assert identity == ViewerExternalIdentity("20002", "SHOP-21")
+
     async def test_when_creating_precondition_expect_separate_description_and_definition(
         self, settings: XraySettings, projection: ViewerProjection
     ) -> None:

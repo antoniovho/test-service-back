@@ -5,6 +5,10 @@ from uuid import uuid4
 
 from test_service.domain.application.queries.pagination import Page, PaginationParams
 from test_service.domain.model.execution.execution import ExecutionStatus
+from test_service.domain.model.viewer.execution_results import (
+    ViewerResultPublication,
+    ViewerResultPublicationStatus,
+)
 from test_service.domain.model.viewer.records import (
     DriftEvent,
     DriftType,
@@ -78,6 +82,18 @@ def _operation_item(record: ViewerSyncRecord) -> ViewerOperationItem:
         sync_status=record.sync_status,
         error=None,
         created_at=record.created_at,
+    )
+
+
+def _result_publication() -> ViewerResultPublication:
+    return ViewerResultPublication(
+        identifier=uuid4(),
+        project_key="IAG",
+        execution_id=uuid4(),
+        viewer_type=ViewerType.XRAY,
+        status=ViewerResultPublicationStatus.PENDING,
+        created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        updated_at=datetime(2026, 1, 1, tzinfo=UTC),
     )
 
 
@@ -297,3 +313,78 @@ class TestViewerPersistenceAdapter:
         assert project_sync_page.items == (record,)
         assert drift_page.items == (event,)
         assert project_drift_page.items == (event,)
+
+    async def test_when_enqueueing_result_publication_expect_pending_domain_value(self) -> None:
+        execution = an_execution(created_at=datetime(2026, 1, 1, tzinfo=UTC))
+        repository = SimpleNamespace(enqueue_result_publication=AsyncMock())
+        repository.enqueue_result_publication.side_effect = lambda publication: publication
+        adapter = ViewerPersistenceAdapter(repository)
+
+        publication = await adapter.enqueue_result_publication(execution, ViewerType.XRAY)
+
+        assert publication.project_key == execution.project_key
+        assert publication.execution_id == execution.identifier
+        assert publication.viewer_type is ViewerType.XRAY
+        assert publication.status is ViewerResultPublicationStatus.PENDING
+
+    async def test_when_claiming_result_publication_expect_domain_value_restored(self) -> None:
+        from test_service.infrastructure.adapters.output.viewer.persistence.mappers.viewer_persistence_mapper import (  # noqa: E501
+            ViewerPersistenceMapper,
+        )
+
+        publication = _result_publication()
+        repository = SimpleNamespace(
+            claim_next_result_publication=AsyncMock(
+                return_value=ViewerPersistenceMapper.result_publication_to_dto(publication)
+            )
+        )
+        adapter = ViewerPersistenceAdapter(repository)
+
+        claimed = await adapter.claim_next_result_publication()
+
+        assert claimed == publication
+
+    async def test_when_no_result_publication_is_available_expect_none(self) -> None:
+        repository = SimpleNamespace(claim_next_result_publication=AsyncMock(return_value=None))
+        adapter = ViewerPersistenceAdapter(repository)
+
+        claimed = await adapter.claim_next_result_publication()
+
+        assert claimed is None
+
+    async def test_when_saving_result_publication_expect_domain_value_restored(self) -> None:
+        publication = _result_publication()
+        repository = SimpleNamespace(save_result_publication=AsyncMock())
+        repository.save_result_publication.side_effect = lambda dto: dto
+        adapter = ViewerPersistenceAdapter(repository)
+
+        saved = await adapter.save_result_publication(publication)
+
+        assert saved == publication
+
+    async def test_when_result_publication_is_found_expect_domain_value_restored(self) -> None:
+        from test_service.infrastructure.adapters.output.viewer.persistence.mappers.viewer_persistence_mapper import (  # noqa: E501
+            ViewerPersistenceMapper,
+        )
+
+        publication = _result_publication()
+        repository = SimpleNamespace(
+            find_result_publication=AsyncMock(
+                return_value=ViewerPersistenceMapper.result_publication_to_dto(publication)
+            )
+        )
+        adapter = ViewerPersistenceAdapter(repository)
+
+        found = await adapter.find_result_publication(
+            publication.execution_id, publication.viewer_type
+        )
+
+        assert found == publication
+
+    async def test_when_result_publication_is_not_found_expect_none(self) -> None:
+        repository = SimpleNamespace(find_result_publication=AsyncMock(return_value=None))
+        adapter = ViewerPersistenceAdapter(repository)
+
+        found = await adapter.find_result_publication(uuid4(), ViewerType.XRAY)
+
+        assert found is None
