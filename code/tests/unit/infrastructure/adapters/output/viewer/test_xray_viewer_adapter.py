@@ -148,9 +148,10 @@ class TestXrayViewerAdapter:
         ("execution_status", "result_status", "expected_xray_status"),
         [
             (ExecutionStatus.FAILED, ResultStatus.FAILED, "FAILED"),
+            (ExecutionStatus.FAILED, ResultStatus.BLOCKED, "BLOCKED"),
             (ExecutionStatus.CANCELLED, ResultStatus.SKIPPED, "TO DO"),
         ],
-        ids=["failed", "cancelled_skipped"],
+        ids=["failed", "blocked", "cancelled_skipped"],
     )
     async def test_when_publishing_result_expect_test_execution_and_test_run_updated(
         self,
@@ -354,6 +355,8 @@ class TestXrayViewerAdapter:
             ],
         }
         assert evidence_payload["variables"]["evidence"][0]["filename"] == "request-trace.log"
+        assert payloads.index(step_status_payload) < payloads.index(status_payload)
+        assert payloads.index(status_payload) < payloads.index(update_payload)
         assert not any("AddDefectsToTestRun" in item["query"] for item in payloads)
 
     @pytest.mark.parametrize(

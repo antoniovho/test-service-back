@@ -296,28 +296,10 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort, ViewerResu
     async def _update_test_run(
         self, remote_test_run: _XrayTestRun, test_run, execution_status: ExecutionStatus
     ) -> None:
-        await self._graphql(
-            self._UPDATE_TEST_RUN_STATUS,
-            {
-                "id": remote_test_run.identifier,
-                "status": XrayResultStatusMapper.to_test_run_status(
-                    test_run.status, execution_status
-                ),
-            },
-        )
         comment = (
             self._test_run_comment(test_run.comment, test_run.duration_ms)
             if test_run.comment
             else None
-        )
-        await self._graphql(
-            self._UPDATE_TEST_RUN_DETAILS,
-            {
-                "id": remote_test_run.identifier,
-                "comment": comment,
-                "startedOn": self._xray_timestamp(test_run.started_at),
-                "finishedOn": self._xray_timestamp(test_run.finished_at),
-            },
         )
         if test_run.evidence:
             await self._graphql(
@@ -335,6 +317,24 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort, ViewerResu
                 },
             )
         await self._update_test_run_steps(remote_test_run, test_run)
+        await self._graphql(
+            self._UPDATE_TEST_RUN_STATUS,
+            {
+                "id": remote_test_run.identifier,
+                "status": XrayResultStatusMapper.to_test_run_status(
+                    test_run.status, execution_status
+                ),
+            },
+        )
+        await self._graphql(
+            self._UPDATE_TEST_RUN_DETAILS,
+            {
+                "id": remote_test_run.identifier,
+                "comment": comment,
+                "startedOn": self._xray_timestamp(test_run.started_at),
+                "finishedOn": self._xray_timestamp(test_run.finished_at),
+            },
+        )
 
     async def _update_test_run_steps(self, remote_test_run: _XrayTestRun, test_run) -> None:
         """Update the exact remote steps represented by persisted local actions."""
