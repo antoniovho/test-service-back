@@ -17,6 +17,7 @@ from test_service.domain.model.execution.execution import ResultStatus
 from test_service.domain.ports.output.runners.runner_dtos import (
     CompiledAction,
     CompiledTestCase,
+    ExecutionSubjectType,
     RunnerActionOutcome,
     RunnerTestCaseOutcome,
 )
@@ -218,7 +219,7 @@ class TavernRunnerAdapter:
 
     @staticmethod
     def _log_terminal_issue(
-        subject_type: str, subject_id: str, outcome: RunnerActionOutcome
+        subject_type: ExecutionSubjectType, subject_id: str, outcome: RunnerActionOutcome
     ) -> None:
         """Expose a normalized action failure in the application log.
 

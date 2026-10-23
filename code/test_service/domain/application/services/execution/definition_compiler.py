@@ -11,6 +11,7 @@ from test_service.domain.model.exceptions.invalid_definition_exception import (
 from test_service.domain.ports.output.runners.runner_dtos import (
     CompiledAction,
     CompiledTestCase,
+    ExecutionSubjectType,
 )
 
 
@@ -68,7 +69,7 @@ class DefinitionCompiler:
         test_case_id: UUID,
         definition: Definition,
         environment_variables: Mapping[str, str] | None = None,
-        subject_type: str = "test case",
+        subject_type: ExecutionSubjectType = ExecutionSubjectType.TEST_CASE,
     ) -> CompiledTestCase:
         """Produce stable work and reject unknown or malformed actions early.
 

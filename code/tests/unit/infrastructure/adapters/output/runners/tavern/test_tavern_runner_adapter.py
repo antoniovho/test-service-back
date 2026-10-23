@@ -7,6 +7,7 @@ from test_service.domain.model.execution.execution import ResultStatus
 from test_service.domain.ports.output.runners.runner_dtos import (
     CompiledAction,
     CompiledTestCase,
+    ExecutionSubjectType,
     RunnerActionOutcome,
 )
 from test_service.infrastructure.adapters.output.runners.tavern.dtos.tavern_dtos import (
@@ -213,7 +214,7 @@ class TestTavernRunnerAdapter:
             "precondition-id",
             {},
             (CompiledAction("proxyReadiness", "HTTP", 0, {}),),
-            "precondition",
+            ExecutionSubjectType.PRECONDITION,
         )
 
         outcome = await adapter.execute(test_case, asyncio.Event())

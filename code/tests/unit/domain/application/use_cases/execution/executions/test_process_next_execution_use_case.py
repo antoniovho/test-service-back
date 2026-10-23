@@ -66,6 +66,7 @@ from test_service.domain.ports.output.persistence.test_plans.test_plan_persisten
     TestPlanPersistencePort,
 )
 from test_service.domain.ports.output.runners.runner_dtos import (
+    ExecutionSubjectType,
     RunnerActionOutcome,
     RunnerTestCaseOutcome,
 )
@@ -199,7 +200,7 @@ class _Runner:
         self.identifier = identifier
         self.version = version
         self.executed_test_case_ids: list[str] = []
-        self.executed_subject_types: list[str] = []
+        self.executed_subject_types: list[ExecutionSubjectType] = []
         self.executed_variables: list[dict[str, str]] = []
         self._outcome = outcome or RunnerTestCaseOutcome(
             status=ResultStatus.PASSED,
@@ -1443,7 +1444,7 @@ class TestProcessNextExecutionUseCase:
         }
         assert precondition_outcome.secrets == frozenset({"tenant-secret", "temporary-token"})
         assert len(precondition_outcome.evidence) == 1
-        assert runner.executed_subject_types == ["precondition"]
+        assert runner.executed_subject_types == [ExecutionSubjectType.PRECONDITION]
         assert precondition_outcome.terminal_result == (
             ResultStatus.BLOCKED,
             "PRECONDITION_FAILED",

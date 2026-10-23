@@ -61,6 +61,7 @@ from test_service.domain.ports.output.persistence.test_plans.test_plan_persisten
 )
 from test_service.domain.ports.output.runners.runner_dtos import (
     CompiledTestCase,
+    ExecutionSubjectType,
     RunnerActionOutcome,
     RunnerTestCaseOutcome,
 )
@@ -407,7 +408,7 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
                 precondition.identifier,
                 precondition.validation_definition,
                 variable_values,
-                subject_type="precondition",
+                subject_type=ExecutionSubjectType.PRECONDITION,
             )
             if not self._runner.supports(frozenset(item.action_type for item in compiled.actions)):
                 self._log_precondition_completion(
