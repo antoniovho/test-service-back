@@ -6,6 +6,7 @@ from test_service.domain.application.queries.pagination import Page
 from test_service.domain.application.services.viewer_result_publication_service import (
     ViewerResultPublicationService,
 )
+from test_service.domain.model.composition.test_plan import ExecutionMode, TestPlan
 from test_service.domain.model.execution.environment import Environment, EnvironmentStatus
 from test_service.domain.model.execution.execution import ExecutionStatus, ResultStatus, TestResult
 from test_service.domain.model.viewer.execution_result_projection import (
@@ -59,12 +60,20 @@ class _TestCases:
         return self._test_case
 
 
-class _ViewerRecords:
-    def __init__(self, record: ViewerSyncRecord | None) -> None:
-        self._record = record
+class _TestPlans:
+    def __init__(self, test_plan: TestPlan) -> None:
+        self._test_plan = test_plan
 
-    async def find_sync_record(self, *_):
-        return self._record
+    async def find_by_id(self, _):
+        return self._test_plan
+
+
+class _ViewerRecords:
+    def __init__(self, records: dict[ViewerEntityType, ViewerSyncRecord | None]) -> None:
+        self._records = records
+
+    async def find_sync_record(self, project_key, entity_type, *args):
+        return self._records.get(entity_type)
 
 
 class _Publications:
@@ -149,6 +158,7 @@ class TestViewerResultPublicationService:
         assert result.external_execution_id == "20001"
         projection = publisher.projections[0]
         assert projection.environment_name == "Integration"
+        assert projection.external_test_plan_id == "20001"
         assert projection.test_runs[0].status is ResultStatus.FAILED
         assert "secret-value" not in (projection.test_runs[0].comment or "")
         assert "[REDACTED]" in (projection.test_runs[0].comment or "")
@@ -168,12 +178,25 @@ class TestViewerResultPublicationService:
         assert projection.execution_status is ExecutionStatus.CANCELLED
         assert projection.test_runs[0].status is ResultStatus.SKIPPED
 
+    async def test_when_test_plan_identity_is_unsynchronized_expect_retry_wait(self) -> None:
+        service, publications, _, _ = self._service(
+            record=self._sync_record(), test_plan_synchronized=False
+        )
+
+        result = await service.process_next_publication()
+
+        assert result is not None
+        assert result.status is ViewerResultPublicationStatus.RETRY_WAIT
+        assert "Test Plan identity is not synchronized" in (result.error or "")
+        assert publications.saved == [result]
+
     @staticmethod
     def _service(
         record: ViewerSyncRecord | None,
         error_message: str | None = None,
         execution_status: ExecutionStatus = ExecutionStatus.FAILED,
         result_status: ResultStatus = ResultStatus.FAILED,
+        test_plan_synchronized: bool = True,
     ):
         test_case = a_test_case()
         execution = an_execution(
@@ -209,6 +232,17 @@ class TestViewerResultPublicationService:
         )
         publications = _Publications(publication)
         publisher = _Publisher()
+        test_plan = TestPlan(
+            identifier=execution.test_plan_id,
+            project_key=execution.project_key,
+            plan_key="checkout-plan",
+            version=1,
+            name="Checkout plan",
+            execution_mode=ExecutionMode.SEQUENTIAL,
+            timeout_seconds=60,
+            created_at=_CREATED_AT,
+            created_by="author@example.test",
+        )
         service = ViewerResultPublicationService(
             _Executions(execution),
             _Results(test_result),
@@ -223,7 +257,17 @@ class TestViewerResultPublicationService:
                 )
             ),
             _TestCases(test_case),
-            _ViewerRecords(record),
+            _TestPlans(test_plan),
+            _ViewerRecords(
+                {
+                    ViewerEntityType.TEST_CASE: record,
+                    ViewerEntityType.TEST_PLAN: (
+                        TestViewerResultPublicationService._sync_plan_record(test_plan)
+                        if test_plan_synchronized
+                        else None
+                    ),
+                }
+            ),
             publications,
             publisher,
             ViewerSettings(result_retry_backoff_seconds=1, result_retry_max_seconds=10),
@@ -242,6 +286,22 @@ class TestViewerResultPublicationService:
             viewer_type=ViewerType.XRAY,
             external_entity_key="IAG-1",
             external_entity_id="10001",
+            sync_status=SyncStatus.SYNCED,
+            created_at=_CREATED_AT,
+        )
+
+    @staticmethod
+    def _sync_plan_record(test_plan: TestPlan) -> ViewerSyncRecord:
+        return ViewerSyncRecord(
+            identifier=uuid4(),
+            project_key=test_plan.project_key,
+            entity_type=ViewerEntityType.TEST_PLAN,
+            entity_key=test_plan.logical_key,
+            entity_version=test_plan.version,
+            projected_version_id=uuid4(),
+            viewer_type=ViewerType.XRAY,
+            external_entity_key="IAG-2",
+            external_entity_id="20001",
             sync_status=SyncStatus.SYNCED,
             created_at=_CREATED_AT,
         )

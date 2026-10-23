@@ -38,6 +38,9 @@ from test_service.domain.ports.output.persistence.executions.execution_results_p
 from test_service.domain.ports.output.persistence.test_cases.test_case_persistence_port import (
     TestCasePersistencePort,
 )
+from test_service.domain.ports.output.persistence.test_plans.test_plan_persistence_port import (
+    TestPlanPersistencePort,
+)
 from test_service.domain.ports.output.persistence.viewer.viewer_persistence_port import (
     ViewerPersistencePort,
 )
@@ -64,6 +67,7 @@ class ViewerResultPublicationService:
         results: ExecutionResultsPersistencePort,
         environments: EnvironmentPersistencePort,
         test_cases: TestCasePersistencePort,
+        test_plans: TestPlanPersistencePort,
         viewer_records: ViewerPersistencePort,
         publications: ViewerResultPersistencePort,
         publisher: ViewerResultPublisherPort,
@@ -73,6 +77,7 @@ class ViewerResultPublicationService:
         self._results = results
         self._environments = environments
         self._test_cases = test_cases
+        self._test_plans = test_plans
         self._viewer_records = viewer_records
         self._publications = publications
         self._publisher = publisher
@@ -135,6 +140,7 @@ class ViewerResultPublicationService:
                 f"Environment '{execution.environment_id}' for execution "
                 f"'{execution.identifier}' no longer exists."
             )
+        external_test_plan_id = await self._test_plan_external_id(publication, execution)
         results = await self._all_results(execution.identifier)
         test_runs = []
         for result in results:
@@ -143,9 +149,41 @@ class ViewerResultPublicationService:
             publication=publication,
             summary=f"Test Service execution {execution.identifier}",
             environment_name=environment.name[:255],
+            external_test_plan_id=external_test_plan_id,
             execution_status=execution.status,
             test_runs=tuple(test_runs),
         )
+
+    async def _test_plan_external_id(
+        self, publication: ViewerResultPublication, execution: Execution
+    ) -> str:
+        """Resolve the external identity of the Test Plan that originated an execution."""
+        test_plan = await self._test_plans.find_by_id(execution.test_plan_id)
+        if test_plan is None:
+            raise PermanentViewerResultPublicationError(
+                f"Test Plan snapshot '{execution.test_plan_id}' for execution "
+                f"'{execution.identifier}' no longer exists."
+            )
+        record = await self._viewer_records.find_sync_record(
+            execution.project_key,
+            ViewerEntityType.TEST_PLAN,
+            test_plan.logical_key,
+            test_plan.version,
+            publication.viewer_type,
+        )
+        if (
+            record is None
+            or record.sync_status is not SyncStatus.SYNCED
+            or not record.external_entity_id
+        ):
+            raise RetryableViewerResultPublicationError(
+                f"Viewer Test Plan identity is not synchronized for execution "
+                f"'{execution.identifier}', snapshot '{test_plan.identifier}' "
+                f"('{test_plan.logical_key}' version {test_plan.version}), project "
+                f"'{execution.project_key}', viewer '{publication.viewer_type.value}', "
+                f"and publication '{publication.identifier}'."
+            )
+        return record.external_entity_id
 
     async def _all_results(self, execution_id) -> tuple:
         """Load every persisted result for an execution through paginated queries."""

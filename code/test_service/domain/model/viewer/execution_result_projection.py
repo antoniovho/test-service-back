@@ -31,6 +31,7 @@ class ViewerExecutionResultProjection:
     publication: ViewerResultPublication
     summary: str
     environment_name: str
+    external_test_plan_id: str
     execution_status: ExecutionStatus
     test_runs: tuple[ViewerTestRunProjection, ...]
 

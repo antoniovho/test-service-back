@@ -111,6 +111,9 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort, ViewerResu
         """Create or reuse one Xray Test Execution and update its Test Runs."""
         try:
             execution = await self._execution_identity(projection)
+            await self._associate_test_execution_with_plan(
+                execution.external_id, projection.external_test_plan_id
+            )
             test_run_ids = await self._test_run_ids(
                 execution.external_id,
                 tuple(test_run.external_test_id for test_run in projection.test_runs),
@@ -170,6 +173,15 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort, ViewerResu
         }
         payload = await self._graphql(self._CREATE_TEST_EXECUTION, variables)
         return self._identity(payload, "createTestExecution", "testExecution")
+
+    async def _associate_test_execution_with_plan(
+        self, test_execution_id: str, test_plan_id: str
+    ) -> None:
+        """Associate one Xray Test Execution with its originating Test Plan."""
+        await self._graphql(
+            self._ADD_TEST_EXECUTION_TO_TEST_PLAN,
+            {"issueId": test_plan_id, "testExecutionIssueIds": [test_execution_id]},
+        )
 
     async def _find_execution_by_correlation(
         self, project_key: str, correlation_key: str
@@ -782,6 +794,16 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort, ViewerResu
                     }
                 }
         """
+    _ADD_TEST_EXECUTION_TO_TEST_PLAN = """
+        mutation AddTestExecutionsToTestPlan($issueId: String!,
+            $testExecutionIssueIds: [String!]!) {
+          addTestExecutionsToTestPlan(
+              issueId: $issueId, testExecutionIssueIds: $testExecutionIssueIds) {
+            addedTestExecutions
+            warning
+          }
+        }
+    """
     _GET_TEST_EXECUTIONS = """
                 query GetTestExecutions($jql: String!, $limit: Int!) {
                     getTestExecutions(jql: $jql, limit: $limit) {

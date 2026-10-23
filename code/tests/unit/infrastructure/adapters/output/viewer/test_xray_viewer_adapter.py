@@ -173,6 +173,7 @@ class TestXrayViewerAdapter:
             publication=publication,
             summary="Test Service execution",
             environment_name="Integration",
+            external_test_plan_id="10003",
             execution_status=execution_status,
             test_runs=(
                 ViewerTestRunProjection(
@@ -220,6 +221,18 @@ class TestXrayViewerAdapter:
                         }
                     },
                 )
+            if "AddTestExecutionsToTestPlan" in query:
+                return httpx.Response(
+                    200,
+                    json={
+                        "data": {
+                            "addTestExecutionsToTestPlan": {
+                                "addedTestExecutions": ["20001"],
+                                "warning": None,
+                            }
+                        }
+                    },
+                )
             return httpx.Response(200, json={"data": {"updateTestRun": {"id": "30001"}}})
 
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
@@ -231,6 +244,9 @@ class TestXrayViewerAdapter:
             json.loads(request.content) for request in requests if request.url.path == "/graphql"
         ]
         create_payload = next(item for item in payloads if "CreateTestExecution" in item["query"])
+        association_payload = next(
+            item for item in payloads if "AddTestExecutionsToTestPlan" in item["query"]
+        )
         status_payload = next(item for item in payloads if "UpdateTestRunStatus" in item["query"])
         update_payload = next(
             item for item in payloads if "mutation UpdateTestRun(" in item["query"]
@@ -243,6 +259,10 @@ class TestXrayViewerAdapter:
         assert create_payload["variables"]["jira"]["fields"]["labels"] == [
             publication.correlation_key
         ]
+        assert association_payload["variables"] == {
+            "issueId": "10003",
+            "testExecutionIssueIds": ["20001"],
+        }
         assert status_payload["variables"] == {"id": "30001", "status": expected_xray_status}
         assert "Duration: 1000 ms" in update_payload["variables"]["testRun"]["comment"]
         assert update_payload["variables"]["testRun"]["startedOn"].endswith("+00:00")
