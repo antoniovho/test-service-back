@@ -1,6 +1,9 @@
+import json
 import logging
 from datetime import UTC, datetime
 from uuid import uuid4
+
+import pytest
 
 from test_service.config import ViewerSettings
 from test_service.domain.application.queries.pagination import Page
@@ -215,25 +218,49 @@ class TestViewerResultPublicationService:
         assert "[REDACTED]" in evidence[0].content
         assert str(test_result.identifier) in evidence[0].filename
 
-    async def test_when_result_has_action_outcomes_expect_step_projection_and_evidence_split(
-        self,
+    @pytest.mark.parametrize(
+        ("execution_status", "result_status"),
+        [
+            (ExecutionStatus.PASSED, ResultStatus.PASSED),
+            (ExecutionStatus.FAILED, ResultStatus.FAILED),
+            (ExecutionStatus.FAILED, ResultStatus.ERROR),
+        ],
+        ids=["passed", "failed", "error"],
+    )
+    async def test_when_result_has_action_actual_expect_step_and_global_evidence_separated(
+        self, execution_status: ExecutionStatus, result_status: ResultStatus
     ) -> None:
-        service, _, publisher, test_result = self._service(record=self._sync_record())
+        service, _, publisher, test_result = self._service(
+            record=self._sync_record(),
+            execution_status=execution_status,
+            result_status=result_status,
+        )
         action = ActionResult(
             identifier=uuid4(),
             test_result_id=test_result.identifier,
             action_id="request",
             action_type="HTTP",
-            status=ResultStatus.FAILED,
+            status=result_status,
             created_at=_CREATED_AT,
+            actual={"response": {"statusCode": 200}},
         )
-        precondition = ActionResult(
+        precondition_summary = ActionResult(
             identifier=uuid4(),
             test_result_id=test_result.identifier,
             action_id="precondition:ready",
             action_type="PRECONDITION",
             status=ResultStatus.PASSED,
             created_at=_CREATED_AT,
+            actual={"actionCount": 1},
+        )
+        precondition_action = ActionResult(
+            identifier=uuid4(),
+            test_result_id=test_result.identifier,
+            action_id="precondition:ready:check",
+            action_type="HTTP",
+            status=ResultStatus.PASSED,
+            created_at=_CREATED_AT,
+            actual={"authorization": "provider-secret", "ready": True},
         )
         step_artifact = TestResultArtifact(
             identifier=uuid4(),
@@ -247,24 +274,95 @@ class TestViewerResultPublicationService:
         precondition_artifact = TestResultArtifact(
             identifier=uuid4(),
             test_result_id=test_result.identifier,
-            action_result_id=precondition.identifier,
+            action_result_id=precondition_action.identifier,
             artifact_type=ArtifactType.LOG,
             storage_type=StorageType.DB,
             created_at=_FINISHED_AT,
             content="precondition trace",
         )
         service._results = _Results(
-            test_result, (action, precondition), (step_artifact, precondition_artifact)
+            test_result,
+            (action, precondition_summary, precondition_action),
+            (step_artifact, precondition_artifact),
         )
 
         await service.process_next_publication()
 
         test_run = publisher.projections[0].test_runs[0]
+        action_actual = json.dumps(
+            {
+                "action": {"id": "request", "status": result_status.value, "type": "HTTP"},
+                "actual": {"response": {"statusCode": 200}},
+            },
+            sort_keys=True,
+        )
+        precondition_actual = json.dumps(
+            {
+                "action": {
+                    "id": "precondition:ready:check",
+                    "status": "PASSED",
+                    "type": "HTTP",
+                },
+                "actual": {"authorization": "[REDACTED]", "ready": True},
+            },
+            sort_keys=True,
+        )
         assert [(step.action_id, step.status) for step in test_run.steps] == [
-            ("request", ResultStatus.FAILED)
+            ("request", result_status)
         ]
-        assert [evidence.content for evidence in test_run.steps[0].evidence] == ["action trace"]
-        assert [evidence.content for evidence in test_run.evidence] == ["precondition trace"]
+        assert [evidence.content for evidence in test_run.steps[0].evidence] == [
+            action_actual,
+            "action trace",
+        ]
+        assert [evidence.content for evidence in test_run.evidence] == [
+            precondition_actual,
+            "precondition trace",
+        ]
+        assert all("actionCount" not in evidence.content for evidence in test_run.evidence)
+        assert test_run.steps[0].evidence[0].filename.endswith("request-HTTP-actual.json")
+
+    async def test_when_blocked_result_has_precondition_actual_expect_test_run_evidence(
+        self,
+    ) -> None:
+        service, _, publisher, test_result = self._service(
+            record=self._sync_record(), result_status=ResultStatus.BLOCKED
+        )
+        precondition_summary = ActionResult(
+            identifier=uuid4(),
+            test_result_id=test_result.identifier,
+            action_id="precondition:ready",
+            action_type="PRECONDITION",
+            status=ResultStatus.ERROR,
+            created_at=_CREATED_AT,
+            actual={"actionCount": 1},
+        )
+        precondition_action = ActionResult(
+            identifier=uuid4(),
+            test_result_id=test_result.identifier,
+            action_id="precondition:ready:check",
+            action_type="HTTP",
+            status=ResultStatus.ERROR,
+            created_at=_CREATED_AT,
+            actual={"ready": False, "statusCode": 503},
+        )
+        service._results = _Results(test_result, (precondition_summary, precondition_action))
+
+        await service.process_next_publication()
+
+        test_run = publisher.projections[0].test_runs[0]
+        precondition_actual = json.dumps(
+            {
+                "action": {
+                    "id": "precondition:ready:check",
+                    "status": "ERROR",
+                    "type": "HTTP",
+                },
+                "actual": {"ready": False, "statusCode": 503},
+            },
+            sort_keys=True,
+        )
+        assert test_run.status is ResultStatus.BLOCKED
+        assert [evidence.content for evidence in test_run.evidence] == [precondition_actual]
 
     async def test_when_result_publication_is_permanently_rejected_expect_safe_error_log(
         self, caplog

@@ -400,7 +400,7 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
                         "PRECONDITION_MISSING",
                         f"Execution '{execution.identifier}' cannot run Test Case "
                         f"'{test_case.identifier}' because precondition "
-                        f"'{reference.identifier}' is unavailable.",
+                        f"'{reference.precondition_key}' ('{reference.identifier}') is unavailable.",
                     ),
                 )
 
@@ -423,7 +423,8 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
                         "RUNNER_UNSUPPORTED_PRECONDITION",
                         f"Execution '{execution.identifier}' cannot run Test Case "
                         f"'{test_case.identifier}' because runner '{self._runner.identifier}' "
-                        f"does not support precondition '{reference.identifier}'.",
+                        f"does not support precondition '{reference.precondition_key}' "
+                        f"('{reference.identifier}').",
                     ),
                 )
             # Run the compiled precondition and handle its outcome.
@@ -457,7 +458,7 @@ class ProcessNextExecutionUseCaseImpl(ProcessNextExecutionUseCase):
                         "PRECONDITION_FAILED",
                         f"Execution '{execution.identifier}' cannot run Test Case "
                         f"'{test_case.identifier}' because precondition "
-                        f"'{reference.identifier}' did not pass.",
+                        f"'{reference.precondition_key}' ('{reference.identifier}') did not pass.",
                     ),
                 )
 

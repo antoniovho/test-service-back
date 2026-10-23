@@ -633,7 +633,7 @@ class TestProcessNextExecutionUseCase:
             "PRECONDITION_MISSING",
             f"Execution '{execution.identifier}' cannot run Test Case "
             f"'{test_case.identifier}' because precondition "
-            f"'{missing_precondition_id}' is unavailable.",
+            f"'profile' ('{missing_precondition_id}') is unavailable.",
         )
 
     async def test_when_runner_does_not_support_precondition_expect_blocked_result(
@@ -680,7 +680,7 @@ class TestProcessNextExecutionUseCase:
         assert result.error_message == (
             f"Execution '{execution.identifier}' cannot run Test Case "
             f"'{test_case.identifier}' because runner 'runner' does not support precondition "
-            f"'{precondition_id}'."
+            f"'authenticated' ('{precondition_id}')."
         )
         assert actions == ()
         assert artifacts == ()
@@ -1449,7 +1449,8 @@ class TestProcessNextExecutionUseCase:
             ResultStatus.BLOCKED,
             "PRECONDITION_FAILED",
             f"Execution '{execution.identifier}' cannot run Test Case "
-            f"'{test_case.identifier}' because precondition '{precondition_id}' did not pass.",
+            f"'{test_case.identifier}' because precondition 'proxy-ready' "
+            f"('{precondition_id}') did not pass.",
         )
 
     async def test_when_precondition_runner_errors_expect_precondition_log(self, caplog):

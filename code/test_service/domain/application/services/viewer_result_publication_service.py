@@ -1,7 +1,9 @@
 """Asynchronously project completed local executions to an external viewer."""
 
+import json
 import logging
 import re
+from collections.abc import Mapping
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
@@ -61,6 +63,7 @@ _SENSITIVE_VALUE = re.compile(
     r"(?i)(authorization|bearer|token|secret|api[_-]?key|password)"
     r"(\s*[:=]\s*)(?:bearer\s+)?[^\s,;\"'}]+"
 )
+_SENSITIVE_FIELD = re.compile(r"(?i)(authorization|bearer|token|secret|api[_-]?key|password)")
 _MAX_COMMENT_LENGTH = 1_000
 _MAX_EVIDENCE_CONTENT_LENGTH = 20_000
 _MAX_EVIDENCE_PER_TEST_RUN = 10
@@ -316,8 +319,11 @@ class ViewerResultPublicationService:
                     if definition_action.identifier in action_by_id
                     else ResultStatus.SKIPPED
                 ),
-                evidence=self._evidence(
+                evidence=self._action_evidence(
                     test_result_id,
+                    (action_by_id[definition_action.identifier],)
+                    if definition_action.identifier in action_by_id
+                    else (),
                     artifacts_by_action_id.get(
                         action_by_id[definition_action.identifier].identifier, []
                     )
@@ -330,10 +336,11 @@ class ViewerResultPublicationService:
         )
 
     def _test_run_evidence(self, test_result_id, actions: tuple, artifacts: tuple):
-        """Keep global and precondition evidence at the Test Run level."""
+        """Keep global and precondition evidence at the Test Run."""
         actions_by_identifier = {action.identifier: action for action in actions}
-        return self._evidence(
+        return self._action_evidence(
             test_result_id,
+            tuple(action for action in actions if self._is_precondition_action(action)),
             (
                 artifact
                 for artifact in artifacts
@@ -345,6 +352,67 @@ class ViewerResultPublicationService:
             ),
             _MAX_EVIDENCE_PER_TEST_RUN,
         )
+
+    def _action_evidence(self, test_result_id, actions, artifacts, maximum: int):
+        """Combine safe action actual values with persisted diagnostic artifacts."""
+        evidence = list(self._actual_evidence(test_result_id, actions))
+        if len(evidence) >= maximum:
+            return tuple(evidence[:maximum])
+        evidence.extend(self._evidence(test_result_id, artifacts, maximum - len(evidence)))
+        return tuple(evidence)
+
+    def _actual_evidence(self, test_result_id, actions) -> tuple[ViewerEvidenceProjection, ...]:
+        """Project each action's safe actual value as a structured evidence attachment."""
+        evidence = []
+        for action in actions:
+            if action.actual is None or action.action_type == "PRECONDITION":
+                continue
+            content = json.dumps(
+                {
+                    "action": {
+                        "id": action.action_id,
+                        "type": action.action_type,
+                        "status": action.status.value,
+                    },
+                    "actual": self._redact_actual(action.actual),
+                },
+                ensure_ascii=True,
+                sort_keys=True,
+                default=str,
+            )
+            evidence.append(
+                ViewerEvidenceProjection(
+                    filename=(
+                        f"test-result-{test_result_id}-"
+                        f"{self._evidence_filename_component(action.action_id, 'action')}-"
+                        f"{self._evidence_filename_component(action.action_type, 'action')}-"
+                        "actual.json"
+                    ),
+                    mime_type="application/json",
+                    content=self._safe_text(content, _MAX_EVIDENCE_CONTENT_LENGTH),
+                )
+            )
+        return tuple(evidence)
+
+    @staticmethod
+    def _evidence_filename_component(value: str, fallback: str) -> str:
+        """Return a filename-safe, recognizable fragment for action metadata."""
+        normalized = re.sub(r"[^A-Za-z0-9._-]+", "-", value).strip(".-_")
+        return normalized[:80] or fallback
+
+    @classmethod
+    def _redact_actual(cls, value):
+        """Redact sensitive values in structured action output before serialization."""
+        if isinstance(value, Mapping):
+            return {
+                str(key): "[REDACTED]"
+                if _SENSITIVE_FIELD.search(str(key))
+                else cls._redact_actual(item)
+                for key, item in value.items()
+            }
+        if isinstance(value, list | tuple):
+            return [cls._redact_actual(item) for item in value]
+        return value
 
     @staticmethod
     def _is_precondition_action(action) -> bool:
