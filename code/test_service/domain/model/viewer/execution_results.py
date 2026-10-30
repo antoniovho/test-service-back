@@ -36,8 +36,3 @@ class ViewerResultPublication:
     external_execution_id: str | None = None
     external_execution_key: str | None = None
     error: str | None = None
-
-    @property
-    def correlation_key(self) -> str:
-        """Return the stable external correlation key for this execution."""
-        return f"test-service-execution-{self.execution_id}"

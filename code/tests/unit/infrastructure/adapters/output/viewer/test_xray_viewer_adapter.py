@@ -298,9 +298,10 @@ class TestXrayViewerAdapter:
         assert create_payload["variables"]["testEnvironments"] == [
             "AI-LLM-Back-DEV-LiteLLM-v1.106.1"
         ]
-        assert create_payload["variables"]["jira"]["fields"]["labels"] == [
-            publication.correlation_key
-        ]
+        assert create_payload["variables"]["jira"]["fields"]["summary"] == (
+            "Test Service execution"
+        )
+        assert "labels" not in create_payload["variables"]["jira"]["fields"]
         assert create_payload["variables"]["jira"]["fields"]["description"] == (
             "Automated Test Service execution.\n"
             f"Execution ID: {publication.execution_id}\n"
@@ -469,6 +470,11 @@ class TestXrayViewerAdapter:
         assert association_payload["variables"] == {
             "issueId": "10003",
             "testExecIssueIds": ["20001"],
+        }
+        lookup_payload = next(item for item in payloads if "GetTestExecutions" in item["query"])
+        assert lookup_payload["variables"] == {
+            "jql": f'project = "SHOP" AND description ~ "{projection.publication.execution_id}"',
+            "limit": 1,
         }
         assert not any("CreateTestExecution" in item["query"] for item in payloads)
 
