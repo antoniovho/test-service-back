@@ -200,7 +200,7 @@ class ViewerResultPublicationService:
             test_runs.append(await self._test_run_projection(publication, execution, result))
         return ViewerExecutionResultProjection(
             publication=publication,
-            summary=f"Test Service execution {execution.identifier}",
+            summary="Test Service execution",
             environment_name=environment.name[:255],
             external_test_plan_id=external_test_plan_id,
             execution_status=execution.status,

@@ -194,6 +194,7 @@ class TestViewerResultPublicationService:
         assert result.status is ViewerResultPublicationStatus.SUCCEEDED
         assert result.external_execution_id == "20001"
         projection = publisher.projections[0]
+        assert projection.summary == "Test Service execution"
         assert projection.environment_name == "Integration"
         assert projection.external_test_plan_id == "20001"
         assert projection.test_runs[0].status is ResultStatus.FAILED

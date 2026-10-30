@@ -178,8 +178,8 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort, ViewerResu
                 publication.external_execution_id,
                 publication.external_execution_key,
             )
-        existing = await self._find_execution_by_correlation(
-            publication.project_key, publication.correlation_key
+        existing = await self._find_execution_by_execution_id(
+            publication.project_key, str(publication.execution_id)
         )
         if existing is not None:
             return existing
@@ -190,7 +190,7 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort, ViewerResu
                 publication.project_key,
                 projection.summary,
                 self._execution_description(projection),
-                (publication.correlation_key,),
+                (),
             ),
         }
         payload = await self._graphql(self._CREATE_TEST_EXECUTION, variables)
@@ -224,12 +224,16 @@ class XrayViewerAdapter(ViewerPublisherPort, ViewerDriftDetectorPort, ViewerResu
             {"issueId": test_plan_id, "testExecIssueIds": [test_execution_id]},
         )
 
-    async def _find_execution_by_correlation(
-        self, project_key: str, correlation_key: str
+    async def _find_execution_by_execution_id(
+        self, project_key: str, execution_id: str
     ) -> ViewerExternalIdentity | None:
+        """Find a prior publication through its durable description identifier."""
         payload = await self._graphql(
             self._GET_TEST_EXECUTIONS,
-            {"jql": f'project = "{project_key}" AND labels = "{correlation_key}"', "limit": 1},
+            {
+                "jql": f'project = "{project_key}" AND description ~ "{execution_id}"',
+                "limit": 1,
+            },
         )
         response = payload.get("getTestExecutions")
         if not isinstance(response, Mapping):
