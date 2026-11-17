@@ -1405,7 +1405,7 @@ wheels = [
 
 [[package]]
 name = "pysonar"
-version = "1.10.0.5888"
+version = "1.11.0.6012"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "certifi" },
@@ -1414,9 +1414,9 @@ dependencies = [
     { name = "tomli" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/03/d3/32a7bcda552ee2f432052fc5e3af3c54b4b536627df00af216845c74d91f/pysonar-1.10.0.5888.tar.gz", hash = "sha256:91a0d1106a8cd5b5452a98f777d0e72b3c021736a19fa685c15109f536dfc000", size = 34094, upload-time = "2026-10-23T13:23:45.912Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/55/da/8acbea2b3f107583766774fbbef19db98a446f217edbb680087b6fffdd18/pysonar-1.11.0.6012.tar.gz", hash = "sha256:2633237fe1beb66b5754f26721e8166cc37783ebfe592f38ff92cd577c0a929e", size = 34340, upload-time = "2026-11-09T10:09:31.875Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e0/4e/dfe8c4698b492160c7a0a9f63c20020572df7c73a9671524b8b2b6d5c95f/pysonar-1.10.0.5888-py3-none-any.whl", hash = "sha256:6c400ee4c65964a0d63171476a324b95fa16ebfec1d26f71e9e6a08f56765608", size = 51083, upload-time = "2026-10-23T13:23:44.856Z" },
+    { url = "https://files.pythonhosted.org/packages/45/b1/ce8dc15d9905003a194311e0e95930a72951822b1d8c6baf5075b5a808c7/pysonar-1.11.0.6012-py3-none-any.whl", hash = "sha256:a19cd92fef850218efd921d17aae68223ce5fcb1fe5b8fc61658c3ffd567fc92", size = 51311, upload-time = "2026-11-09T10:09:30.939Z" },
 ]
 
 [[package]]
@@ -2169,7 +2169,7 @@ requires-dist = [
     { name = "opyoid", specifier = ">=4.0.0" },
     { name = "pydantic-settings", specifier = ">=2.7,<3.0" },
     { name = "pyjwt", extras = ["crypto"], specifier = ">=2.15.0" },
-    { name = "pysonar", marker = "extra == 'dev'", specifier = "==1.10.0.5888" },
+    { name = "pysonar", marker = "extra == 'dev'", specifier = "==1.11.0.6012" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3,<10.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.25,<2.0" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=7.1.0" },
