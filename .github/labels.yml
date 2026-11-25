@@ -73,3 +73,6 @@
 - name: kind/deployment
   color: "5319E7"
   description: "Deployment or release change"
+- name: area/sql
+  color: "C5DEF5"
+  description: "Database migrations"

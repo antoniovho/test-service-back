@@ -1,6 +1,6 @@
 area/backend:
   - changed-files:
-      - any-glob-to-any-file: "src/**"
+      - any-glob-to-any-file: "code/test_service/**"
 
 area/testing:
   - changed-files:
